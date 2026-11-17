@@ -195,7 +195,7 @@ export function build(H) {
   spell('f1s_shield', '圣盾术', 2, 'ally', '一个友方单位获得圣盾：挡下受到的第一次伤害。', (s, ev, side, t, id) => { fx(ev, 'bless', id, castle(side), [t]); shieldUp(s, ev, t); }, (s, side, t) => !s.board[t].shield);
   spell('f1s_smite', '惩戒', 3, 'foe', '对一个敌方单位或建筑造成 4 点伤害。', (s, ev, side, t, id) => zap(s, ev, id, castle(side), [t], 4, 'bolt'));
   spell('f1s_heal', '治疗之光', 2, 'none', '你的城堡 +4 血，不超过开局的血量。', (s, ev, side, t, id) => { fx(ev, 'heal', id, castle(side), [castle(side)]); mend(s, ev, side, 4); }, (s, side) => s.base[side] < s.cap[side]);
-  spell('f1s_rally', '集结号', 5, 'none', '在你家门口的每个空格放一只 2 战力的银卫。', (s, ev, side, t, id) => { const ts = [...Array(COLS)].map((_, c) => tile(side ? ROWS - 1 : 0, c)).filter(x => !s.board[x]); fx(ev, 'summon', id, castle(side), ts); ts.forEach(x => summon(s, ev, side, 'tk_knight', x, 2)); }, (s, side) => [...Array(COLS)].some((_, c) => !s.board[tile(side ? ROWS - 1 : 0, c)]));
+  spell('f1s_rally', '集结号', 6, 'none', '在你家门口的每个空格放一只 2 战力的银卫。', (s, ev, side, t, id) => { const ts = [...Array(COLS)].map((_, c) => tile(side ? ROWS - 1 : 0, c)).filter(x => !s.board[x]); fx(ev, 'summon', id, castle(side), ts); ts.forEach(x => summon(s, ev, side, 'tk_knight', x, 2)); }, (s, side) => [...Array(COLS)].some((_, c) => !s.board[tile(side ? ROWS - 1 : 0, c)]));
   spell('f1s_judge', '天罚', 6, 'foe', '目标所在那一路的所有敌人各受 4 点伤害。', (s, ev, side, t, id) => zap(s, ev, id, castle(side), lane(s, side, colOf(t)), 4, 'beam'));
   spell('f1s_bless', '列阵祝福', 3, 'ally', '一个友方单位 +2 战力，它相邻的友军各 +1。', (s, ev, side, t, id) => { bless(s, ev, id, castle(side), [t], 2); bless(s, ev, id, t, pals(s, side, adj4(t)), 1); });
 
@@ -214,7 +214,7 @@ export function build(H) {
   unit('f4_phantasm', '幻魇', 'f4_phantasm', 3, 2, [D(E.spawn('wraith', 1, 'here'))]);
   unit('f4_skullcaster', '颅骨术士', 'f4_skullcaster', 3, 0, [P(E.shot(4)), P(E.selfBase(1))]);
   unit('f4_remora', '影鮣', 'f4_remora', 3, 1, [A(K.leech(1))]);
-  unit('priestess', '血月祭司', 'f4_bloodmoon', 4, 0, [MOURN('在那一格放一只 1 战力的影灵', 2.5, (s, ev, w, x, t) => { if (!s.board[t]) { fx(ev, 'summon', w.card, x, [t]); summon(s, ev, w.side, 'wraith', t, 1); } })]);
+  unit('priestess', '血月祭司', 'f4_bloodmoon', 4, 0, [MOURN('在那一格放一只 1 战力的影灵（影灵自己倒下不算）', 2, (s, ev, w, x, t, u) => { if (!s.board[t] && u.card !== 'wraith') { fx(ev, 'summon', w.card, x, [t]); summon(s, ev, w.side, 'wraith', t, 1); } })]); // 影灵倒下不再补影灵：不然祭司身边的格子永远打不空
   unit('dancer', '影舞者', 'f4_shadowdancer', 4, 1, [D(E.burn(2))]);
   unit('f4_abyssiansentinel', '深渊哨兵', 'f4_abyssiansentinel', 4, 0, [TAUNT, D(E.spawn('wraith', 2, 'here'))]);
   unit('f4_darkspine', '暗棘元素', 'f4_darkspine', 4, 1, [P(E.taintAdj())]);
@@ -508,7 +508,7 @@ export function build(H) {
   unit('n_golemsmith', '魔像匠师', 'neutral_geargrinder', 3, 0, [P(E.kin('魔像', 2))]);
   unit('n_diamond', '钻石魔像', 'neutral_diamondgolem', 6, 0, [TAUNT]);
   unit('n_bannerman', '掌旗官', 'neutral_mercsworndefender', 3, 1, [P(E.kin('骑士', 1))]);
-  unit('n_knightlord', '骑士团长', 'neutral_goldenjusticar', 5, 1, [P(E.pack('骑士', 2))]);
+  unit('n_knightlord', '骑士团长', 'neutral_goldenjusticar', 5, 1, [P(E.pack('骑士', 1))]);
   // 装备：贴在一个友方单位身上，直到它倒下
   gear('g_sword', '阔剑', 2, 2, [A(K.cleave(1))]);
   gear('g_spear', '长枪', 2, 1, [A(K.pierce(2))]);
@@ -534,7 +534,7 @@ export function build(H) {
   bossUnit('B_n1', '影刃宗师', '李俊昊', 'boss_shinkagezendo', 6, 1, 7, [T(E.scorch(1))]);
   bossUnit('B_n2', '六臂默者', '王嘉伟', 'boss_dissonance', 7, 0, 12, [TAUNT, P(E.silenceEvery())]);
   bossUnit('B_n3', '霜暴巨兽', '戈尔', 'boss_borealjuggernaut', 8, 1, 14, [SIEGE(4)]);
-  bossUnit('B_n4', '赤翼龙使', '烬翎', 'boss_skurge', 7, 2, 7, [P(E.spawn('tk_whelp', 4, 'sides')), P(E.kin('龙', 2))]);
+  bossUnit('B_n4', '赤翼龙使', '潘腾之进击的巨屌', 'boss_skurge', 7, 2, 7, [P(E.spawn('tk_whelp', 4, 'sides')), P(E.kin('龙', 2))]);
   bossUnit('B_final', '糖果暴君', '团团', 'boss_candypanda', 8, 1, 12, [P(E.enthrall(2)), T(E.spawn('tk_panda', 3, 'behind'))]);
 
   // 种族：只是一个标签，本身没有效果；有的牌会给同族加成

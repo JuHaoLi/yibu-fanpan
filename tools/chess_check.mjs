@@ -43,6 +43,7 @@ const at = (r, t) => r.state.board[t];
   put(s, tile(1, 0), 0); r = play(s, 'f4_swarm', tile(1, 1)); assert.equal(at(r, tile(0, 1))?.card, 'wraith', '影灵群在身后再放一只');
   s = blank(); s.creep[tile(2, 2)] = 0; put(s, tile(2, 2), 1, V, 3, { frozen: true }); r = endAs(s, 0); assert.equal(at(r, tile(2, 2)).str, 2, '站在对方暗影上的单位每回合掉 1 点');
   s = blank(); put(s, tile(1, 1), 0, 'priestess', 4, { frozen: true }); put(s, tile(1, 2), 0, V, 1); put(s, tile(2, 2), 1, V, 9); r = endAs(s, 0); assert.equal(at(r, tile(1, 2))?.card, 'wraith', '祭司旁边有人倒下就补一只影灵');
+  s = blank(); put(s, tile(1, 1), 0, 'priestess', 4, { frozen: true }); put(s, tile(1, 2), 0, 'wraith', 1); put(s, tile(2, 2), 1, V, 9); r = endAs(s, 0); assert.ok(!at(r, tile(1, 2)) || at(r, tile(1, 2)).side === 1, '祭司：影灵自己倒下不再补影灵，那一格能被打空'); assert.equal(CARDS.f1s_rally.cost, 6, '集结号 6 费');
   s = blank(); put(s, tile(0, 0), 0, V, 3); const b0 = CARDS.f4_bloodbaronette.str; r = play(s, 'f4_bloodbaronette', tile(0, 1)); assert.equal(at(r, tile(0, 0)), null); assert.equal(at(r, tile(0, 1)).str, b0 + 6, '献祭：吃掉 3 战力的友军，自己 +6');
   s = blank(); put(s, tile(ROWS - 1, 0), 0, 'dancer', 3); r = endAs(s, 0); assert.equal(r.state.base[1], BASE_HP - 5, '影舞者进城 3 点，倒下再 2 点'); }
 { let s = blank(), r; // 巨兽：成长、孵化、荆棘、狂暴
@@ -96,7 +97,7 @@ const at = (r, t) => r.state.board[t];
 
 { let s = blank(), r; // 种族联动
   put(s, tile(0, 0), 0, 'drake', 5); put(s, tile(0, 3), 0, 'trinity', 3); put(s, tile(1, 1), 0, V, 3); r = play(s, 'n_dragonspeaker', tile(0, 1)); assert.equal(at(r, tile(0, 0)).str, 7, '龙语者：其他龙各 +2'); assert.equal(at(r, tile(0, 3)).str, 5); assert.equal(at(r, tile(1, 1)).str, 3, '不是龙的不加');
-  s = blank(); put(s, tile(0, 0), 0, 'squire', 2); put(s, tile(0, 3), 0, 'brome', 2); const k0 = CARDS.n_knightlord.str; r = play(s, 'n_knightlord', tile(0, 1)); assert.equal(r.events.find(e => e.t === 'buff').n, 4, '骑士团长：每有一个其他骑士 +2');
+  s = blank(); put(s, tile(0, 0), 0, 'squire', 2); put(s, tile(0, 3), 0, 'brome', 2); const k0 = CARDS.n_knightlord.str; r = play(s, 'n_knightlord', tile(0, 1)); assert.equal(r.events.find(e => e.t === 'buff').n, 2, '骑士团长：每有一个其他骑士 +1');
   assert.equal(CARDS.drake.tribe, '龙'); assert.equal(CARDS.neutral_golemstone.tribe, '魔像'); }
 
 { let s = blank(), r; // 按规则书补的：冻住时能力失效、活力、回合开始的阶段顺序

@@ -46,7 +46,7 @@ export const AREAS = [
     { name: '影刃宗师 李俊昊', intro: '他在场时，你所有的兵每回合挨一刀，掉 1 点。', foe: ['neutral_dex', 'neutral_jaxi', 'n_arrow', 'neutral_sai', 'n_widow', 'neutral_silverbeak', 'maul', 'n_grenadier', 'neutral_bloodletter', 'gem', 'n_herbalist', 'B_n1'], base: [10, 12], boss: 'B_n1', music: 'boss_n1' },
     { name: '六臂默者 王嘉伟', intro: '它一出场，你所有兵的能力都失效。对面是一队魔像。', foe: ['neutral_golemstone', 'n_golemice', 'n_golemsmith', 'warden', 'n_golemrune', 'neutral_giantcrab', 'n_ironclad', 'neutral_golemsteel', 'n_diamond', 'g_shield', 'potion', 'B_n2'], base: [10, 12], boss: 'B_n2', music: 'boss_n2' },
     { name: '霜暴巨兽 戈尔', intro: '14 战力，打城堡还多 4 点。别让它走到头。', foe: ['neutral_dex', 'general', 'grapple', 'neutral_rook', 'n_breach', 'n_grenadier', 'neutral_thunderhorn', 'n_kron', 'neutral_astralcrusader', 'sword', 'n_bonereaper', 'B_n3'], base: [10, 12], boss: 'B_n3', music: 'boss_n3' },
-    { name: '赤翼龙使 烬翎', intro: '一出场带两条雏龙，所有的龙都变强。', foe: ['n_dragonling', 'neutral_dex', 'martyr', 'n_dragonspeaker', 'trinity', 'n_roost', 'neutral_windstopper', 'neutral_bloodletter', 'n_soulstealer', 'n_vigor', 'g_spear', 'B_n4'], base: [10, 12], boss: 'B_n4', music: 'boss_n4' },
+    { name: '赤翼龙使 潘腾之进击的巨屌', intro: '一出场带两条雏龙，所有的龙都变强。', foe: ['n_dragonling', 'neutral_dex', 'martyr', 'n_dragonspeaker', 'trinity', 'n_roost', 'neutral_windstopper', 'neutral_bloodletter', 'n_soulstealer', 'n_vigor', 'g_spear', 'B_n4'], base: [10, 12], boss: 'B_n4', music: 'boss_n4' },
     { name: '糖果暴君 团团', intro: '别看它小：它会把你最弱的两个兵收买过去，每回合身后再多一只小熊猫。', foe: ['neutral_jaxi', 'n_abjudicator', 'n_artificer', 'n_rejuvenator', 'n_harmony', 'n_vampire', 'n_spelleater', 'n_chaosknight', 'n_shadowlord', 'tyrant', 'n_turn', 'B_final'], base: [10, 15], boss: 'B_final', music: 'boss_final' },
   ] },
 ];
