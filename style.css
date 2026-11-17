@@ -174,6 +174,15 @@ body.chess header { position:absolute; z-index:6; top:var(--s3); left:max(var(--
 #foe { font-weight:700; }
 #log { margin-top:var(--s2); color:var(--dim); font:var(--f12); } #log > * { margin-top:var(--s1); display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; } #log > :last-child { color:var(--paper); }
 #hint { position:absolute; z-index:2; top:var(--s3); left:0; right:0; width:fit-content; max-width:min(560px, 100% - 720px); margin:0 auto; text-align:center; text-shadow:var(--edge); pointer-events:none; }
+/* 新手教学：提示行变成一块告示牌（这一屏唯一的线框），写着第几步和这一步的话；纯讲解的步骤里面带一个按钮。该点的那张牌头上一个金色的像素箭头 */
+.lesson #hint { padding:var(--s2) var(--s3); background:var(--night-0); box-shadow:inset 0 0 0 2px var(--night-4), 0 4px 0 var(--ink); text-align:left; text-shadow:none; pointer-events:auto; }
+.lesson #hint:empty { display:none; }
+.lesson #hint small { display:block; color:var(--dim); font:var(--f12); letter-spacing:.1em; }
+.lesson #hint button { display:block; margin:var(--s2) 0 0 auto; }
+.lesson #auto { visibility:hidden; }
+.kcard.here::before { content:''; position:absolute; z-index:4; left:50%; top:-36px; width:24px; height:18px; margin-left:-12px; pointer-events:none;
+  background:linear-gradient(var(--go) 0 0) 0 0 / 24px 6px no-repeat, linear-gradient(var(--go) 0 0) 6px 6px / 12px 6px no-repeat, linear-gradient(var(--go) 0 0) 9px 12px / 6px 6px no-repeat;
+  filter:drop-shadow(2px 0 var(--ink)) drop-shadow(-2px 0 var(--ink)) drop-shadow(0 2px var(--ink)) drop-shadow(0 -2px var(--ink)); }
 #tip { position:absolute; z-index:4; display:none; max-width:240px; padding:var(--s2); pointer-events:none; background:var(--ink); border:2px solid var(--night-3); color:var(--dim); font:var(--f12); }   /* 告示牌 */
 #tip b { color:var(--paper); } #tip s { color:var(--night-4); }
 #bar { position:absolute; left:0; right:0; bottom:0; height:var(--tray); padding-bottom:calc(var(--s4) + var(--sb)); display:flex; justify-content:center; align-items:flex-end; background:var(--night-1); box-shadow:inset 0 2px 0 var(--night-3); }
@@ -313,7 +322,7 @@ button.card.pick { height:auto; margin:0; box-shadow:none; text-align:left; lett
   /* 对局顶上一排：系统按钮（托管由脚本挪过来）、提示、对手和最近一条战报（点一下展开四条） */
   body.chess header { top:var(--s1); left:max(var(--s2), var(--sl)); height:44px; gap:var(--s3); }
   #rules ul { position:fixed; top:48px; left:max(var(--s2), var(--sl)); width:min(480px, 100vw - 16px - var(--sl) - var(--sr)); max-height:calc(100vh - 56px - var(--sb)); }
-  #hint { top:var(--s2); max-width:calc(100% - 2 * (224px + max(var(--sl), var(--sr)))); line-height:20px; }
+  #hint { top:var(--s2); max-width:calc(100% - 2 * (224px + max(var(--sl), var(--sr)))); line-height:20px; } .lesson #hint { padding:var(--s1) var(--s2); display:grid; grid-template-columns:1fr auto; column-gap:var(--s2); align-items:end; } .lesson #hint small { grid-column:1 / -1; } .lesson #hint button { margin:0 0 4px; }   /* 小屏上告示牌不能高过城堡的血量：按钮排在话的右边，不另起一行 */
   #side { top:var(--s1); right:max(var(--s2), var(--sr)); width:200px; padding:var(--s1) var(--s2); pointer-events:auto; }
   #foe .who { display:none; } #log { margin-top:0; } #side:not(.open) #log > :not(:last-child) { display:none; }
   #deckn { display:none; }

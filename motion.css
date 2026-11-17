@@ -52,7 +52,9 @@
 
 /* 没有牌可出了：结束回合按钮的描边一收一放，催你 */
 @keyframes m-nudge { to { outline-offset:6px; } }
-#end.is-done { outline:2px solid var(--go, #f8e040); outline-offset:2px; animation:m-nudge var(--t-4) steps(2, jump-none) infinite alternate; }
+#end.is-done, #swap.is-want { outline:2px solid var(--go, #f8e040); outline-offset:2px; animation:m-nudge var(--t-4) steps(2, jump-none) infinite alternate; }   /* 教学里该按“换牌”时，它和结束回合一样催你 */
+@keyframes m-point { to { translate:0 6px; } }
+.kcard.here::before { animation:m-point var(--t-4) steps(2, jump-none) infinite alternate; }   /* 教学：该点的牌头上的箭头一上一下走格 */
 
 /* ---------- 回合旗带：挂在轮到的那一方的城堡上（血量牌下面，位置由脚本按城堡在画面里的位置定），从那一侧展开，不挡战场中心 ---------- */
 #flag { position:absolute; top:72px; z-index:3; height:48px; display:flex; align-items:center; gap:16px; padding:0 24px; pointer-events:none; opacity:0; white-space:nowrap;
@@ -117,7 +119,7 @@
 
 /* ---------- 减少动态效果（board3d.js 按系统设置给 <html> 加 .calm）：位移改短淡入淡出，抖动、呼吸、闪烁去掉；阅读停留由脚本保留 ---------- */
 .calm #hand .kcard { transition:filter 120ms, opacity 120ms; }
-.calm #hand .kcard.deny, .calm #mana .gems i, .calm #mana .num.tick, .calm #end.is-done, .calm #edge.on, .calm #reveal.on { animation:none; }
+.calm #hand .kcard.deny, .calm #mana .gems i, .calm #mana .num.tick, .calm #end.is-done, .calm #swap.is-want, .calm .kcard.here::before, .calm #edge.on, .calm #reveal.on { animation:none; }
 .calm #mana .gems i.cost { opacity:.5; }
 .calm #flag, .calm #flag.on { transform:none; transition:opacity 120ms; }
 .calm #gate i { transform:none; opacity:0; transition:opacity 120ms; } .calm #gate.shut i { opacity:1; transition:opacity 120ms; }

@@ -2,7 +2,8 @@
 // 先逐条验规则和各阵营的独有机制，再让电脑用随机卡组打几千局，确认每张牌都被打出过、全程不出错。
 // 平衡统计和数值微调在 tools/chess_tune.mjs。
 import assert from 'node:assert/strict';
-import { CARDS, FACTIONS, STARTERS, FKEYS, newGame, apply, aiTurn, legalPlays, forecast, frontDepth, deckError, tile, COLS, ROWS, HAND, DECK, BASE_HP } from '../chess.js';
+import { CARDS, FACTIONS, STARTERS, FKEYS, newGame, apply, aiTurn, legalPlays, forecast, frontDepth, deckError, targets, tile, COLS, ROWS, HAND, DECK, BASE_HP } from '../chess.js';
+import { LESSON, keepOrder, stepOk, foeTurn } from '../tutorial.js';
 
 let seed = 9; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
 const sh = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -147,6 +148,24 @@ for (let g = 0; g < 4000; g++) {
   games++; turns += s.n; if (s.winner === null) draws++; else if (s.winner === 0) first++;
 }
 const never = ids.filter(k => !played.has(k)), tokens = Object.keys(CARDS).filter(k => CARDS[k].token && !spawned.has(k));
+// 新手教学的脚本：每一步都合法，对面照脚本走，最后是玩家赢；文案里写死的数字和局面对得上
+{ let s = newGame([LESSON.mine, LESSON.foe], keepOrder, { base: LESSON.base }), i = 0; const go = a => { s = apply(s, a).state; };
+  while (s.winner === null) {
+    if (s.turn === 1) { for (const a of foeTurn(s)) go(a); continue; }
+    const st = LESSON.steps[i], no = `教学第 ${i + 1} 步`; assert.ok(st, '教学的步骤走完了还没分出胜负'); i++;
+    if (i === 3) assert.equal(s.board[tile(2, 1)]?.str, 1, no + '：步卒 3 对 2 打赢，剩 1，站在第三列');
+    if (i === 6) assert.equal(s.base[1], 3, no + '：定风者进门后对面剩 3');
+    if (i === 8) assert.equal(s.board[tile(4, 1)]?.card, 'n_golemice', no + '：寒冰魔像挡在步卒正前方');
+    if (i === 10) assert.equal(s.board[tile(4, 1)]?.side, 0, no + '：步卒走到了对面门口');
+    if (st.do === 'ok') continue;
+    const h = s.hand[0].indexOf(st.card), a = st.do === 'end' ? { type: 'end' } : st.do === 'swap' ? { type: 'swap', i: h } : { type: 'play', i: h, t: st.t };
+    if (st.do !== 'end') assert.ok(h >= 0, `${no}：手里没有「${st.card}」`);
+    if (st.do === 'play') assert.ok(targets(s, h).includes(st.t), `${no}：「${CARDS[st.card].name}」打不到那一格`);
+    if (st.do === 'swap') assert.ok(CARDS[st.card].cost > s.left, no + '：要换掉的那张确实出不起');
+    assert.ok(stepOk(st, s, a) && !stepOk(st, s, { type: st.do === 'end' ? 'swap' : 'end' }), no + '：只放行这一步要的操作'); go(a);
+  }
+  assert.equal(s.winner, 0, '教学关最后是玩家赢'); assert.equal(i, LESSON.steps.length, '教学的每一步都用上了'); assert.equal(LESSON.foeSay.length, LESSON.foePlays.length);
+}
 console.log(`自检通过。共 ${Object.keys(CARDS).length} 张牌（可带 ${ids.length} 张）：` + fs.map(f => `${FACTIONS[f].name} ${pool(f).length}`).join('，') + `，中立 ${pool('n').length}`);
 console.log(`${games} 局随机卡组：先手胜 ${(100 * first / (games - draws)).toFixed(0)}%，70 回合未分胜负 ${draws} 局，平均 ${(turns / games).toFixed(1)} 回合`);
 console.log(`电脑从没打出过的牌 ${never.length} 张：${never.map(k => CARDS[k].name).join('、') || '无'}；没出现过的衍生物：${tokens.map(k => CARDS[k].name).join('、') || '无'}`);
