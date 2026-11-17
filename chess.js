@@ -103,6 +103,7 @@ function attack(s, ev, from, to) {
   fire('onAfter', s, ev, a, s.board.indexOf(a)); // “打完还活着的话”
   return s.board.indexOf(a);
 }
+const acted = (ev, from) => ev.slice(from).some(e => e.t === 'attack'); // 这一步有没有出手（没挪地方不等于没用掉这一步）
 // 一个单位走一步。已经在场上的单位每回合只往前：正前有敌人就打，没有就前进，不拐弯。
 // fio：刚打出来、还在冲锋的单位会拐去打旁边的敌人，顺序固定：正前 → 靠棋盘中间的那一侧 → 靠边的那一侧。
 // 唯一的例外是嘲讽：旁边有带嘲讽的敌人时，不管是不是在冲锋都必须先打它。
@@ -138,8 +139,8 @@ function advance(s, ev, side) {
   for (const id of mine) {
     const t = where(id); if (t < 0 || !isUnit(s.board[t]) || fresh.has(id)) continue;
     if (s.board[t].frozen) { s.board[t].frozen = false; ev.push({ t: 'thaw', tile: t, id }); continue; }
-    const x = step(s, ev, t); if (s.winner !== null) return;
-    if (x >= 0 && x !== t && trait(s.board[x], 'swift')) { step(s, ev, x); if (s.winner !== null) return; } // 乘风：每个回合走两步
+    const n0 = ev.length, x = step(s, ev, t); if (s.winner !== null) return;
+    if (x >= 0 && (x !== t || acted(ev, n0)) && trait(s.board[x], 'swift')) { step(s, ev, x); if (s.winner !== null) return; } // 乘风：每个回合走两步。第一步是打了一下、人还在原地（对面倒下后原地又冒出东西，或者对面靠圣盾没倒），第二步照样走
   }
 }
 const H = { COLS, ROWS, N, tile, rowOf, colOf, fwd, depth, inb, adj4, adj8, foes, pals, isUnit, fx, buff, shift, summon, hitBase, mend, freeze, shieldUp, creep, hurt, zap, kill, step, morph, poison, vitalize, mute, convert, draw, HAND, frontDepth, BASE_HP, CARDS };
@@ -198,7 +199,7 @@ export function apply(state, a) { // 返回新局面和这一步依次发生的�
       ev.push({ t: 'spawn', id: u.id, side, card: id, tile: a.t, str: u.str, shield: u.shield });
       if (c.onPlay) c.onPlay(s, ev, u, a.t);
       let cur = s.board[a.t] === u ? a.t : -1;
-      for (let k = 0; k < c.move && cur >= 0 && s.winner === null; k++) { const nx = step(s, ev, cur, true); if (nx === cur) break; cur = nx; }
+      for (let k = 0; k < c.move && cur >= 0 && s.winner === null; k++) { const n0 = ev.length, nx = step(s, ev, cur, true); if (nx === cur && !acted(ev, n0)) break; cur = nx; } // 一步可以是走一格，也可以是打一下；打完还站着、还有步数就接着走。只有被自己人挡住才停
     }
     s.plays++;
   } else if (a.type === 'swap') {

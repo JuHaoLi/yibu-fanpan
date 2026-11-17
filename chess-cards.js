@@ -445,7 +445,7 @@ export function build(H) {
   spell('f3s_tailwind', '顺风', 2, 'ally', '一个友方单位 +1 战力，并立刻走一步。', (s, ev, side, t, id) => { bless(s, ev, id, castle(side), [t], 1); march(s, ev, side, [t]); });
   spell('f3s_fortify', '筑沙', 2, 'none', '你的建筑各 +3 战力。', (s, ev, side, t, id) => { const ts = structs(s, side); fx(ev, 'bless', id, castle(side), ts); ts.forEach(x => buff(s, ev, x, 3)); }, (s, side) => structs(s, side).length > 0);
   spell('f3s_sandstorm', '沙暴', 3, 'foe', '把目标所在那一路的所有敌人各吹退一格；吹不动的（建筑，或者身后没有空格）改为受 2 点伤害。', (s, ev, side, t, id) => blow(s, ev, id, castle(side), lane(s, side, colOf(t)), side));
-  spell('f3s_banish', '放逐', 4, 'foe', '把一个敌方单位沿着它那一路吹回它家门口（那一格有人就停在最近的空格）。', (s, ev, side, t, id) => { const to = banishTo(s, side, t); fx(ev, 'gust', id, castle(side), [t]); shift(s, ev, t, to, 'push'); }, (s, side, t) => isUnit(s.board[t]) && banishTo(s, side, t) >= 0);
+  spell('f3s_banish', '放逐', 4, 'foe', '把一个敌人沿着它那一路吹回它家门口（那一格有人就停在最近的空格）；吹不动的（建筑，或者它身后没有空格）改为受 4 点伤害。', (s, ev, side, t, id) => { const to = isUnit(s.board[t]) ? banishTo(s, side, t) : -1; fx(ev, 'gust', id, castle(side), [t]); if (to >= 0) shift(s, ev, t, to, 'push'); else hurt(s, ev, t, 4); });
   spell('f3s_starfall', '星陨', 6, 'none', '每一路离你最近的那个敌人各受 4 点伤害。', (s, ev, side, t, id) => zap(s, ev, id, castle(side), [...Array(COLS)].map((_, c) => firstInLane(s, side, c)).filter(x => x >= 0), 4, 'storm'), (s, side) => enemies(s, side).length > 0);
   gear('f3g_boots', '风行之靴', 2, 1, [SWIFT]);
   gear('f3g_scarab', '黄金圣甲虫', 3, 2, [D(E.spawn('tk_iron', 3, 'here'))]);

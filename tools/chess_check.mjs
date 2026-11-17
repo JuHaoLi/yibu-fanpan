@@ -162,6 +162,14 @@ const never = ids.filter(k => !played.has(k)), tokens = Object.keys(CARDS).filte
   let same = true; try { same = run(a) === run(b); } catch { same = false; } assert.ok(!same, '抽牌是随机的：种子不同，抽到的牌不同');
   for (const k of ['f3_windshriek', 'f3_sirocco', 'f3_zephyr', 'n_windrunner']) assert.equal(CARDS[k].move, 2, '乘风的兵出场也走两步');
   s = blank(); r = play(s, 'f3_windshriek', tile(0, 2)); assert.ok(at(r, tile(2, 2)), '乘风：出场走两步'); r = endAs(r.state, 0); assert.ok(at(r, tile(4, 2)), '乘风：之后每个回合也走两步'); }
+// 试玩反馈第二批：乘风的兵打完还站在原地时第二步照样走；冲锋的兵同理；放逐吹不动改为 4 点伤害
+{ let s = blank(), r; put(s, tile(1, 0), 0, 'f3_windshriek', 5); put(s, tile(2, 0), 1, 'f4_husk', 1); r = endAs(s, 0); assert.ok(at(r, tile(2, 0)) && at(r, tile(2, 0)).side === 0, '乘风：对面倒下后原地冒出影灵，第二步接着把它打掉并占住那一格'); assert.equal(r.events.filter(e => e.t === 'attack').length, 2);
+  s = blank(); put(s, tile(1, 0), 0, 'f3_windshriek', 9); put(s, tile(2, 0), 1, V, 3, { shield: true }); r = endAs(s, 0); assert.equal(at(r, tile(2, 0)).str, 3, '乘风：第一下被圣盾挡了（自己挨 3），第二下照样打，赢了占格'); assert.equal(at(r, tile(2, 0)).side, 0);
+  s = blank(); put(s, tile(1, 0), 0, 'f3_windshriek', 3); put(s, tile(2, 0), 0, V, 9); put(s, tile(3, 0), 1, V, 3, { shield: true }); r = endAs(s, 0); assert.ok(at(r, tile(1, 0)), '乘风：被自己人挡住就原地等，不出手');
+  s = blank(); put(s, tile(1, 2), 1, 'f4_husk', 1); r = play(s, 'neutral_windstopper', tile(0, 2)); assert.ok(at(r, tile(1, 2)) && at(r, tile(1, 2)).side === 0, '冲锋：两步的兵打掉面前的敌人，原地冒出的影灵用第二步打掉');
+  s = blank(); put(s, tile(4, 1), 1, V, 9); r = play(s, 'f3s_banish', tile(4, 1)); assert.equal(at(r, tile(4, 1)).str, 5, '放逐：已经在自己家门口的吹不动，改为受 4 点');
+  s = blank(); put(s, tile(2, 1), 1, 'colossus', 9); r = play(s, 'f3s_banish', tile(2, 1)); assert.equal(at(r, tile(2, 1)).str, 5, '放逐：建筑吹不动，改为受 4 点');
+  s = blank(); put(s, tile(2, 1), 1, V, 9); r = play(s, 'f3s_banish', tile(2, 1)); assert.equal(at(r, tile(4, 1)).str, 9, '放逐：吹得动的吹回家门口，不掉血'); }
 // 闯关存档：每个场地各记各的进度和卡组；通关阵营场地得一枚徽章（重复通关不再给）；集齐六枚无主之地才开；旧存档（只有一个进行中的场地）读得进来
 { const { progress, BADGES } = await import('../campaign.js'), deck = { name: '测试', cards: STARTERS.f1 }, clear = k => { let r; progress.enter(k, deck); for (let i = 0; i < 5; i++) r = progress.win(k); return r; };
   progress.data = { runs: {}, done: {}, owned: [] }; assert.equal(progress.open('n'), false, '没有徽章进不了无主之地'); assert.ok(progress.open('f3'));
