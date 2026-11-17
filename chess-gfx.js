@@ -1680,6 +1680,20 @@ export const MORE_GFX = {
   h: 30,
   scale: 1.6
  },
+ "n_militia": {
+  file: "neutral_mercmelee1",
+  cell: 80,
+  feet: 64,
+  h: 25,
+  scale: 1.6
+ },
+ "n_courier": {
+  file: "neutral_mercmelee2",
+  cell: 80,
+  feet: 64,
+  h: 24,
+  scale: 1.6
+ },
  "neutral_jaxi": {
   file: "neutral_jaxi",
   cell: 100,

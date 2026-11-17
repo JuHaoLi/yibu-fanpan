@@ -6,7 +6,7 @@ import { tile } from './chess.js';
 const play = (card, r, c, say) => ({ do: 'play', card, t: tile(r, c), say }); // r：离自己城堡几列（0 是家门口）；c：第几路
 const end = say => ({ do: 'end', say }), ok = say => ({ do: 'ok', say });     // ok：纯讲解，点“知道了”往下
 export const LESSON = {
-  lesson: true, name: '新兵训练', area: 'n', base: [10, 6], // 对面的城堡只有 6 点血：进两次门就结束
+  lesson: true, name: '新兵训练', area: 'n', base: [10, 7], // 对面的城堡只有 7 点血：进两次门就结束（定风者 4 点，破阵骑士 4 点）
   // 牌序就是抽牌顺序：前四张是起手，后面按顺序补（打出和换掉的牌排到最后）
   mine: ['f1_melee', 'neutral_windstopper', 'neutral_astralcrusader', 'lancer', 'squire', 'neutral_dex', 'f1s_smite'],
   foe: ['general', 'n_golemice', 'neutral_rook', 'neutral_golemstone', 'neutral_dex', 'squire'],

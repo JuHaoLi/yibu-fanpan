@@ -16,9 +16,9 @@ export function build(H) {
   const chillAll = (s, ev, card, from, ts) => { ts = ts.filter(x => isUnit(s.board[x]) && !s.board[x].frozen); if (!ts.length) return; fx(ev, 'frost', card, from, ts); ts.forEach(x => freeze(s, ev, x)); };
   const taint = (s, ev, card, from, ts, side) => { ts = ts.filter(x => inb(x) && s.creep[x] !== side); if (!ts.length) return; fx(ev, 'shade', card, from, ts); ts.forEach(x => creep(s, ev, x, side)); };
   const name = id => cards[id].name;
-  // 吹退：把敌方单位朝它自己家的方向推一格（离得远的先推）；退不动的改为挨 2 点
-  const blow = (s, ev, card, from, ts, side) => { ts = ts.filter(x => inb(x) && s.board[x] && s.board[x].side !== side && isUnit(s.board[x])).sort((a, b) => depth(side, rowOf(b)) - depth(side, rowOf(a))); if (!ts.length) return; fx(ev, 'gust', card, from, ts);
-    for (const x of ts) { const b = x + fwd(side) * COLS; if (!s.board[x] || s.board[x].side === side || !isUnit(s.board[x])) continue; if (inb(b) && !s.board[b]) shift(s, ev, x, b, 'push'); else hurt(s, ev, x, 2); } };
+  // 吹退：把敌人朝它自己家的方向推一格（离得远的先推）；吹不动的——建筑，或者身后没有空格的单位——改为挨 2 点
+  const blow = (s, ev, card, from, ts, side) => { ts = ts.filter(x => inb(x) && s.board[x] && s.board[x].side !== side).sort((a, b) => depth(side, rowOf(b)) - depth(side, rowOf(a))); if (!ts.length) return; fx(ev, 'gust', card, from, ts);
+    for (const x of ts) { const b = x + fwd(side) * COLS, u = s.board[x]; if (!u || u.side === side) continue; if (isUnit(u) && inb(b) && !s.board[b]) shift(s, ev, x, b, 'push'); else hurt(s, ev, x, 2); } };
   // 让这些格子里的单位各立刻走一步，靠前的先走
   const march = (s, ev, side, ts) => { for (const k of ts.filter(x => isUnit(s.board[x])).sort((a, b) => depth(side, rowOf(b)) - depth(side, rowOf(a)) || colOf(a) - colOf(b)).map(x => s.board[x].id)) { const x = s.board.findIndex(u => u && u.id === k); if (x >= 0 && !s.board[x].frozen && s.winner === null) step(s, ev, x); } };
   const structs = (s, side) => s.board.map((u, t) => u && u.side === side && !isUnit(u) ? t : -1).filter(t => t >= 0);
@@ -50,13 +50,13 @@ export function build(H) {
     ward: () => ['相邻的友军各获得圣盾', 2.6, (s, ev, u, t) => { const ts = pals(s, u.side, adj4(t)).filter(x => !s.board[x].shield); if (ts.length) { fx(ev, 'bless', u.card, t, ts); ts.forEach(x => shieldUp(s, ev, x)); } }],
     pull: () => ['把本路前方最远的敌方单位拽到自己面前', .8, (s, ev, u, t) => { const f = t + fwd(u.side) * COLS; let far = -1; for (let x = f; inb(x); x += fwd(u.side) * COLS) if (s.board[x] && s.board[x].side !== u.side && isUnit(s.board[x])) far = x; if (far >= 0 && far !== f && inb(f) && !s.board[f]) { fx(ev, 'bolt', u.card, t, [far]); shift(s, ev, far, f, 'pull'); } }],
     push: n => [`把正前方的敌人砸 ${n} 点伤害，并击退一格`, .8 * n + .4, (s, ev, u, t) => { const f = t + fwd(u.side) * COLS, b = f + fwd(u.side) * COLS; if (!foes(s, u.side, [f]).length) return; const id = s.board[f].id; zap(s, ev, u.card, t, [f], n, 'slash'); if (s.board[f] && s.board[f].id === id && isUnit(s.board[f]) && inb(b) && !s.board[b]) shift(s, ev, f, b, 'push'); }],
-    taint: () => ['在脚下留下暗影', .8, (s, ev, u, t) => taint(s, ev, u.card, t, [t], u.side)],
-    taintAdj: () => ['在脚下和相邻的格子留下暗影', 2, (s, ev, u, t) => taint(s, ev, u.card, t, [t, ...adj4(t)], u.side)],
+    taint: () => ['在脚下留下暗影（留 3 个回合）', .6, (s, ev, u, t) => taint(s, ev, u.card, t, [t], u.side)],
+    taintAdj: () => ['在脚下和相邻的格子留下暗影（留 3 个回合）', 1.5, (s, ev, u, t) => taint(s, ev, u.card, t, [t, ...adj4(t)], u.side)],
     grow: n => [`自己 +${n} 战力`, 2 * n, (s, ev, u, t) => buff(s, ev, t, n)],
     mana: n => [`获得 ${n} 点能量`, 1.6 * n, (s, ev, u) => { s.left += n; ev.push({ t: 'mana', side: u.side, n }); }],
-    gust: () => ['把本路前方第一个敌方单位吹退一格；退不动就改为对它造成 2 点伤害', 1.1, (s, ev, u, t) => { const x = ahead(s, u.side, t, true); if (x >= 0) blow(s, ev, u.card, t, [x], u.side); }],
-    gale: () => ['把本路的所有敌方单位各吹退一格；退不动的改为受 2 点伤害', 2, (s, ev, u, t) => blow(s, ev, u.card, t, lane(s, u.side, colOf(t)), u.side)],
-    gustAdj: () => ['把相邻的敌方单位各吹退一格；退不动的改为受 2 点伤害', 1.6, (s, ev, u, t) => blow(s, ev, u.card, t, adj4(t), u.side)],
+    gust: () => ['把本路前方第一个敌人吹退一格；吹不动的（建筑，或者它身后没有空格）改为受 2 点伤害', 1.1, (s, ev, u, t) => { const x = ahead(s, u.side, t); if (x >= 0) blow(s, ev, u.card, t, [x], u.side); }],
+    gale: () => ['把本路的所有敌人各吹退一格；吹不动的（建筑，或者身后没有空格）改为受 2 点伤害', 2, (s, ev, u, t) => blow(s, ev, u.card, t, lane(s, u.side, colOf(t)), u.side)],
+    gustAdj: () => ['把相邻的敌人各吹退一格；吹不动的（建筑，或者身后没有空格）改为受 2 点伤害', 1.6, (s, ev, u, t) => blow(s, ev, u.card, t, adj4(t), u.side)],
     tailwind: () => ['你这一路上的其他友方单位各立刻走一步', 1.4, (s, ev, u, t) => { const ts = units(s, u.side).filter(x => x !== t && colOf(x) === colOf(t)); if (ts.length) { fx(ev, 'bless', u.card, t, ts); march(s, ev, u.side, ts); } }],
     build: n => [`你每有一座建筑，自己 +${n} 战力`, .9 * n, (s, ev, u, t) => buff(s, ev, t, n * structs(s, u.side).length)],
     aidStruct: n => [`你的建筑各 +${n} 战力`, .8 * n, (s, ev, u, t) => { const ts = structs(s, u.side); if (ts.length) { fx(ev, 'bless', u.card, t, ts); ts.forEach(x => buff(s, ev, x, n)); } }],
@@ -114,9 +114,9 @@ export function build(H) {
   const O = e => ({ on: 'onAllyDeath', pre: '每有一个友方单位倒下，', e });
   const S = e => ({ on: 'onSpell', pre: '你每施放一张法术，', e, k: .8 });
   const flag = (key, val, text, cost) => ({ flag: [key, val], text, cost });
-  const GUARD = flag('guard', true, '身后一格的友军被能力或法术打中时，替他挡一半', .5), TAUNT = flag('taunt', true, '嘲讽：正前方或左右挨着它的敌人必须先打它', .6), FIXED = flag('fixed', true, '冲锋时只沿自己这一路往前，不拐去打旁边的敌人', 0),
+  const GUARD = flag('guard', true, '身后一格的友军被能力或法术打中时，替他挡一半', .5), TAUNT = flag('taunt', true, '嘲讽：正前方或左右挨着它的敌人必须先打它，也不能从它身边进城门', .8), FIXED = flag('fixed', true, '冲锋时只沿自己这一路往前，不拐去打旁边的敌人', 0),
     SHIELD = flag('shield', true, '圣盾：挡下受到的第一次伤害', 2), THORNS = n => flag('thorns', n, `荆棘：攻击它的敌人先受 ${n} 点伤害`, 1.1 * n);
-  const AMBUSH = flag('anywhere', true, '奇袭：可以放在前线之外的任何空格（对方家门口那一行除外）', 1.6), SWIFT = flag('swift', true, '乘风：每个回合走两步', 2);
+  const AMBUSH = flag('anywhere', true, '奇袭：可以放在前线之外的任何空格（对方家门口那一行除外）', 1.6), SWIFT = flag('swift', true, '乘风：每个回合开始时走两步（别的兵只走一步）', 2);
   const SIEGE = n => flag('siege', n, `攻城：打建筑和城堡时多造成 ${n} 点伤害`, .7 * n);
   const MOURN = (text, cost, fn) => ({ raw: c => { c.onNearDeath = fn; }, text: '相邻的格子里有单位倒下时，' + text, cost });
 
@@ -133,7 +133,9 @@ export function build(H) {
     c.texts = texts; return val;
   }
   const put = (id, c, raw) => { c.faction = F; c.str = Math.max(1, Math.min(15, Math.round(raw) + (TUNE[id] || 0))); cards[id] = c; };
-  function unit(id, nm, sp, cost, move, abil = []) { const c = { name: nm, kind: 'unit', cost, move, sp }; put(id, c, baseline(cost, move) - compile(c, abil)); }
+  // 贵的单位身板再加一截：对照 Stormbound 的牌表，我们 4 费以上的单位能力占得太多、战力偏低，花了大价钱却站不住
+  const lift = (cost, move) => cost <= 3 ? 0 : cost <= 5 ? 1 : cost === 6 ? (move ? 2 : 1) : cost === 7 ? 2 : 4;
+  function unit(id, nm, sp, cost, move, abil = []) { const c = { name: nm, kind: 'unit', cost, move, sp }; put(id, c, baseline(cost, move) + lift(cost, move) - compile(c, abil)); }
   function struct(id, nm, sp, cost, abil = []) { const c = { name: nm, kind: 'structure', cost, move: 0, sp }; put(id, c, cost + 2 - compile(c, abil)); }
   function egg(id, nm, sp, cost, str, card, turns, hatchStr) { cards[id] = { name: nm, kind: 'structure', cost, move: 0, sp, str, faction: F, hatch: { card, turns, str: hatchStr }, texts: [() => `孵化：${turns} 个回合后变成一只 ${hatchStr} 战力的${name(card)}`] }; }
   // 首领牌：闯关里击败首领才能拿到，战力手填（明显比同费的牌高），不参与自动调数值；title 是它的称号
@@ -205,12 +207,12 @@ export function build(H) {
   unit('f4_husk', '空壳', 'f4_husk', 2, 0, [D(E.spawn('wraith', 1, 'here'))]);
   unit('f4_gor', '小恶魔戈尔', 'f4_gor', 2, 1, [D(E.nova(1))]);
   unit('f4_ooz', '淤泥怪', 'f4_ooz', 2, 0, [P(E.taintAdj())]);
-  unit('assassin', '夜哀刺客', 'f4_nightsorrow', 3, 1, [P(E.shot(2))]);
+  unit('assassin', '夜哀刺客', 'f4_nightsorrow', 3, 1, [A(K.execute())]);
   unit('f4_gloomchaser', '逐暗者', 'f4_gloomchaser', 3, 1, [P(E.spawn('wraith', 1, 'behind'))]);
   unit('f4_nightfiend', '夜魔', 'f4_nightfiend', 3, 1, [D(E.burn(1))]);
   unit('f4_bloodbaronette', '血男爵夫人', 'f4_bloodbaronette', 3, 0, [P(E.feast())]);
-  unit('f4_phantasm', '幻魇', 'f4_phantasm', 3, 2);
-  unit('f4_skullcaster', '颅骨术士', 'f4_skullcaster', 3, 0, [P(E.shot(3))]);
+  unit('f4_phantasm', '幻魇', 'f4_phantasm', 3, 2, [D(E.spawn('wraith', 1, 'here'))]);
+  unit('f4_skullcaster', '颅骨术士', 'f4_skullcaster', 3, 0, [P(E.shot(4)), P(E.selfBase(1))]);
   unit('f4_remora', '影鮣', 'f4_remora', 3, 1, [A(K.leech(1))]);
   unit('priestess', '血月祭司', 'f4_bloodmoon', 4, 0, [MOURN('在那一格放一只 1 战力的影灵', 2.5, (s, ev, w, x, t) => { if (!s.board[t]) { fx(ev, 'summon', w.card, x, [t]); summon(s, ev, w.side, 'wraith', t, 1); } })]);
   unit('dancer', '影舞者', 'f4_shadowdancer', 4, 1, [D(E.burn(2))]);
@@ -224,7 +226,7 @@ export function build(H) {
   unit('f4_blacksolus', '黑色孤星', 'f4_blacksolus', 5, 1, [A(K.leech(1)), D(E.taint())]);
   unit('f4_nocturn', '夜曲', 'f4_nocturn', 5, 1, [D(E.spawn('wraith', 3, 'here'))]);
   unit('f4_desolater', '荒芜者', 'f4_desolater', 5, 2, [P(E.burn(1))]);
-  unit('f4_fallenaspect', '堕落化身', 'f4_fallenaspect', 5, 1, [P(E.beam(2))]);
+  unit('f4_fallenaspect', '堕落化身', 'f4_fallenaspect', 5, 1, [P(E.beam(3)), P(E.selfBase(2))]);
   unit('juggernaut', '深渊巨像', 'f4_juggernaut', 6, 1, [P(E.horde(1))]);
   unit('f4_megafiend', '巨型魔', 'f4_megafiend', 6, 1, [D(E.ring(2))]);
   unit('f4_demonofeternity', '永恒之魔', 'f4_demonofeternity', 6, 1, [D(E.spawn('tk_demon', 4, 'here'))]);
@@ -243,7 +245,7 @@ export function build(H) {
   spell('siphon', '灵魂虹吸', 3, 'foe', '对一个敌方单位或建筑造成 3 点伤害，你的城堡 +1 血。', (s, ev, side, t, id) => { zap(s, ev, id, castle(side), [t], 3, 'drain'); mend(s, ev, side, 1); });
   spell('f4s_swarm', '影灵涌现', 3, 'none', '在你家门口的每个空格放一只 1 战力的影灵。', (s, ev, side, t, id) => { const ts = [...Array(COLS)].map((_, c) => tile(side ? ROWS - 1 : 0, c)).filter(x => !s.board[x]); fx(ev, 'summon', id, castle(side), ts); ts.forEach(x => summon(s, ev, side, 'wraith', x, 1)); }, (s, side) => [...Array(COLS)].some((_, c) => !s.board[tile(side ? ROWS - 1 : 0, c)]));
   spell('f4s_ritual', '黑暗献祭', 2, 'ally', '消灭一个友方单位，对方城堡受到它战力一半的伤害（向上取整）。', (s, ev, side, t, id) => { const n = Math.ceil(s.board[t].str / 2); fx(ev, 'drain', id, t, [castle(1 - side)]); kill(s, ev, t); hitBase(s, ev, 1 - side, n); });
-  spell('f4s_shadow', '蔓延暗影', 3, 'foe', '对一个敌人造成 2 点伤害，并在它脚下和相邻的格子留下暗影。', (s, ev, side, t, id) => { zap(s, ev, id, castle(side), [t], 2, 'bolt'); taint(s, ev, id, t, [t, ...adj4(t)], side); });
+  spell('f4s_shadow', '蔓延暗影', 3, 'foe', '对一个敌人造成 2 点伤害，并在它脚下和相邻的格子留下暗影（留 3 个回合）。', (s, ev, side, t, id) => { zap(s, ev, id, castle(side), [t], 2, 'bolt'); taint(s, ev, id, t, [t, ...adj4(t)], side); });
   spell('f4s_plague', '瘟疫', 5, 'none', '所有敌方单位和建筑各受 1 点伤害。', (s, ev, side, t, id) => zap(s, ev, id, castle(side), enemies(s, side), 1, 'storm'), (s, side) => enemies(s, side).length > 0);
   spell('f4s_doom', '末日审判', 6, 'foe', '对一个敌方单位或建筑造成 7 点伤害。', (s, ev, side, t, id) => zap(s, ev, id, castle(side), [t], 7, 'bolt'));
   spell('f4s_pact', '恶魔契约', 1, 'none', '你的城堡 −2 血，获得 2 点能量。', (s, ev, side, t, id) => { fx(ev, 'drain', id, castle(side), [castle(side)]); hitBase(s, ev, side, 2); s.left += 2; ev.push({ t: 'mana', side, n: 2 }); }, (s, side) => s.base[side] > 2);
@@ -251,26 +253,26 @@ export function build(H) {
   // ======== 巨兽：成长、孵化、荆棘、狂暴 ========
   F = 'f5';
   token('tk_hatch', '幼兽', 'f5_gro'); token('tk_rex', '远古巨兽', 'f5_dreadnaught');
-  unit('f5_silitharyoung', '幼蜥', 'f5_silitharyoung', 2, 1);
+  unit('f5_silitharyoung', '幼蜥', 'f5_silitharyoung', 2, 1, [W(E.grow(1))]);
   unit('f5_minibeast', '小兽', 'f5_minibeast', 2, 0, [T(E.grow(1))]);
   unit('f5_gibblegup', '咕噜兽', 'f5_gibblegup', 2, 0, [THORNS(1)]);
   unit('f5_unstableflump', '躁动绒球', 'f5_unstableflump', 2, 1, [D(E.blast(2))]);
   unit('f5_kujata', '库佳塔', 'f5_kujata', 2, 0, [P(E.mana(1))]);
   unit('walker', '行地兽', 'f5_earthwalker', 3, 1, [T(E.grow(1))]);
   unit('f5_ragebinder', '缚怒者', 'f5_ragebinder', 3, 0, [P(E.aid(1))]);
-  unit('f5_pteryx', '翼手龙', 'f5_pteryx', 3, 2);
-  unit('f5_molokihuntress', '莫洛基女猎手', 'f5_molokihuntress', 3, 1, [P(E.shot(2))]);
+  unit('f5_pteryx', '翼手龙', 'f5_pteryx', 3, 2, [P(E.lone(2))]);
+  unit('f5_molokihuntress', '莫洛基女猎手', 'f5_molokihuntress', 3, 1, [W(E.shot(2))]);
   unit('f5_mandrake', '曼德拉草', 'f5_mandrake', 3, 0, [THORNS(2)]);
   unit('f5_flumposaur', '绒球龙', 'f5_flumposaur', 3, 1, [D(E.spawn('tk_hatch', 2, 'here'))]);
   unit('f5_rancour', '积怨兽', 'f5_rancour', 3, 1, [W(E.grow(2))]);
-  unit('veteran', '蜥甲老兵', 'f5_silitharveteran', 4, 1);
+  unit('veteran', '蜥甲老兵', 'f5_silitharveteran', 4, 1, [THORNS(1)]);
   unit('gazer', '太初凝视者', 'f5_primordialgazer', 4, 0, [P(E.aidFront(3))]);
   unit('f5_catalystquillbeast', '棘刺兽', 'f5_catalystquillbeast', 4, 1, [THORNS(2)]);
-  unit('f5_firebreather', '喷火兽', 'f5_firebreather', 4, 0, [P(E.beam(2))]);
+  unit('f5_firebreather', '喷火兽', 'f5_firebreather', 4, 0, [T(E.shot(1))]);
   unit('f5_grimrock', '嶙峋岩兽', 'f5_grimrock', 4, 0, [TAUNT, T(E.grow(1))]);
   unit('f5_thraex', '斗兽', 'f5_thraex', 4, 1, [A(K.cleave(1))]);
   unit('f5_brundlbeast', '蛮角兽', 'f5_brundlbeast', 4, 2);
-  unit('f5_omniseer', '全视者', 'f5_omniseer', 4, 0, [P(E.aidAll(1))]);
+  unit('f5_omniseer', '全视者', 'f5_omniseer', 4, 0, [P(E.vitalAdj())]);
   unit('warbeast', '曼卡托战兽', 'f5_mankatorwarbeast', 5, 2);
   unit('f5_lavalasher', '熔岩鞭手', 'f5_lavalasher', 5, 1, [P(E.nova(2))]);
   unit('f5_ankylos', '甲龙', 'f5_ankylos', 5, 0, [TAUNT, THORNS(2)]);
@@ -294,7 +296,7 @@ export function build(H) {
   spell('f5s_roar', '咆哮', 3, 'none', '你的所有单位各 +1 战力。', (s, ev, side, t, id) => bless(s, ev, id, castle(side), units(s, side), 1), (s, side) => units(s, side).length > 0);
   spell('f5s_feral', '野性', 2, 'ally', '一个友方单位 +2 战力。', (s, ev, side, t, id) => bless(s, ev, id, castle(side), [t], 2));
   spell('f5s_slam', '地裂', 4, 'foe', '对一个敌人和它相邻的敌人各造成 2 点伤害。', (s, ev, side, t, id) => zap(s, ev, id, castle(side), [t, ...foes(s, side, adj4(t))], 2, 'nova'));
-  spell('f5s_devour', '吞噬', 3, 'foe', '对一个敌方单位或建筑造成 4 点伤害。', (s, ev, side, t, id) => zap(s, ev, id, castle(side), [t], 4, 'slash'));
+  spell('f5s_devour', '吞噬', 3, 'foe', '对一个敌方单位或建筑造成 3 点伤害；把它打倒了的话，你的所有单位各 +1 战力。', (s, ev, side, t, id) => { const k = s.board[t].id; zap(s, ev, id, castle(side), [t], 3, 'slash'); if (!s.board.some(u => u && u.id === k)) bless(s, ev, id, castle(side), units(s, side), 1); });
   spell('f5s_stampede', '兽群奔袭', 5, 'none', '你的所有单位立刻各走一步。', (s, ev, side, t, id) => { const ids = units(s, side).sort((a, b) => depth(side, rowOf(b)) - depth(side, rowOf(a)) || colOf(a) - colOf(b)).map(x => s.board[x].id); fx(ev, 'bless', id, castle(side), units(s, side)); for (const k of ids) { const x = s.board.findIndex(u => u && u.id === k); if (x >= 0 && !s.board[x].frozen && s.winner === null) step(s, ev, x); } }, (s, side) => units(s, side).length > 0);
   spell('f5s_lick', '舔舐伤口', 2, 'ally', '一个友方单位 +2 战力，你的城堡 +1 血。', (s, ev, side, t, id) => { bless(s, ev, id, castle(side), [t], 2); mend(s, ev, side, 1); });
 
@@ -302,26 +304,26 @@ export function build(H) {
   F = 'f6';
   token('cub', '幼狼', 'f6_spiritwolf'); token('tk_whelp', '雏龙', 'neutral_monsterdragonhawk'); token('tk_treant', '霜木傀儡', 'f6_treant');
   struct('icewall', '冰墙', 'f6_bonechillbarrier', 2);
-  unit('fox', '逐雪狐', 'f6_snowchaser', 2, 1);
+  unit('fox', '逐雪狐', 'f6_snowchaser', 2, 1, [P(E.infiltrate(2))]);
   unit('f6_snowman', '雪人', 'f6_snowman', 2, 0, [TAUNT]);
   unit('f6_icy', '小冰灵', 'f6_icy', 2, 0, [P(E.chillFront())]);
   unit('f6_bur', '冰原伯尔', 'f6_bur', 2, 1, [P(E.infiltrate(3))]);
   unit('f6_evilcrystalwisp', '晶灵', 'f6_evilcrystalwisp', 2, 0, [D(E.chill())]);
   unit('north', '冰翼法师', 'f6_greatwhitenorth', 3, 0, [P(E.chill())]);
   unit('ronin', '独行剑客', 'f6_freeblade', 3, 1, [P(E.lone(3))]);
-  unit('f6_sleetdasher', '霰行者', 'f6_sleetdasher', 3, 2);
+  unit('f6_sleetdasher', '霰行者', 'f6_sleetdasher', 3, 2, [A(K.shatter(2))]);
   unit('f6_icehornet', '冰蜂', 'f6_icehornet', 3, 2, [P(E.infiltrate(2))]);
-  unit('f6_frostbitehawker', '霜噬猎鹰', 'f6_frostbitehawker', 3, 1, [P(E.shot(2))]);
+  unit('f6_frostbitehawker', '霜噬猎鹰', 'f6_frostbitehawker', 3, 1, [P(E.shot(1)), P(E.chillFront())]);
   unit('f6_kindredhunter', '同族猎手', 'f6_kindredhunter', 3, 1, [A(K.shatter(3))]);
   unit('f6_wolfraven', '狼鸦', 'f6_wolfraven', 3, 1, [P(E.chillFront())]);
   unit('dryad', '冰树精', 'f6_icedryad', 4, 1, [A(K.shatter(3))]);
   unit('f6_crystalbeetle', '晶甲虫', 'f6_crystalbeetle', 4, 1, [SHIELD]);
-  unit('f6_arcticrhyno', '极地犀', 'f6_arcticrhyno', 4, 2);
+  unit('f6_arcticrhyno', '极地犀', 'f6_arcticrhyno', 4, 2, [R(E.advance())]);
   unit('f6_snowrippler', '裂雪兽', 'f6_snowrippler', 4, 1, [P(E.nova(1)), P(E.chillFront())]);
   unit('f6_huldra', '胡尔德拉', 'f6_huldra', 4, 0, [P(E.aid(1)), P(E.chill())]);
   unit('f6_ravager', '掠夺者', 'f6_ravager', 4, 1, [P(E.infiltrate(4))]);
   unit('f6_ghostseraphim', '幽灵炽天使', 'f6_ghostseraphim', 4, 0, [P(E.chillLane())]);
-  unit('f6_waterbear', '水熊', 'f6_waterbear', 4, 1);
+  unit('f6_waterbear', '水熊', 'f6_waterbear', 4, 1, [D(E.chill())]);
   unit('fenrir', '芬里尔战将', 'f6_fenrirwarmaster', 5, 1, [D(E.spawn('cub', 3, 'here'))]);
   unit('f6_tundraguardian', '冻原守卫', 'f6_tundraguardian', 5, 0, [TAUNT, P(E.chill())]);
   unit('f6_snowwyvern', '雪翼龙', 'f6_snowwyvern', 5, 2, [P(E.shot(2))]);
@@ -351,7 +353,7 @@ export function build(H) {
   // ======== 岚影：连击、奇袭、偷袭、咒印（法术联动） ========
   F = 'f2';
   token('tk_paper', '纸鹤', 'f2_orizuru'); token('tk_panda', '小熊猫', 'f2_panddo');
-  unit('f2_melee', '岚影足轻', 'f2_melee', 2, 1);
+  unit('f2_melee', '岚影足轻', 'f2_melee', 2, 1, [C(E.grow(1))]);
   unit('f2_xho', '符灵', 'f2_xho', 2, 0, [S(E.grow(1))]);
   unit('f2_ace', '火花鼠', 'f2_ace', 2, 1, [C(E.shot(2))]);
   unit('f2_katara', '苦无手', 'f2_katara', 2, 1, [A(K.flank(2))]);
@@ -361,7 +363,7 @@ export function build(H) {
   unit('f2_lanternfox', '灯笼狐', 'f2_lanternfox', 3, 1, [S(E.aid(1))]);
   unit('f2_sparrowhawk', '雀鹰忍', 'f2_sparrowhawk', 3, 2, [A(K.flank(2))]);
   unit('f2_caster', '符咒师', 'f2_caster', 3, 0, [S(E.shot(2))]);
-  unit('f2_tank', '赤甲武者', 'f2_tank', 3, 0, [TAUNT]);
+  unit('f2_tank', '赤甲武者', 'f2_tank', 3, 0, [TAUNT, P(E.lone(2))]);
   unit('f2_deathphantom', '无常', 'f2_deathphantom', 3, 1, [AMBUSH, D(E.nova(1))]);
   unit('f2_pandabear', '熊猫武僧', 'f2_pandabear', 3, 1, [D(E.spawn('tk_panda', 2, 'here'))]);
   unit('f2_kindling', '炎环舞者', 'f2_kindling', 4, 0, [P(E.nova(1)), C(E.nova(1))]);
@@ -382,13 +384,13 @@ export function build(H) {
   unit('f2_eternitypainter', '永恒画师', 'f2_eternitypainter', 7, 0, [P(E.hex())]);
   unit('f2_shidaimk2', '四代目', 'f2_shidaimk2', 8, 1, [AMBUSH, P(E.ring(3))]);
   unit('f2_keshraifanblade', '毒扇忍', 'f2_keshraifanblade', 3, 1, [P(E.venom())]);
-  unit('f2_kibeholder', '影缚者', 'f2_kibeholder', 4, 0, [P(E.silence())]);
+  unit('f2_kibeholder', '影缚者', 'f2_kibeholder', 4, 0, [C(E.silenceAdj())]);
   unit('f2_heartofthesonghai', '岚影之心', 'f2_heartofthesonghai', 2, 0, [P(E.last(5))]);
   unit('f2_general', '影忍头领', 'f2_general', 3, 1, [P(E.draw(1))]);
-  unit('f2_masteroftaikwai', '太极宗师', 'f2_masteroftaikwai', 5, 1, [A(K.slayer(4))]);
+  unit('f2_masteroftaikwai', '太极宗师', 'f2_masteroftaikwai', 5, 1, [THORNS(3)]);
   spell('f2s_refill', '蓄势', 2, 'none', '把手牌补满到 4 张。', (s, ev, side) => draw(s, ev, side, 4), (s, side) => s.hand[side].length < 4);
   struct('f2_buildminion', '结界石', 'f2_buildminion', 3, [T(E.nova(1))]);
-  struct('f2_buildcommon', '手里剑架', 'f2_buildcommon', 4, [T(E.shot(2))]);
+  struct('f2_buildcommon', '手里剑架', 'f2_buildcommon', 4, [T(E.nova(1))]);
   struct('f2_buildlegendary', '影之祠', 'f2_buildlegendary', 5, [S(E.spawn('tk_paper', 2, 'front'))]);
   spell('f2s_stance', '起手式', 1, 'none', '获得 1 点能量。（算打出一张牌，能接连击、能触发咒印）', (s, ev, side) => { s.left += 1; ev.push({ t: 'mana', side, n: 1 }); });
   spell('f2s_shuriken', '手里剑', 2, 'foe', '对一个敌人造成 2 点伤害。连击：这回合你已经打过别的牌的话，改为 4 点。', (s, ev, side, t, id) => zap(s, ev, id, castle(side), [t], s.plays > 0 ? 4 : 2, 'bolt'));
@@ -401,34 +403,34 @@ export function build(H) {
   // ======== 沙海：方尖碑（建筑流）、风（吹退与推进）、遗物 ========
   F = 'f3';
   token('tk_dervish', '沙灵', 'f3_dervish'); token('tk_iron', '铁沙灵', 'f3_irondervish');
-  unit('f3_pax', '沙蝎', 'f3_pax', 2, 1);
+  unit('f3_pax', '沙蝎', 'f3_pax', 2, 1, [P(E.byStruct(1))]);
   unit('f3_miniscarab', '小圣甲虫', 'f3_miniscarab', 2, 0, [D(E.spawn('tk_dervish', 1, 'here'))]);
   unit('f3_rae', '沙尘精', 'f3_rae', 2, 0, [P(E.gust())]);
   unit('f3_dunecaster', '沙丘术士', 'f3_dunecaster', 2, 0, [P(E.build(2))]);
-  unit('f3_windshriek', '啸风鸟', 'f3_windshriek', 3, 1, [SWIFT]);
+  unit('f3_windshriek', '啸风鸟', 'f3_windshriek', 3, 2, [SWIFT]);
   unit('f3_aymarahealer', '筑碑祭司', 'f3_aymarahealer', 3, 0, [P(E.aidStruct(2))]);
   unit('f3_orbweaver', '织沙者', 'f3_orbweaver', 3, 1, [P(E.spawn('tk_dervish', 1, 'behind'))]);
-  unit('f3_badlandsscout', '荒地斥候', 'f3_badlandsscout', 3, 2);
+  unit('f3_badlandsscout', '荒地斥候', 'f3_badlandsscout', 3, 2, [P(E.aidLane(1))]);
   unit('f3_pyromancer', '炎术士', 'f3_pyromancer', 3, 0, [P(E.shot(3))]);
   unit('f3_windgiver', '赐风者', 'f3_windgiver', 3, 0, [P(E.tailwind())]);
   unit('f3_sandhowler', '沙嚎兽', 'f3_sandhowler', 3, 1, [P(E.gust())]);
   unit('f3_falcius', '碑卫法尔修', 'f3_falcius', 4, 1, [P(E.build(2))]);
   unit('f3_windslicer', '裂风者', 'f3_windslicer', 4, 1, [P(E.gustAdj())]);
-  unit('f3_insightcaster', '洞察术士', 'f3_insightcaster', 4, 0, [P(E.beam(2))]);
+  unit('f3_insightcaster', '洞察术士', 'f3_insightcaster', 4, 0, [P(E.aidStruct(1)), P(E.shot(2))]);
   unit('f3_duskweaver', '织暮者', 'f3_duskweaver', 4, 0, [T(E.aidStruct(1))]);
-  unit('f3_sirocco', '热风', 'f3_sirocco', 4, 1, [SWIFT]);
+  unit('f3_sirocco', '热风', 'f3_sirocco', 4, 2, [SWIFT, D(E.gustAdj())]);
   unit('f3_anubis', '胡狼卫', 'f3_anubis', 4, 0, [TAUNT, P(E.build(1))]);
   unit('f3_ishtarhunter', '逐风猎手', 'f3_ishtarhunter', 5, 1, [P(E.shot(2)), P(E.gust())]);
   unit('f3_sakkak', '萨卡克', 'f3_sakkak', 5, 1, [D(E.spawn('tk_iron', 3, 'here'))]);
   unit('f3_scarabtera', '巨甲虫', 'f3_scarabtera', 5, 0, [TAUNT, D(E.spawn('tk_dervish', 2, 'sides'))]);
   unit('f3_nimbus', '雨云', 'f3_nimbus', 5, 0, [T(E.spawn('tk_dervish', 1, 'front'))]);
-  unit('f3_zephyr', '泽菲尔', 'f3_zephyr', 5, 1, [SWIFT, P(E.gust())]);
+  unit('f3_zephyr', '泽菲尔', 'f3_zephyr', 5, 2, [SWIFT, P(E.gust())]);
   unit('f3_dreamshaper', '塑梦者', 'f3_dreamshaper', 6, 0, [P(E.aidStruct(2)), P(E.aid(1))]);
   unit('f3_keeperofages', '岁月守护者', 'f3_keeperofages', 6, 0, [TAUNT, T(E.heal(1))]);
   unit('f3_ciphyronmk2', '风王赛弗隆', 'f3_ciphyronmk2', 7, 1, [P(E.gale())]);
   unit('f3_zodiac', '黄道巨像', 'f3_zodiac', 8, 1, [P(E.spawn('tk_iron', 4, 'sides')), P(E.build(1))]);
-  unit('f3_curseddervish', '咒沙灵', 'f3_curseddervish', 3, 1, [A(K.venom())]);
-  spell('f3s_curse', '沙之诅咒', 2, 'foe', '禁用一个敌方单位或建筑的能力，它的装备也掉了。', (s, ev, side, t, id) => { fx(ev, 'bolt', id, castle(side), [t]); mute(s, ev, t); }, (s, side, t) => !s.board[t].mute);
+  unit('f3_curseddervish', '咒沙灵', 'f3_curseddervish', 3, 1, [D(E.venomAdj())]);
+  spell('f3s_curse', '沙之诅咒', 2, 'foe', '禁用一个敌方单位或建筑的能力，它的装备也掉了；你每有一座建筑，再对它造成 1 点伤害。', (s, ev, side, t, id) => { fx(ev, 'bolt', id, castle(side), [t]); mute(s, ev, t); const n = structs(s, side).length; if (n && s.board[t]) hurt(s, ev, t, n); });
   unit('f3_general', '筑城官', 'f3_general', 3, 0, [P(E.rouse())]);
   unit('f3_windstriker', '风击者', 'f3_windstriker', 4, 1, [P(E.byStruct(3))]);
   unit('f3_incinera', '炎灵', 'f3_incinera', 5, 2, [SIEGE(3)]);
@@ -442,7 +444,7 @@ export function build(H) {
   struct('f3_endlessobelysk', '无尽碑', 'f3_endlessobelysk', 5, [T(E.spawn('tk_dervish', 3, 'front'))]);
   spell('f3s_tailwind', '顺风', 2, 'ally', '一个友方单位 +1 战力，并立刻走一步。', (s, ev, side, t, id) => { bless(s, ev, id, castle(side), [t], 1); march(s, ev, side, [t]); });
   spell('f3s_fortify', '筑沙', 2, 'none', '你的建筑各 +3 战力。', (s, ev, side, t, id) => { const ts = structs(s, side); fx(ev, 'bless', id, castle(side), ts); ts.forEach(x => buff(s, ev, x, 3)); }, (s, side) => structs(s, side).length > 0);
-  spell('f3s_sandstorm', '沙暴', 3, 'foe', '把目标所在那一路的所有敌方单位各吹退一格；退不动的改为受 2 点伤害。', (s, ev, side, t, id) => blow(s, ev, id, castle(side), lane(s, side, colOf(t)), side), (s, side, t) => isUnit(s.board[t]));
+  spell('f3s_sandstorm', '沙暴', 3, 'foe', '把目标所在那一路的所有敌人各吹退一格；吹不动的（建筑，或者身后没有空格）改为受 2 点伤害。', (s, ev, side, t, id) => blow(s, ev, id, castle(side), lane(s, side, colOf(t)), side));
   spell('f3s_banish', '放逐', 4, 'foe', '把一个敌方单位沿着它那一路吹回它家门口（那一格有人就停在最近的空格）。', (s, ev, side, t, id) => { const to = banishTo(s, side, t); fx(ev, 'gust', id, castle(side), [t]); shift(s, ev, t, to, 'push'); }, (s, side, t) => isUnit(s.board[t]) && banishTo(s, side, t) >= 0);
   spell('f3s_starfall', '星陨', 6, 'none', '每一路离你最近的那个敌人各受 4 点伤害。', (s, ev, side, t, id) => zap(s, ev, id, castle(side), [...Array(COLS)].map((_, c) => firstInLane(s, side, c)).filter(x => x >= 0), 4, 'storm'), (s, side) => enemies(s, side).length > 0);
   gear('f3g_boots', '风行之靴', 2, 1, [SWIFT]);
@@ -452,13 +454,15 @@ export function build(H) {
   F = 'n';
   token('tk_mini', '小贾克西', 'neutral_minijax');
   unit('neutral_dex', '游侠德克斯', 'neutral_dex', 2, 1);
+  unit('n_militia', '民兵', 'neutral_mercmelee1', 1, 0);                                   // 1 费的兵：前几个回合能把零头能量花掉
+  unit('n_courier', '信使', 'neutral_mercmelee2', 1, 1, [D(E.selfBase(1))]);
   unit('neutral_jaxi', '贾克西', 'neutral_jaxi', 2, 1, [D(E.spawn('tk_mini', 1, 'here'))]);
   unit('general', '火镰客', 'f2_tier2general', 3, 2);
   unit('warden', '铁壁卫士', 'neutral_primusshieldmaster', 3, 0, [GUARD]);
   unit('martyr', '殉道祭司', 'neutral_healingmystic', 3, 1, [D(E.aid(2))]);
   unit('grapple', '钩锁手', 'neutral_syvrel', 3, 1, [P(E.pull())]);
   unit('neutral_golemstone', '石魔像', 'neutral_golemstone', 3, 0);
-  unit('neutral_sai', '剑客赛', 'neutral_sai', 3, 1, [P(E.shot(2))]);
+  unit('neutral_sai', '剑客赛', 'neutral_sai', 3, 1, [R(E.grow(2))]);
   unit('neutral_silverbeak', '银喙', 'neutral_silverbeak', 3, 1, [P(E.heal(1))]);
   unit('trinity', '三翼龙', 'neutral_trinitywing', 4, 3);
   unit('noshrak', '雷枪手', 'f3_grandmasternoshrak', 4, 1, [A(K.pierce(2))]);
@@ -469,24 +473,24 @@ export function build(H) {
   unit('neutral_golemsteel', '钢魔像', 'neutral_golemsteel', 5, 0);
   unit('neutral_bastion', '堡垒卫士', 'neutral_bastion', 5, 0, [GUARD, P(E.aid(1))]);
   unit('neutral_thunderhorn', '雷角兽', 'neutral_thunderhorn', 5, 1, [A(K.cleave(1))]);
-  unit('neutral_bloodletter', '放血者', 'neutral_bloodletter', 5, 2, [P(E.shot(2))]);
+  unit('neutral_bloodletter', '放血者', 'neutral_bloodletter', 5, 2, [P(E.shot(2)), A(K.leech(1))]);
   unit('neutral_moltengolem', '熔岩魔像', 'neutral_moltengolem', 6, 0, [D(E.blast(2))]);
   unit('neutral_astralcrusader', '星界十字军', 'neutral_astralcrusader', 7, 2);
   unit('tyrant', '天陨暴君', 'boss_skyfalltyrant', 8, 1, [A(K.cleave(3))]);
   unit('n_arrow', '哨箭手', 'neutral_arrowwhistler', 3, 0, [T(E.shot(1))]);
-  unit('n_windrunner', '逐风者', 'neutral_windrunner', 3, 1, [SWIFT]);
+  unit('n_windrunner', '逐风者', 'neutral_windrunner', 3, 2, [SWIFT, FIXED]);
   unit('n_artificer', '工匠', 'neutral_artificer', 3, 0, [P(E.forge())]);
   unit('n_ironclad', '铁甲兵', 'neutral_ironclad', 4, 0, [TAUNT, THORNS(1)]);
   unit('n_rejuvenator', '回春师', 'neutral_rejuvenator', 4, 0, [T(E.heal(1))]);
   unit('n_bonereaper', '拾骨者', 'neutral_bonereaper', 5, 1, [MOURN('自己 +2 战力', 2, (s, ev, w, x) => buff(s, ev, x, 2))]);
-  unit('n_harmony', '和声', 'boss_harmony', 5, 0, [S(E.aidAll(1))]);
+  unit('n_harmony', '和声', 'boss_harmony', 5, 0, [S(E.heal(1))]);
   unit('n_kron', '重锤克隆', 'boss_kron', 6, 1, [P(E.push(3))]);
   unit('n_vampire', '血族', 'boss_vampire', 6, 1, [A(K.leech(2))]);
   unit('n_spelleater', '噬咒者', 'boss_spelleater', 6, 1, [S(E.grow(2))]);
-  unit('n_chaosknight', '混沌骑士', 'boss_chaosknight', 7, 1, [A(K.cleave(2))]);
-  unit('n_shadowlord', '影主', 'boss_shadowlord', 7, 1, [D(E.ring(3))]);
+  unit('n_chaosknight', '混沌骑士', 'boss_chaosknight', 7, 1, [A(K.cleave(2)), A(K.pierce(2))]);
+  unit('n_shadowlord', '影主', 'boss_shadowlord', 7, 1, [D(E.cull(3))]);
   unit('n_paragon', '圣像', 'boss_paragon', 8, 0, [TAUNT, T(E.aid(1))]);
-  unit('n_widow', '白寡妇', 'neutral_whitewidow', 3, 1, [A(K.venom())]);
+  unit('n_widow', '白寡妇', 'neutral_whitewidow', 3, 1, [THORNS(1), A(K.venom())]);
   unit('n_abjudicator', '裁决者', 'neutral_abjudicator', 3, 0, [P(E.silence())]);
   spell('n_turn', '策反', 6, 'foe', '把一个战力不超过 4 的敌方单位变成你的。', (s, ev, side, t, id) => { fx(ev, 'bless', id, castle(side), [t]); convert(s, ev, t, side); }, (s, side, t) => isUnit(s.board[t]) && s.board[t].str <= 4);
   unit('n_gambler', '赌徒', 'neutral_gambler', 3, 0, [P(E.draw(1))]);
@@ -552,7 +556,7 @@ export function build(H) {
     f1: { name: '圣辉骑士团', key: '圣盾 · 列阵 · 守城', style: '金甲骑士。圣盾能挡一次伤害，站在一起的人互相加战力，还能给城堡回血。' },
     f2: { name: '岚影', key: '连击 · 奇袭 · 偷袭 · 咒印', style: '忍者。一回合连着出几张牌有额外效果；有的兵能直接放到敌人身边，从侧面下手；每放一张法术，场上的人跟着起反应。' },
     f3: { name: '沙海', key: '方尖碑 · 风 · 遗物', style: '沙漠里的建造者。方尖碑不会动，但每回合都在干活；风能把敌人吹回去、把自己人送上去；遗物是给单位戴的装备。' },
-    f4: { name: '深渊', key: '影灵 · 倒下时 · 暗影 · 献祭', style: '成群的影灵。很多牌倒下时才生效；暗影地格会让站在上面的敌人每回合掉血。' },
+    f4: { name: '深渊', key: '影灵 · 倒下时 · 暗影 · 献祭', style: '成群的影灵。很多牌倒下时才生效；暗影地格会让站在上面的敌人每回合掉血，留 3 个回合。' },
     f5: { name: '巨兽', key: '成长 · 孵化 · 荆棘 · 狂暴', style: '大块头。有的每回合变强，有的要先孵蛋，有的谁碰谁受伤。' },
     f6: { name: '霜原', key: '冻结 · 渗透 · 冰墙', style: '把对面的兵冻在原地（被冻住的下回合不前进，能力也暂时失效），用冰墙挡路，再把兵放进对方半场拿加成。' },
     n: { name: '中立', key: '', style: '哪个阵营的卡组都能带。这里还有装备牌：贴在一个友方单位身上，直到它倒下；一个单位只带一件，新的会换掉旧的。部分单位有种族（龙、魔像、骑士），有的牌会给同族加成。' },
@@ -568,18 +572,18 @@ export function build(H) {
   // 按打法组好的预设卡组，每个阵营两套。组法照 Stormbound 玩家总结的经验：至少有一种制胜手段（快攻、直伤、成长），
   // 有能推进前线的兵，有解场的牌，4 费以上的不超过 4 张，低费牌是核心（一回合多出几张通常比出一张大的强）。
   const decks = [
-    { f: 'f1', name: '铁壁列阵', plan: '抱团成长：圣盾挡刀，列阵和祝福把一小队人越养越大，靠雄狮冲线收尾。', cards: ['squire', 'f1_fiz', 'f1_friendsguard', 'f1_spellbladeadept', 'f1_silvermanevanguard', 'f1_warblade', 'f1_melee', 'f1s_smite', 'lion', 'f1_sunbreaker', 'f1_radiantdragoon', 'f1_elyxstormblade'] },
-    { f: 'f1', name: '骑士冲锋', plan: '种族快攻：铺一排骑士，掌旗官和团长给同族加成，破阵骑士和龙骑直冲城门。', cards: ['squire', 'neutral_dex', 'f1s_shield', 'n_bannerman', 'f1_kingsguard', 'f1_silvermanevanguard', 'f1_spellbladeadept', 'f1s_smite', 'lancer', 'n_knightlord', 'f1_radiantdragoon', 'f1s_rally'] },
+    { f: 'f1', name: '铁壁列阵', plan: '抱团成长：圣盾挡刀，列阵和祝福把一小队人越养越大，靠雄狮冲线收尾。', cards: ['n_militia', 'squire', 'f1_fiz', 'f1_friendsguard', 'f1_spellbladeadept', 'f1_silvermanevanguard', 'f1_warblade', 'f1s_smite', 'lion', 'f1_sunbreaker', 'f1_radiantdragoon', 'f1_elyxstormblade'] },
+    { f: 'f1', name: '骑士冲锋', plan: '种族快攻：铺一排骑士，掌旗官和团长给同族加成，破阵骑士和龙骑直冲城门。', cards: ['n_courier', 'squire', 'neutral_dex', 'f1s_shield', 'n_bannerman', 'f1_kingsguard', 'f1_silvermanevanguard', 'f1s_smite', 'lancer', 'n_knightlord', 'f1_radiantdragoon', 'f1s_rally'] },
     { f: 'f2', name: '连击快攻', plan: '低费连击：一回合连出三四张小牌触发连击，用抽牌续手，不给对面喘气。', cards: ['f2s_stance', 'f2_melee', 'f2_ace', 'f2_katara', 'f2_support', 'f2s_shuriken', 'f2_general', 'f2_sparrowhawk', 'f2_deathphantom', 'f2_onyxjaguar', 'f2_supekuta', 'f2_demononi'] },
     { f: 'f2', name: '咒印法术', plan: '法术联动：场上留着带咒印的人，每放一张法术他们就变强、放箭或给全队加战力。', cards: ['f2s_stance', 'f2_melee', 'f2_xho', 'f2s_shuriken', 'f2s_dash', 'f2_caster', 'f2_lanternfox', 'f2_pandabear', 'f2_support', 'f2s_clone', 'f2_buildlegendary', 'f2_kibeholder'] },
-    { f: 'f3', name: '方尖碑', plan: '建筑流：先立碑，碑越多人越强；筑城官让碑多干一次活，水晶提供额外能量。', cards: ['f3_dunecaster', 'f3_rae', 'f3_pax', 'f3_obelyskredsand', 'f3_trifectaperfecta', 'f3_general', 'f3_orbweaver', 'f3_sandhowler', 'f3_obelyskgoldenflame', 'f3_falcius', 'f3_endlessobelysk', 'f3_dreamshaper'] },
-    { f: 'f3', name: '顺风突袭', plan: '速度：乘风的兵一回合走两步，顺风和风行之靴再推一把，炎灵专拆城门。', cards: ['f3_pax', 'f3_rae', 'f3s_tailwind', 'f3_orbweaver', 'f3_windshriek', 'f3_badlandsscout', 'f3_sandhowler', 'n_windrunner', 'f3s_sandstorm', 'f3_sirocco', 'f3_incinera', 'f3_zephyr'] },
-    { f: 'f4', name: '影灵海', plan: '铺场：满地影灵，拿它们献祭、喂祭司，最后用按人头加战力的巨像收尾。', cards: ['f4_swarm', 'f4_husk', 'f4_crawler', 'f4_gor', 'assassin', 'f4_gloomchaser', 'f4s_swarm', 'siphon', 'priestess', 'f4_arachne', 'f4_daemongate', 'juggernaut'] },
-    { f: 'f4', name: '毒与暗影', plan: '消耗直伤：中毒和暗影慢慢磨掉对面的兵，倒下时烧城堡的单位一点点把血磨光。', cards: ['f4_furosa', 'f4_ooz', 'f4s_seed', 'f4_pitstrider', 'f4_nightfiend', 'n_widow', 'siphon', 'f4s_shadow', 'f4_darkspine', 'dancer', 'f4_moonrider', 'f4_megafiend'] },
-    { f: 'f5', name: '越养越大', plan: '成长：每回合自己变强的兵加上活力和巨化，拖得越久越占便宜。', cards: ['f5_minibeast', 'f5_silitharyoung', 'f5s_feral', 'n_vigor', 'walker', 'f5_rancour', 'f5_molokihuntress', 'f5s_devour', 'f5_grimrock', 'grow', 'f5_general', 'elder'] },
-    { f: 'f5', name: '荆棘反击', plan: '防守反击：荆棘和嘲讽让对面撞得头破血流，再用撞城巨角两步冲进城门。', cards: ['f5_gibblegup', 'f5_unstableflump', 'f5_silitharyoung', 'g_thorn', 'f5_mandrake', 'f5_molokihuntress', 'f5_ragebinder', 'f5s_devour', 'n_ironclad', 'f5s_slam', 'f5_ankylos', 'f5_juggernaut'] },
-    { f: 'f6', name: '冰封控制', plan: '控制：把对面冻在原地（能力也失效），再用专打冻结目标的牌清场。', cards: ['f6_icy', 'fox', 'f6_bur', 'f6s_shard', 'north', 'f6_kindredhunter', 'f6_sleetdasher', 'chill', 'dryad', 'f6_arcticrhyno', 'f6_fenrirwerewolf', 'drake'] },
-    { f: 'f6', name: '渗透与龙', plan: '突进：把兵放进对方半场拿渗透加成，龙语者给一群龙加战力，两步冲城。', cards: ['f6_bur', 'fox', 'n_dragonling', 'f6_snowman', 'icewall', 'f6s_mark', 'f6_icehornet', 'f6_sleetdasher', 'n_dragonspeaker', 'f6_snowwyvern', 'drake', 'f6_whitewyvern'] },
+    { f: 'f3', name: '方尖碑', plan: '建筑流：先立碑，碑越多人越强；筑城官让碑多干一次活，水晶提供额外能量。', cards: ['f3_dunecaster', 'f3_rae', 'f3_pax', 'f3_obelyskredsand', 'f3_trifectaperfecta', 'f3_general', 'f3_orbweaver', 'n_militia', 'f3_obelyskgoldenflame', 'f3_falcius', 'f3_endlessobelysk', 'f3_dreamshaper'] },
+    { f: 'f3', name: '顺风突袭', plan: '速度：乘风的兵一回合走两步，顺风和风行之靴再推一把，炎灵专拆城门。', cards: ['n_courier', 'f3_pax', 'f3_rae', 'f3s_tailwind', 'f3_orbweaver', 'f3_windshriek', 'f3_sandhowler', 'n_windrunner', 'f3s_sandstorm', 'f3_sirocco', 'f3_incinera', 'f3_zephyr'] },
+    { f: 'f4', name: '影灵海', plan: '铺场：满地影灵，拿它们献祭、喂祭司，最后用按人头加战力的巨像收尾。', cards: ['n_militia', 'f4_swarm', 'f4_husk', 'f4_crawler', 'f4_gor', 'f4_gloomchaser', 'f4s_swarm', 'siphon', 'priestess', 'f4_arachne', 'f4_daemongate', 'juggernaut'] },
+    { f: 'f4', name: '毒与暗影', plan: '消耗直伤：中毒和暗影慢慢磨掉对面的兵，倒下时烧城堡的单位一点点把血磨光。', cards: ['f4s_pact', 'f4_furosa', 'f4_ooz', 'f4s_seed', 'f4_pitstrider', 'f4_nightfiend', 'siphon', 'f4s_shadow', 'f4_darkspine', 'dancer', 'f4_moonrider', 'f4_megafiend'] },
+    { f: 'f5', name: '越养越大', plan: '成长：每回合自己变强的兵加上活力和巨化，拖得越久越占便宜。', cards: ['n_militia', 'f5_minibeast', 'f5_silitharyoung', 'f5s_feral', 'n_vigor', 'walker', 'f5_rancour', 'f5s_devour', 'f5_grimrock', 'grow', 'f5_general', 'elder'] },
+    { f: 'f5', name: '荆棘反击', plan: '防守反击：荆棘和嘲讽让对面撞得头破血流，再用撞城巨角两步冲进城门。', cards: ['n_militia', 'f5_gibblegup', 'f5_unstableflump', 'f5_silitharyoung', 'g_thorn', 'f5_mandrake', 'f5_ragebinder', 'f5s_devour', 'n_ironclad', 'f5s_slam', 'f5_ankylos', 'f5_juggernaut'] },
+    { f: 'f6', name: '冰封控制', plan: '控制：把对面冻在原地（能力也失效），再用专打冻结目标的牌清场。', cards: ['f6s_mist', 'f6_icy', 'fox', 'f6_bur', 'f6s_shard', 'north', 'f6_kindredhunter', 'chill', 'dryad', 'f6_arcticrhyno', 'f6_fenrirwerewolf', 'drake'] },
+    { f: 'f6', name: '渗透与龙', plan: '突进：把兵放进对方半场拿渗透加成，龙语者给一群龙加战力，两步冲城。', cards: ['n_courier', 'f6_bur', 'fox', 'n_dragonling', 'f6_snowman', 'icewall', 'f6s_mark', 'f6_icehornet', 'n_dragonspeaker', 'f6_snowwyvern', 'drake', 'f6_whitewyvern'] },
   ];
   return { cards, factions, starters, decks };
 }

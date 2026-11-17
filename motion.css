@@ -81,11 +81,11 @@
 #reveal small { padding:0 8px; font-size:12px; line-height:20px; background:var(--hurt, #c82038); color:var(--paper, #ece4d0); }
 @keyframes m-reveal { from { translate:120% 0; } }
 
-/* ---------- 牌库堆：下一张牌正面朝上（全程无随机）。换牌、补牌都从这里来 ---------- */
+/* ---------- 牌库堆：背面朝上，只写还剩几张（补牌和换牌从里面随机来一张）。换牌、补牌的动画都从这里出发 ---------- */
 #pile { position:absolute; right:max(16px, var(--sr, 0px)); bottom:16px; z-index:2; width:96px; padding:4px 4px 8px; display:flex; flex-direction:column; align-items:center; gap:4px; text-align:center;
   background:var(--fd, #1a2030); border:2px solid var(--ink, #080818); box-shadow:4px 4px 0 var(--ink, #080818), 8px 8px 0 var(--night-2, #1c2844); }
 #pile small { font-size:12px; line-height:1; color:var(--dim, #8e98b8); } #pile b { font-size:12px; line-height:1.3; max-width:100%; }
-#pile canvas { width:48px; height:48px; image-rendering:pixelated; } #pile .c { position:absolute; top:-12px; left:-12px; width:28px; height:32px; background:var(--ink, #080818); clip-path:polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+#pile .back { width:40px; height:48px; background:linear-gradient(var(--night-4, #4a5c88) 0 0) center / 12px 12px no-repeat, var(--night-2, #1c2844); box-shadow:inset 0 0 0 2px var(--night-4, #4a5c88); }   /* 牌库背面朝上：抽到什么是随机的，不预告 */ #pile .c { position:absolute; top:-12px; left:-12px; width:28px; height:32px; background:var(--ink, #080818); clip-path:polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
 #pile .c i { position:absolute; inset:2px; display:grid; place-items:center; background:var(--mana, #00b8c8); clip-path:inherit; color:var(--ink, #080818); line-height:0; }   /* 费用和卡面上一样套六边水晶 */
 #pile:empty { display:none; }
 
@@ -113,7 +113,7 @@
 /* ---------- 手机横屏：手牌是小版式，抬起的幅度也跟着小（和 #stage3d 的 --hand-zone 对应：探出 64 + 抬 8 + 余量 8） ---------- */
 @media (max-height:540px) {
   #hand .kcard.sel, #hand .kcard.sel:hover, #hand .kcard.ok:hover { --lift:-8px; }
-  #pile { right:max(8px, var(--sr, 0px)); bottom:8px; width:64px; padding:4px; gap:2px; } #pile canvas { width:32px; height:32px; } #pile b { display:none; }   /* 下一张：缩成舞台右下角一小块，名字收起 */
+  #pile { right:max(8px, var(--sr, 0px)); bottom:8px; width:64px; padding:4px; gap:2px; } #pile .back { width:24px; height:28px; background-size:8px 8px; } #pile small { display:none; }   /* 牌库：缩成舞台右下角一小块，只留张数 */
   #reveal { right:max(8px, var(--sr, 0px)); } #reveal.on { scale:1; }                                     /* 对方亮的牌换成中号（脚本加 .md），不再缩放 */
   #flag { height:40px; } #flag b { font-size:16px; }
 }

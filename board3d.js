@@ -12,7 +12,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { GFX as OLD_GFX } from './render.js';
 import { MORE_GFX } from './chess-gfx.js';
-import { COLS, ROWS } from './chess.js';
+import { COLS, ROWS, CARDS } from './chess.js';
 export const GFX = { ...OLD_GFX, ...MORE_GFX };
 
 const LZ = 1.2;                                  // 两条路之间的间隔比格子长一点，前后的人才不会互相挡太多
@@ -615,6 +615,9 @@ const creeps = tiles.map(t => { const m = new THREE.Mesh(new THREE.PlaneGeometry
 
 const free = u => { scene.remove(u.grp); for (const t of Object.values(u.tex)) t.dispose(); for (const sp of [u.power, u.tag, u.gearS]) if (sp) { sp.material.map.dispose(); sp.material.dispose(); } for (const m of [u.mat, u.depth, u.bubble.material, u.grp.children[0].material, u.grp.children[1].material]) m.dispose(); }; // 单位离场：它自己的牌子、材质、贴图一起释放，打久了才不会越积越多
 const isBoss = card => card.startsWith('B_'); // 首领牌（chess-cards.js 里 bossUnit 建的那十一张）
+// 头顶常驻的小牌子：嘲讽、中毒、活力、被禁用，一眼看得出来。嘲讽在被禁用或冻住时不算数，就不挂
+function retag(u) { const txt = (u.taunt && !u.muted && !u.frozen ? '嘲' : '') + (u.poison ? '毒' : '') + (u.vital ? '活' : '') + (u.muted ? '禁' : ''), col = u.poison ? '#70e040' : u.vital ? '#f8e040' : u.muted ? '#9a9aa8' : '#ece4d0';
+  if (!txt) { if (u.tag) u.tag.visible = false; } else if (!u.tag) { u.tag = badge(txt, col, .17); u.tag.position.set(0, 1.02, 0); u.grp.add(u.tag); } else { u.tag.userData.set(txt, col); u.tag.visible = true; } }
 const tint = u => u.frozen ? 0x8fd8ff : u.poison ? 0xa8f070 : u.muted ? 0x9a9aa8 : u.rage ? 0xffc8b8 : 0xffffff; // 角色身上的状态色：冻住发蓝，中毒发绿，被禁用发灰
 // 给 chess-ui.js 用的接口。带动画的都返回一个“演完了”的约定
 export const board = {
@@ -630,7 +633,7 @@ export const board = {
     const spr = new THREE.Mesh(sh.geo, mat); spr.customDepthMaterial = depth; spr.castShadow = true; spr.scale.set(side ? -w : w, w, 1); grp.add(spr); // 左边的人朝右，右边的人朝左
     const power = badge(String(str), TEAM[side].ramp[3], .24); power.position.set(.34, .1, .32); grp.add(power);
     const bubble = new THREE.Sprite(new THREE.SpriteMaterial({ map: bubbleT, color: 0xfff4a0, transparent: true, depthTest: false, blending: THREE.AdditiveBlending })); bubble.scale.setScalar(1.25); bubble.position.y = .5; bubble.visible = !!shield; bubble.renderOrder = 7; grp.add(bubble);
-    const u = { id, card, side, grp, spr, mat, depth, power, w, bubble, ring, tex: {}, frozen: false, gen: 0, stack: 0 }; units.set(id, u); setAnim(u, 'idle', true); scene.add(grp);
+    const u = { id, card, side, grp, spr, mat, depth, power, w, bubble, ring, tex: {}, frozen: false, gen: 0, stack: 0 }; units.set(id, u); setAnim(u, 'idle', true); scene.add(grp); u.taunt = !!CARDS[card]?.taunt; retag(u);
     const sx = side ? -w : w, tl = tiles[tile]; spr.scale.set(sx, w, 1);
     if (calm) { mat.alphaTest = .05; mat.transparent = true; return tween(.12, k => { mat.opacity = k; }).then(() => { mat.alphaTest = .5; mat.transparent = false; }); } // 减少动效：原地淡入
     if (big) tween(TIME.t4 * 2, k => { zoom = 1 - .1 * Math.sin(k * Math.PI); });
@@ -686,7 +689,7 @@ export const board = {
       tween(TIME.t4, k => { const w = w0 + (u.w - w0) * eOut(k); u.spr.scale.set(sx * w, w, 1); u.ring.scale.set(1.6 + .4 * eOut(k), 1.1 + .28 * eOut(k), 1); }); }
     if (any && !calm) { quake = Math.max(quake, .3); hold = Math.max(hold, .12); tween(TIME.read, k => { zoom = 1 - .07 * Math.sin(k * Math.PI); }); }
     return later(any ? TIME.t4 : 0); },
-  freeze(id, on) { const u = units.get(id); if (!u) return; u.frozen = on; u.mat.color.set(tint(u)); if (on) pop(u, '冻住', '#a8fff8'); }, // 冻住的角色待机动画停在第一帧（见 loop）
+  freeze(id, on) { const u = units.get(id); if (!u) return; u.frozen = on; u.mat.color.set(tint(u)); if (on) pop(u, '冻住', '#a8fff8'); retag(u); }, // 冻住的角色待机动画停在第一帧（见 loop）
   base(side, n, hp) { // 城堡掉血或回血：牌子上的数字一格一格跳到位；掉血时定格、重震、城堡抖
     const c = castles[side], from = c.hp; float((n > 0 ? '+' : '') + n, n > 0 ? '#68f0b0' : '#f06878', new THREE.Vector3(c.g.position.x, 2.75, .2), .9, 1.6);
     tween(Math.max(.01, Math.min(.4, Math.abs(hp - from) * .04)), k => { const v = Math.round(from + (hp - from) * k); if (v !== c.hp) { c.hp = v; plate(c); } });
@@ -738,17 +741,18 @@ export const board = {
     return Promise.resolve();
   },
   shield(id, on) { const u = units.get(id); if (!u) return; if (on) { u.bubble.visible = true; u.bubble.material.opacity = 1; u.bubble.scale.setScalar(1.25); } else { pop(u, '圣盾', '#fff4a0'); tween(TIME.t2, k => { u.bubble.scale.setScalar(1.25 + k * .9); u.bubble.material.opacity = 1 - k; }).then(() => { u.bubble.visible = false; }); } }, // 圣盾：一个罩子，被打破时胀开消失
-  creep(tile, side) { const m = creeps[tile]; m.visible = true; m.material.color.set(side ? 0xff9ad0 : 0xb8a0ff); tween(.3, k => { m.material.opacity = .85 * k; }); },                    // 暗影地格
+  creep(tile, side) { const m = creeps[tile]; if (side < 0) { tween(.3, k => { m.material.opacity = .85 * (1 - k); if (k >= 1) m.visible = false; }); return; } m.visible = true; // side < 0：暗影到期，散掉
+    m.material.color.set(side ? 0xff9ad0 : 0xb8a0ff); tween(.3, k => { m.material.opacity = .85 * k; }); },                    // 暗影地格
   async morph({ id, card, side, tile, str, shield }) { const u = units.get(id); if (u) { units.delete(id); free(u); } burst(spot(tile).setY(.5), TEAM[side].hex, 0xffffff, 1.3); await board.add({ id, card, side, tile, str, shield }); }, // 蛋孵出来
   status(id, what) { // 中毒或被禁用：飘一行字，身上换个颜色；被禁用的连装备图标一起摘掉
     const u = units.get(id); if (!u) return; if (what === 'poison') { u.poison = true; u.vital = false; } else if (what === 'vital') { u.vital = true; u.poison = false; } else { u.muted = true; if (u.gearS) { u.grp.remove(u.gearS); u.gearS = null; } }
     pop(u, { poison: '中毒', vital: '活力', mute: '禁用' }[what], { poison: '#a8f070', vital: '#fff4a0', mute: '#c8c8d8' }[what]); u.mat.color.set(tint(u));
-    const txt = (u.poison ? '毒' : '') + (u.vital ? '活' : '') + (u.muted ? '禁' : ''), col = u.poison ? '#70e040' : u.vital ? '#f8e040' : '#9a9aa8'; // 头顶挂一块常驻的小牌子，一眼能看出谁中了毒、谁被禁用
-    if (!u.tag) { u.tag = badge(txt, col, .17); u.tag.position.set(0, 1.02, 0); u.grp.add(u.tag); } else u.tag.userData.set(txt, col); },
+    retag(u); },
+  say(id, text, color = '#fff4a0') { const u = units.get(id); if (u) pop(u, text, color); }, // 在一个单位头上冒一行字（嘲讽把人拽过去的时候用）
   gear(id, card) { // 装备：在战力牌子的另一侧挂一个小图标
     const u = units.get(id); if (!u) return; if (u.gearS) u.grp.remove(u.gearS);
     const tex = new THREE.TextureLoader().load(`assets/icons/${card}.png`); tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false; tex.colorSpace = THREE.SRGBColorSpace;
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false })); s.scale.setScalar(.36); s.position.set(-.36, .14, .32); s.renderOrder = 7; u.grp.add(s); u.gearS = s;
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false })); s.scale.setScalar(.36); s.position.set(-.36, .14, .32); s.renderOrder = 7; u.grp.add(s); u.gearS = s; if (CARDS[card]?.taunt) { u.taunt = true; retag(u); } // 装备带来的嘲讽也挂牌子
     pop(u, '装备', '#fff4a0'); tween(TIME.t3, k => s.scale.setScalar(.36 * (1 + .8 * Math.sin(k * Math.PI)))); },
   screen(p) { // 一个格子（或 { base: 哪一方 } 的城堡）在页面上的像素位置，给界面做“牌从手里飞到格子”这类动画用
     const v = at(p, .45).project(camera), r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height }; },

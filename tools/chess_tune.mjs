@@ -31,7 +31,8 @@ let tune = { ...(await import('../chess-tune.js')).TUNE };
   console.log('  最强：' + show(hi) + '\n  最弱：' + show(lo));
   const spells = ids.filter(k => CARDS[k].kind === 'spell' && stat[k][1] >= 60).sort((a, b) => rate(b) - rate(a)); console.log('  法术：' + spells.slice(0, 5).map(k => `${CARDS[k].name}${(100 * rate(k)).toFixed(0)}%`).join(' ') + ' … ' + spells.slice(-5).map(k => `${CARDS[k].name}${(100 * rate(k)).toFixed(0)}%`).join(' '));
   if (doApply) {
-    for (const k of hi) tune[k] = Math.max(-5, (tune[k] || 0) - 1); for (const k of lo) tune[k] = Math.min(5, (tune[k] || 0) + 1);
+    const { LESSON } = await import('../tutorial.js'), PIN = new Set([...LESSON.mine, ...LESSON.foe]); // 新手教学用到的牌不动：教学的台词里写着它们的战力
+    for (const k of hi) if (!PIN.has(k)) tune[k] = Math.max(-5, (tune[k] || 0) - 1); for (const k of lo) if (!PIN.has(k)) tune[k] = Math.min(5, (tune[k] || 0) + 1);
     for (const k of Object.keys(tune)) if (!tune[k]) delete tune[k];
     writeFileSync(new URL('../chess-tune.js', import.meta.url), `// 由 tools/chess_tune.mjs 生成：每张单位牌在“按公式算出的战力”上再加减几点。不要手改。\nexport const TUNE = ${JSON.stringify(tune)};\n`);
   }

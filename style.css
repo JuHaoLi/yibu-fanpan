@@ -250,24 +250,17 @@ body.chess header { position:absolute; z-index:6; top:var(--s3); left:max(var(--
 .strip small u { display:flex; gap:2px; } .strip small u i { width:4px; height:8px; background:var(--paper); clip-path:polygon(0 0, 100% 50%, 0 100%); } .strip small em { color:var(--dim); font-style:normal; }
 @media (hover:hover) { .strip:hover { background:var(--fc); color:var(--ink); } .strip:hover small::after { content:''; width:8px; height:4px; background:var(--ink); }   /* 悬停：右头一道墨色横杠，点一下拿掉 */
   .strip:hover small em { color:var(--ink); } }
-/* 闯关地图：五关排成一列阶梯；打过的是翠色方块，当前这关是纸白，首领关是绯红菱形 */
-#modes { gap:var(--s2); margin-top:var(--s3); } #home.camp .lead { display:none; } #home.camp #picked p { margin-bottom:var(--s2); min-height:0; } #home.camp .opt, #home.camp #newdeck { display:none; }
+/* 玩法页签（自由对战、闯关）。闯关那一屏的样式在 campaign-ui.css */
+#modes { gap:var(--s2); margin-top:var(--s3); }
 /* 徽章：通关一个阵营场地得一枚。盾形小牌，阵营色、中间一颗亮点；没拿到的是暗色空槽 */
 .badge { display:inline-block; flex:none; width:16px; height:20px; vertical-align:-4px; background:var(--night-3); clip-path:polygon(0 0, 100% 0, 100% 60%, 75% 60%, 75% 80%, 62.5% 80%, 62.5% 100%, 37.5% 100%, 37.5% 80%, 25% 80%, 25% 60%, 0 60%); }
 .badge.on { background:linear-gradient(var(--fl) 0 0) 6px 6px / 4px 4px no-repeat, var(--fc); }
-#badges { display:flex; align-items:center; gap:var(--s1); margin:var(--s2) 0; color:var(--dim); font:var(--f12); } #badges span { margin-left:var(--s1); }
-.grp small .badge { width:8px; height:10px; margin-right:var(--s1); vertical-align:-1px; } .grp small .badge.on { background:var(--fc); }
 /* 通关的演出（结算里）：六个徽章槽排一排；打通无主之地时上面多一顶王冠。动的部分在 motion.css */
 .clearfx { position:relative; display:flex; justify-content:center; gap:var(--s2); margin:var(--s3) 0 var(--s2); } .clearfx.all { padding-top:var(--s4); }
 .clearfx .badge { width:32px; height:40px; } .clearfx .badge.on { background:linear-gradient(var(--fl) 0 0) 12px 12px / 8px 8px no-repeat, var(--fc); }
 .clearfx .crown { position:absolute; left:50%; top:-4px; width:40px; height:24px; margin-left:-20px; background:linear-gradient(var(--go) 0 0) 0 16px / 40px 8px no-repeat, linear-gradient(var(--go) 0 0) 0 4px / 8px 12px no-repeat, linear-gradient(var(--go) 0 0) 16px 0 / 8px 16px no-repeat, linear-gradient(var(--go) 0 0) 32px 4px / 8px 12px no-repeat; }
 .clearfx .bit { position:absolute; top:-8px; left:var(--x); width:6px; height:6px; background:var(--fc); opacity:0; pointer-events:none; }
-#ladder { display:flex; gap:var(--s3); margin:var(--s3) 0 var(--s2); padding:0; list-style:none; color:var(--night-4); font:var(--f12); }
-#ladder li { position:relative; padding-top:var(--s3); max-width:96px; } #ladder li::before { content:''; position:absolute; left:0; top:0; width:12px; height:12px; background:var(--night-3); }
-#ladder li.done { color:var(--dim); } #ladder li.done::before { background:var(--boon); } #ladder li.now { color:var(--paper); font-weight:700; } #ladder li.now::before { background:var(--paper); }
-#ladder li.boss::before { background:var(--hurt); clip-path:polygon(50% 0, 100% 50%, 50% 100%, 0 50%); } #ladder li.boss.done::before { background:var(--boon); }
-#picked .stage { min-height:64px; color:var(--dim); } #picked .stage span { display:flex; align-items:center; gap:var(--s2); margin-top:var(--s2); color:var(--paper); font:var(--f12); }
-.grp small { color:var(--night-4); font:var(--f12); } .grp small.got { color:var(--boon); } .flag:disabled { color:var(--night-4); background:var(--night-1); }
+.flag:disabled { color:var(--night-4); background:var(--night-1); }
 /* 没赢到手的首领牌：只给剪影 */
 .kcard.locked .art { filter:brightness(0); } .kcard.locked .tx, .kcard.locked .st, .kcard.locked .mv { visibility:hidden; }
 #reward { display:grid; justify-items:center; gap:var(--s3); color:var(--paper); } #reward:empty { display:none; }
@@ -367,8 +360,8 @@ button.card.pick { height:auto; margin:0; box-shadow:none; text-align:left; lett
   .mini .kcard { flex:0 0 16.66%; --h:104px; --rib:100px; } .mini .kcard .art { --aw:calc(var(--pw) * var(--hs) * 1px); --ah:calc(var(--ph) * var(--hs) * 1px); }
   .band { padding:var(--s1) max(var(--s3), var(--sr)) var(--sb) max(var(--s3), var(--sl)); gap:var(--s2); align-items:center; }
   #decklist { gap:var(--s3); align-items:flex-end; }
-  .grp { position:relative; flex:none; min-width:0; max-height:none; flex-flow:row nowrap; gap:var(--s1); padding-top:16px; } .grp > em { position:absolute; left:0; top:0; white-space:nowrap; } .grp small { position:absolute; right:0; top:0; max-width:calc(100% - 68px); overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-  .flag, .flag.on { flex:none; width:auto; padding-right:var(--s4); } #home.camp .grp { min-width:192px; } #home.camp .flag { flex:1; } #newdeck { margin-top:2px; }
+  .grp { position:relative; flex:none; min-width:0; max-height:none; flex-flow:row nowrap; gap:var(--s1); padding-top:16px; } .grp > em { position:absolute; left:0; top:0; white-space:nowrap; }
+  .flag, .flag.on { flex:none; width:auto; padding-right:var(--s4); } #newdeck { margin-top:2px; }
   .old { top:var(--s1); right:max(var(--s2), var(--sr)); height:44px; }
 
   /* 组牌：左边牌池上下滚；右边的石板一直在——十二张卡条排两列，保存钉在底下 */
@@ -381,3 +374,12 @@ button.card.pick { height:auto; margin:0; box-shadow:none; text-align:left; lett
   .scroll { min-height:44px; } #bcards { display:grid; grid-template-columns:1fr 1fr; gap:2px var(--s1); } .strip { grid-template-columns:16px 1fr; } .strip small { display:none; }
   .right .row { flex-wrap:nowrap; gap:var(--s3); } #bsave { flex:1 1 0; }
 }
+
+/* 房间对战的小窗：开房、输入房间号加入 */
+#roomdlg { width:min(420px, calc(100vw - 32px)); border:0; color:var(--paper); font:var(--f14); }
+#roomdlg::backdrop { background:var(--ink); opacity:.8; }
+#roomdlg > b { display:block; font:var(--f24); margin-bottom:var(--s2); }
+#roomdlg p { margin:0 0 var(--s3); }
+#roomdlg .row { display:flex; gap:var(--s2); align-items:center; margin-bottom:var(--s3); }
+#roomdlg input { width:96px; height:40px; padding:0 var(--s2); background:var(--night-0); color:var(--paper); border:0; box-shadow:inset 0 2px 0 var(--ink), 0 0 0 2px var(--night-3); font:var(--f24); letter-spacing:.2em; text-align:center; }
+#roomstat { min-height:48px; color:var(--mana-hi); } #roomstat.bad { color:var(--hurt-hi); }

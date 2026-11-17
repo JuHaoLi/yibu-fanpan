@@ -2,7 +2,7 @@
 // 先逐条验规则和各阵营的独有机制，再让电脑用随机卡组打几千局，确认每张牌都被打出过、全程不出错。
 // 平衡统计和数值微调在 tools/chess_tune.mjs。
 import assert from 'node:assert/strict';
-import { CARDS, FACTIONS, STARTERS, FKEYS, newGame, apply, aiTurn, legalPlays, forecast, frontDepth, deckError, targets, tile, COLS, ROWS, HAND, DECK, BASE_HP } from '../chess.js';
+import { CARDS, FACTIONS, STARTERS, FKEYS, newGame, apply, aiTurn, legalPlays, forecast, frontDepth, deckError, targets, tile, COLS, ROWS, HAND, DECK, BASE_HP, SHADE } from '../chess.js';
 import { LESSON, keepOrder, stepOk, foeTurn } from '../tutorial.js';
 
 let seed = 9; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
@@ -28,7 +28,7 @@ const at = (r, t) => r.state.board[t];
 { const s = blank(); assert.equal(frontDepth(s, 0), 0, '开局只能放在紧挨城堡的那一行'); put(s, tile(2, 1), 0); assert.equal(frontDepth(s, 0), 2); put(s, tile(ROWS - 1, 0), 0); assert.equal(frontDepth(s, 0), ROWS - 2, '前线最远到对方家门口前一行');
   s.hand[0][0] = V; s.left = 9; const ts = legalPlays(s).filter(a => a.i === 0).map(a => a.t); assert.ok(ts.includes(tile(ROWS - 2, 2)) && !ts.includes(tile(ROWS - 1, 2)) && !ts.includes(tile(2, 1))); }
 { let s = blank(); assert.equal(s.left, 3); s = apply(s, { type: 'end' }).state; assert.equal(s.left, 4, '后手第一回合多 1 点'); for (let i = 0; i < 13; i++) s = apply(s, { type: 'end' }).state; assert.equal(s.mana[0], s.mana[1], '补偿有期限，后面两边能量一样');
-  for (const p of [0, 1]) { assert.equal(s.hand[p].length, HAND); assert.equal(s.hand[p].length + s.deck[p].length, DECK); } }
+  for (const p of [0, 1]) { assert.equal(s.hand[p].length, HAND); assert.equal(s.hand[p].length + s.deck[p].length + s.used[p].length, DECK, '手牌、牌库、这回合用掉的，加起来十二张'); } }
 { assert.equal(deckError(STARTERS.f1), ''); assert.ok(deckError(STARTERS.f1.slice(1))); assert.ok(deckError([...STARTERS.f1.slice(1), STARTERS.f1[1]])); assert.ok(deckError([...STARTERS.f1.slice(1), 'maehv']), '不能混两个阵营'); assert.ok(deckError([...STARTERS.f4.slice(1), 'wraith']), '衍生物不能带');
   for (const f of FKEYS) { assert.equal(deckError(STARTERS[f]), ''); assert.ok(pool(f).length >= 40, `${FACTIONS[f].name} 至少 40 张`); } }
 
@@ -114,7 +114,7 @@ const at = (r, t) => r.state.board[t];
   s = blank(); put(s, tile(1, 0), 0, 'f5_ragnoramk2', 8); put(s, tile(2, 0), 1, V, 2); r = endAs(s, 0); assert.equal(at(r, tile(3, 0))?.str, 6, '打完还活着再往前走一步');
   s = blank(); put(s, tile(0, 0), 1, V, 3, { frozen: true }); put(s, tile(1, 2), 1, V, 6, { frozen: true }); const sn = CARDS.f4_siren.str; put(s, tile(1, 0), 0); r = play(s, 'f4_deathknell', tile(1, 1)); assert.ok(at(r, tile(1, 2)), '丧钟只消灭战力不超过 2 的');
   s = blank(); put(s, tile(1, 0), 0); put(s, tile(0, 1), 1, V, 6, { frozen: true }); r = play(s, 'f4_siren', tile(1, 1)); assert.equal(at(r, tile(0, 1)).str, 5, '吸取：敌人 −1'); assert.ok(r.events.some(e => e.t === 'buff' && e.n === 1), '自己 +1');
-  s = blank(); s.hand[0] = ['f2_general', 'squire', 'squire', 'squire']; s.left = 9; r = apply(s, { type: 'play', i: 0, t: tile(0, 0) }); assert.equal(r.state.hand[0].length, 4, '抽牌：打出后手牌补回 4 张'); assert.equal(r.state.hand[0].length + r.state.deck[0].length, DECK);
+  s = blank(); s.hand[0] = ['f2_general', 'squire', 'squire', 'squire']; s.left = 9; r = apply(s, { type: 'play', i: 0, t: tile(0, 0) }); assert.equal(r.state.hand[0].length, 4, '抽牌：打出后手牌补回 4 张'); assert.equal(r.state.hand[0].length + r.state.deck[0].length + r.state.used[0].length, DECK, '手牌、牌库、这回合用掉的，加起来还是 12 张');
   s = blank(); s.hand[0] = ['f2_heartofthesonghai']; s.left = 9; r = apply(s, { type: 'play', i: 0, t: tile(0, 0) }); assert.equal(at(r, tile(0, 0)).str, CARDS.f2_heartofthesonghai.str + 5, '最后一张牌 +5');
   s = blank(); s.hand[0][0] = 'f6_general'; s.left = 9; r = apply(s, { type: 'play', i: 0, t: tile(0, 0) }); assert.equal(r.state.left, 0, '霜后花光能量'); assert.ok(r.events.some(e => e.t === 'buff' && e.n === 6), '剩 3 点能量 → +6');
   s = blank(); r = play(s, 'f1_general', tile(0, 1)); assert.equal(at(r, tile(0, 1)).str, CARDS.f1_general.str + 3, '贴着城堡放 +3');
@@ -142,12 +142,26 @@ for (let g = 0; g < 4000; g++) {
     const r = apply(s, a); s = r.state;
     for (const e of r.events) { seen.add(e.t); if (e.t === 'play') played.add(e.card); if (e.t === 'spawn' || e.t === 'morph') spawned.add(e.card); }
     for (const u of s.board) if (u) assert.ok(u.str > 0, '场上不该有战力为 0 的单位');
-    for (const p of [0, 1]) { assert.ok(s.hand[p].length <= HAND); assert.equal(s.hand[p].length + s.deck[p].length, DECK); }
+    for (const p of [0, 1]) { assert.ok(s.hand[p].length <= HAND); assert.equal(s.hand[p].length + s.deck[p].length + s.used[p].length, DECK, '手牌、牌库、这回合用掉的，加起来十二张'); }
     assert.ok(s.left >= 0);
   }
   games++; turns += s.n; if (s.winner === null) draws++; else if (s.winner === 0) first++;
 }
 const never = ids.filter(k => !played.has(k)), tokens = Object.keys(CARDS).filter(k => CARDS[k].token && !spawned.has(k));
+// 试玩反馈后改的规则：嘲讽堵城门、暗影有期限、吹退对建筑改成伤害、换牌从牌库随机来一张、乘风的兵出场也走两步
+{ let s = blank(), r; put(s, tile(0, 1), 0, 'f1_kingsguard', 3); put(s, tile(0, 0), 1, V, 2); r = endAs(s, 1); assert.equal(r.state.base[0], BASE_HP, '嘲讽：挨着它的敌人不能进城门'); assert.equal(at(r, tile(0, 1)).str, 1, '嘲讽：只能转过来打它'); assert.ok(r.events.some(e => e.t === 'taunt'));
+  s = blank(); put(s, tile(0, 3), 0, 'f1_kingsguard', 3); put(s, tile(0, 0), 1, V, 2); r = endAs(s, 1); assert.equal(r.state.base[0], BASE_HP - 2, '嘲讽：隔着一路的管不着');
+  s = blank(); put(s, tile(0, 1), 0, 'f1_kingsguard', 3, { frozen: true }); put(s, tile(0, 0), 1, V, 2); r = endAs(s, 1); assert.equal(r.state.base[0], BASE_HP - 2, '嘲讽：被冻住时不算数');
+  s = blank(); put(s, tile(2, 1), 1, V, 9); put(s, tile(1, 3), 0, V, 1); r = play(s, 'f4_ooz', tile(1, 1)); assert.equal(r.state.creep[tile(2, 1)], 0, '暗影：铺在相邻的格子上'); s = r.state; s.board.forEach((u, t) => { if (u && u.side === 0) s.board[t] = null; });
+  for (let k = 1; k <= SHADE; k++) { r = endAs(s, 0); s = r.state; assert.equal(at(r, tile(2, 1)).str, 9 - k, `暗影：第 ${k} 个回合掉 1 点`); }
+  assert.equal(s.creep[tile(2, 1)], -1, `暗影：留 ${SHADE} 个回合就散`); assert.ok(r.events.some(e => e.t === 'creep' && e.side === -1));
+  s = blank(); put(s, tile(2, 1), 1, 'colossus', 5); r = play(s, 'f3_rae', tile(0, 1)); assert.equal(at(r, tile(2, 1)).str, 3, '吹退：建筑吹不动，改为受 2 点');
+  s = blank(); put(s, tile(4, 1), 1, V, 5); r = play(s, 'f3_rae', tile(0, 1)); assert.equal(at(r, tile(4, 1)).str, 3, '吹退：贴着自己城堡的退不动，改为受 2 点');
+  s = blank(); s.turn = 0; const before = [...s.hand[0]], out = before[1]; r = apply(s, { type: 'swap', i: 1 }); assert.ok(!r.state.hand[0].includes(out) && r.state.used[0].includes(out), '换牌：换掉的那张这回合不在牌库里'); assert.equal(r.state.hand[0].length, HAND); assert.ok(!before.includes(r.state.hand[0][HAND - 1]), '换牌：换来的是牌库里的一张');
+  const a = newGame([deck('f1'), deck('f4')], () => .11), b = newGame([[...a.hand[0], ...a.deck[0]], [...a.hand[1], ...a.deck[1]]], () => .97); const run = g => { let x = g, seq = []; for (let k = 0; k < 6; k++) { x = apply(x, { type: 'play', i: 0, t: legalPlays(x).find(p => p.i === 0)?.t ?? -9 }).state; x = apply(x, { type: 'end' }).state; x = apply(x, { type: 'end' }).state; seq.push(x.hand[0].join()); } return seq.join('|'); };
+  let same = true; try { same = run(a) === run(b); } catch { same = false; } assert.ok(!same, '抽牌是随机的：种子不同，抽到的牌不同');
+  for (const k of ['f3_windshriek', 'f3_sirocco', 'f3_zephyr', 'n_windrunner']) assert.equal(CARDS[k].move, 2, '乘风的兵出场也走两步');
+  s = blank(); r = play(s, 'f3_windshriek', tile(0, 2)); assert.ok(at(r, tile(2, 2)), '乘风：出场走两步'); r = endAs(r.state, 0); assert.ok(at(r, tile(4, 2)), '乘风：之后每个回合也走两步'); }
 // 闯关存档：每个场地各记各的进度和卡组；通关阵营场地得一枚徽章（重复通关不再给）；集齐六枚无主之地才开；旧存档（只有一个进行中的场地）读得进来
 { const { progress, BADGES } = await import('../campaign.js'), deck = { name: '测试', cards: STARTERS.f1 }, clear = k => { let r; progress.enter(k, deck); for (let i = 0; i < 5; i++) r = progress.win(k); return r; };
   progress.data = { runs: {}, done: {}, owned: [] }; assert.equal(progress.open('n'), false, '没有徽章进不了无主之地'); assert.ok(progress.open('f3'));
@@ -158,7 +172,7 @@ const never = ids.filter(k => !played.has(k)), tokens = Object.keys(CARDS).filte
   globalThis.localStorage = { getItem: () => JSON.stringify({ run: { area: 'f3', at: 2, deck }, done: { f1: true }, owned: ['B_f1', '不存在'] }), setItem() {} };
   progress.load(); assert.equal(progress.data.runs.f3.at, 2, '旧存档里进行中的场地读得进来'); assert.equal(progress.badges(), 1); assert.deepEqual(progress.data.owned, ['B_f1']); delete globalThis.localStorage; }
 // 新手教学的脚本：每一步都合法，对面照脚本走，最后是玩家赢；文案里写死的数字和局面对得上
-{ let s = newGame([LESSON.mine, LESSON.foe], keepOrder, { base: LESSON.base }), i = 0; const go = a => { s = apply(s, a).state; };
+{ let s = newGame([LESSON.mine, LESSON.foe], keepOrder, { base: LESSON.base, ordered: true }), i = 0; const go = a => { s = apply(s, a).state; };
   while (s.winner === null) {
     if (s.turn === 1) { for (const a of foeTurn(s)) go(a); continue; }
     const st = LESSON.steps[i], no = `教学第 ${i + 1} 步`; assert.ok(st, '教学的步骤走完了还没分出胜负'); i++;

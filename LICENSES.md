@@ -9,6 +9,7 @@
 | `assets/icons` | 法术牌和装备牌的图标（65 个） | 自制 | 是 | 全部用代码画：`tools/draw_icons.py`（16×16 的像素模板，自动描边，放大 2 倍）。原来用的 Raven 图标包免费版仅限非商业项目，2026-11-18 已全部换掉 | — |
 | `assets/ui/digits.png`、`digits-pad.png` | 像素数字 | 自制 | 是 | `tools/make_digits.py` 生成 | — |
 | `vendor/` | three.js r180 及其后期处理模块 | MIT | 是 | `vendor/three.LICENSE` | 保留许可文件即可 |
+| `vendor/peerjs.min.js` | PeerJS 1.5.4（联机房间用，WebRTC 点对点） | MIT | 是 | `vendor/peerjs.LICENSE`。运行时会连 PeerJS 的公共中转（0.peerjs.com）和 STUN/TURN，所以离线包里要么关掉房间功能，要么换成自己的中转 | 保留许可文件即可 |
 | 场景、特效、界面 | 全部用代码画 | 自制 | 是 | `board3d.js`、`style.css`、`motion.css` | — |
 | 卡牌名字、说明、数值、关卡 | 自己写的 | 自制 | 是 | `chess-cards.js`、`campaign.js`。规则框架参考了 Stormbound 的公开玩法，没有用它的名字、文字、图 | — |
 

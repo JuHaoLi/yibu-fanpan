@@ -4,7 +4,7 @@
 // 除了开局洗牌，全程没有随机数：同一个局面下，每一步会发生什么都能事先算出来画给玩家看。
 import { build } from './chess-cards.js';
 
-export const COLS = 4, ROWS = 5, HAND = 4, DECK = 12, BASE_HP = 10, N = COLS * ROWS, RAGE = 3;
+export const COLS = 4, ROWS = 5, HAND = 4, DECK = 12, BASE_HP = 10, N = COLS * ROWS, RAGE = 3, SHADE = 3; // SHADE：一块暗影地格留几个回合
 export const tile = (r, c) => r * COLS + c, rowOf = t => Math.floor(t / COLS), colOf = t => t % COLS;
 const fwd = side => side ? -1 : 1;                         // 0 号玩家的家在第 0 行，往最后一行走；1 号反过来
 export const depth = (side, r) => side ? ROWS - 1 - r : r; // 离自己家几行
@@ -21,12 +21,12 @@ const trait = (u, k) => off(u) ? undefined : CARDS[u.card][k] || (u.gear ? CARDS
 function fire(k, s, ev, u, ...a) { if (off(u)) return; const f = CARDS[u.card][k], g = u.gear && CARDS[u.gear][k]; if (f) f(s, ev, u, ...a); if (g && (k === 'onDeath' || s.board.includes(u))) g(s, ev, u, ...a); }
 
 // ---------- 局面 ----------
-const clone = s => ({ ...s, mana: [...s.mana], base: [...s.base], rage: [...s.rage], creep: [...s.creep], board: s.board.map(u => u && { ...u }), hand: s.hand.map(h => [...h]), deck: s.deck.map(d => [...d]) });
+const clone = s => ({ ...s, mana: [...s.mana], base: [...s.base], rage: [...s.rage], creep: [...s.creep], shade: [...s.shade], used: s.used.map(u => [...u]), board: s.board.map(u => u && { ...u }), hand: s.hand.map(h => [...h]), deck: s.deck.map(d => [...d]) });
 // opts 给闯关用：base 双方城堡血量；setup 开局摆在场上的 [{ side, card, tile, str }]；hand 保证出现在起手里的牌 [[我方], [对方]]；boss 哪一方有首领（它的城堡掉到一半以下时首领发怒）
 export function newGame(decks, rnd, opts = {}) { // decks：两副牌，各 12 个卡牌 id
   const sh = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const hp = opts.base || [BASE_HP, BASE_HP];
-  const s = { turn: 0, n: 1, mana: [3, 4], left: 3, base: [...hp], cap: [...hp], rage: [false, false], boss: opts.boss ?? -1, board: Array(N).fill(null), creep: Array(N).fill(-1),
+  const s = { turn: 0, n: 1, mana: [3, 4], left: 3, base: [...hp], cap: [...hp], rage: [false, false], boss: opts.boss ?? -1, board: Array(N).fill(null), creep: Array(N).fill(-1), shade: Array(N).fill(0), used: [[], []], seed: opts.ordered ? -1 : Math.floor(rnd() * 4294967296) >>> 0, // seed：抽牌用的随机数种子（局面自己带着，同一个局面走同一步结果一样）；opts.ordered（教学用）时不随机，按牌序从上往下发
     hand: [[], []], deck: decks.map(d => sh([...d])), swapped: false, plays: 0, winner: null, uid: 1 }; // plays：这回合已经打出过几张牌（连击用）
   for (const x of opts.setup || []) { const c = CARDS[x.card]; s.board[x.tile] = { id: s.uid++, side: x.side, card: x.card, str: x.str ?? c.str, frozen: false, shield: !!c.shield }; if (c.hatch) s.board[x.tile].timer = c.hatch.turns; }
   for (const p of [0, 1]) for (const k of (opts.hand || [])[p] || []) { const i = s.deck[p].indexOf(k); if (i >= 0) s.deck[p].unshift(s.deck[p].splice(i, 1)[0]); }
@@ -59,10 +59,12 @@ function poison(s, ev, t) { const u = s.board[t]; if (isUnit(u) && !u.poison) { 
 function vitalize(s, ev, t) { const u = s.board[t]; if (isUnit(u) && !u.vital) { u.vital = true; u.poison = false; ev.push({ t: 'vital', tile: t, id: u.id }); } } // 活力：它每个回合开始时 +1 战力；和中毒互相顶掉 // 中毒：它每个回合开始时 −1 战力，直到倒下
 function mute(s, ev, t) { const u = s.board[t]; if (u && !u.mute) { u.mute = true; delete u.gear; ev.push({ t: 'mute', tile: t, id: u.id }); } }          // 禁用：能力全部失效，装备也掉了
 function convert(s, ev, t, side) { const u = s.board[t]; u.side = side; u.frozen = false; ev.push({ t: 'morph', id: u.id, tile: t, card: u.card, str: u.str, side, why: 'convert', shield: u.shield, gear: u.gear, poison: u.poison, vital: u.vital, mute: u.mute }); } // 策反：换边
-function draw(s, ev, side, n) { let k = 0; while (k < n && s.hand[side].length < HAND && s.deck[side].length) { s.hand[side].push(s.deck[side].shift()); k++; } if (k) ev.push({ t: 'draw', side, n: k }); } // 抽牌：手牌最多 4 张
+// 从牌库里来一张：随机的一张（教学里按顺序）。这回合打出和换掉的牌先放在一边（used），回合结束补完手牌才洗回牌库——刚用掉的牌不会马上又抽回来
+function take(s, side) { const d = s.deck[side]; if (!d.length) d.push(...s.used[side].splice(0)); if (s.seed < 0) return d.shift(); s.seed = (Math.imul(s.seed, 1664525) + 1013904223) >>> 0; return d.splice(Math.floor(s.seed / 4294967296 * d.length), 1)[0]; }
+function draw(s, ev, side, n) { let k = 0; while (k < n && s.hand[side].length < HAND && s.deck[side].length + s.used[side].length) { s.hand[side].push(take(s, side)); k++; } if (k) ev.push({ t: 'draw', side, n: k }); } // 抽牌：手牌最多 4 张
 function freeze(s, ev, t) { const u = s.board[t]; if (isUnit(u) && !u.frozen) { u.frozen = true; ev.push({ t: 'freeze', tile: t, id: u.id }); } }
 function shieldUp(s, ev, t) { const u = s.board[t]; if (u && !u.shield) { u.shield = true; ev.push({ t: 'shield', tile: t, id: u.id, on: true }); } }
-function creep(s, ev, t, side) { if (inb(t) && s.creep[t] !== side) { s.creep[t] = side; ev.push({ t: 'creep', tile: t, side }); } } // 暗影地格：站在上面的敌人每回合掉 1 点
+function creep(s, ev, t, side) { if (!inb(t)) return; s.shade[t] = SHADE; if (s.creep[t] !== side) { s.creep[t] = side; ev.push({ t: 'creep', tile: t, side }); } } // 暗影地格：站在上面的敌人每回合掉 1 点
 function hurt(s, ev, t, n, passed) { // 能力和法术造成的伤害
   const u = s.board[t]; if (!u || n <= 0) return;
   if (u.shield) { u.shield = false; ev.push({ t: 'shield', tile: t, id: u.id, on: false }); return; } // 圣盾：挡下一次伤害
@@ -94,9 +96,9 @@ function attack(s, ev, from, to) {
     d.str -= x; a.str -= y;
     if (x) ev.push({ t: 'hurt', tile: to, id: d.id, n: x, str: Math.max(0, d.str), melee: true }); if (y) ev.push({ t: 'hurt', tile: from, id: a.id, n: y, str: Math.max(0, a.str), melee: true });
     if (d.str <= 0) kill(s, ev, to); else if (x) fire('onHurt', s, ev, d, to); // 被打的一方先结算
-    if (s.board[from] === a) { if (a.str <= 0) kill(s, ev, from); else if (y) fire('onHurt', s, ev, a, from); }
+    const at = s.board.indexOf(a); if (at >= 0) { if (a.str <= 0) kill(s, ev, at); else if (y) fire('onHurt', s, ev, a, at); } // 按引用找攻击者：对面倒下时的效果可能已经把它吹到别的格子去了，战力见底照样要倒
   }
-  if (s.board[from] !== a) return -1;
+  if (s.board[from] !== a) return s.board.indexOf(a); // 不在原地了（倒下是 −1，被吹走就是新位置）：不再往目标格里走
   if (!s.board[to]) shift(s, ev, from, to, 'move');
   fire('onAfter', s, ev, a, s.board.indexOf(a)); // “打完还活着的话”
   return s.board.indexOf(a);
@@ -105,12 +107,13 @@ function attack(s, ev, from, to) {
 // fio：刚打出来、还在冲锋的单位会拐去打旁边的敌人，顺序固定：正前 → 靠棋盘中间的那一侧 → 靠边的那一侧。
 // 唯一的例外是嘲讽：旁边有带嘲讽的敌人时，不管是不是在冲锋都必须先打它。
 function step(s, ev, t, fio) {
-  const u = s.board[t], side = u.side, r = rowOf(t), col = colOf(t), nr = r + fwd(side);
-  if (nr < 0 || nr >= ROWS) { hitBase(s, ev, 1 - side, u.str + (trait(u, 'siege') || 0), u.id, t); kill(s, ev, t); return -1; } // 走到头：按战力打城堡（攻城的再多几点），自己也离场
-  const front = tile(nr, col), inner = col < COLS / 2 ? col + 1 : col - 1, outer = col < COLS / 2 ? col - 1 : col + 1;
-  const cands = foes(s, side, [front, ...(trait(u, 'fixed') ? [] : [inner, outer].filter(x => x >= 0 && x < COLS).map(x => tile(r, x)))]);
-  const target = cands.find(x => trait(s.board[x], 'taunt')) ?? (fio ? cands[0] : cands.find(x => x === front));
-  if (target !== undefined) return attack(s, ev, t, target);
+  const u = s.board[t], side = u.side, r = rowOf(t), col = colOf(t), nr = r + fwd(side), out = nr < 0 || nr >= ROWS; // out：已经在对方家门口，再走就是进城门
+  const front = out ? -1 : tile(nr, col), inner = col < COLS / 2 ? col + 1 : col - 1, outer = col < COLS / 2 ? col - 1 : col + 1;
+  const cands = foes(s, side, [...(out ? [] : [front]), ...(trait(u, 'fixed') ? [] : [inner, outer].filter(x => x >= 0 && x < COLS).map(x => tile(r, x)))]);
+  const taunt = cands.find(x => trait(s.board[x], 'taunt'));
+  if (out && taunt === undefined) { hitBase(s, ev, 1 - side, u.str + (trait(u, 'siege') || 0), u.id, t); kill(s, ev, t); return -1; } // 走到头：按战力打城堡（攻城的再多几点），自己也离场。旁边站着嘲讽的敌人就进不了门，得先打它
+  const target = taunt ?? (fio ? cands[0] : cands.find(x => x === front));
+  if (target !== undefined) { if (target === taunt && target !== front) ev.push({ t: 'taunt', id: u.id, by: s.board[target].id, tile: target }); return attack(s, ev, t, target); } // 被嘲讽拽过去的：记一笔，画面上好说明白
   if (!s.board[front]) { shift(s, ev, t, front, 'move'); return front; }
   return t; // 前面是自己人：原地等
 }
@@ -127,6 +130,7 @@ function advance(s, ev, side) {
   for (const id of mine.filter(struct)) begin(id);
   const burnt = s.creep.map((o, t) => o === side && s.board[t] && s.board[t].side !== side ? t : -1).filter(t => t >= 0);
   if (burnt.length) { ev.push({ t: 'fx', k: 'creep', el: 'f4', from: burnt[0], to: burnt }); for (const t of burnt) hurt(s, ev, t, 1); }
+  s.creep.forEach((o, t) => { if (o === side && --s.shade[t] <= 0) { s.creep[t] = -1; ev.push({ t: 'creep', tile: t, side: -1 }); } }); // 暗影不是永久的：主人每过一个回合少一回合，到期就散
   const sick = mine.map(where).filter(t => t >= 0 && s.board[t].poison);
   if (sick.length) { ev.push({ t: 'fx', k: 'venom', el: 'f5', from: sick[0], to: sick }); for (const t of sick) if (s.board[t] && s.board[t].poison) hurt(s, ev, t, 1); }
   for (const id of mine) { const t = where(id); if (t >= 0 && s.board[t].vital) buff(s, ev, t, 1); }
@@ -185,7 +189,7 @@ export function apply(state, a) { // 返回新局面和这一步依次发生的�
   if (a.type === 'play') {
     const id = s.hand[side][a.i], c = CARDS[id];
     if (!targets(s, a.i).includes(a.t)) throw new Error('这张牌不能这样打');
-    s.left -= c.cost; s.hand[side].splice(a.i, 1); s.deck[side].push(id); // 打出的牌排到牌库最后
+    s.left -= c.cost; s.hand[side].splice(a.i, 1); s.used[side].push(id); // 打出的牌先放在一边，回合结束才洗回牌库
     ev.push({ t: 'play', side, card: id, tile: a.t });
     if (c.kind === 'spell') { c.cast(s, ev, side, a.t); // 法术放完，场上在意“你施放了法术”的单位依次响应
       for (const k of s.board.filter(u => u && u.side === side).map(u => u.id)) { const x = s.board.findIndex(u => u && u.id === k); if (x >= 0 && s.winner === null) fire('onSpell', s, ev, s.board[x], x); }
@@ -199,9 +203,9 @@ export function apply(state, a) { // 返回新局面和这一步依次发生的�
     s.plays++;
   } else if (a.type === 'swap') {
     if (s.swapped) throw new Error('这回合已经换过牌了');
-    s.deck[side].push(s.hand[side].splice(a.i, 1)[0]); s.hand[side].push(s.deck[side].shift()); s.swapped = true; ev.push({ t: 'swap', side });
+    const out = s.hand[side].splice(a.i, 1)[0]; s.hand[side].push(take(s, side)); s.used[side].push(out); s.swapped = true; ev.push({ t: 'swap', side }); // 换牌：从剩下的牌库里随机来一张，换掉的那张这回合不会再抽到
   } else {
-    while (s.hand[side].length < HAND) s.hand[side].push(s.deck[side].shift());
+    while (s.hand[side].length < HAND && s.deck[side].length + s.used[side].length) s.hand[side].push(take(s, side)); s.deck[side].push(...s.used[side].splice(0)); // 补满手牌，然后把这回合用掉的牌洗回牌库
     if (!(side === 1 && s.n === 8)) s.mana[side]++; // 后手前四个回合多 1 点能量作为补偿，第四个回合结束时不再涨，之后两边一样
     s.turn = 1 - side; s.n++; s.left = s.mana[s.turn]; s.swapped = false; s.plays = 0;
     ev.push({ t: 'turn', side: s.turn, mana: s.left });
@@ -231,7 +235,7 @@ function lethal(s, me, depth) { // 对面城堡快没血时，往下找两三步
 export function aiTurn(state) {
   let s = state; const me = s.turn, acts = [], cost = id => CARDS[id].cost;
   const dead = () => { const h = s.hand[me]; let b = -1; h.forEach((id, k) => { if (!CARDS[id].boss && !targets(s, k).length && (b < 0 || cost(id) > cost(h[b]))) b = k; }); /* 首领牌留在手里等能量，不换 */ return b; }; // 现在出不了的牌里最贵的那张
-  const swap = () => { const i = dead(); if (s.swapped || i < 0 || !s.deck[me].length) return false; if (legalPlays(s).length && cost(s.deck[me][0]) > s.left) return false; // 换来的也出不起，就不换
+  const swap = () => { const i = dead(); if (s.swapped || i < 0 || !s.deck[me].length) return false; // 手里有出不了的牌就换掉它；换来哪张是随机的，电脑也不偷看
     acts.push({ type: 'swap', i }); s = apply(s, { type: 'swap', i }).state; return true; };
   swap();
   if (s.base[1 - me] <= 6) { const kill = lethal(s, me, 2); if (kill) return [...acts, ...kill]; }
