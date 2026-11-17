@@ -172,14 +172,33 @@ const never = ids.filter(k => !played.has(k)), tokens = Object.keys(CARDS).filte
   s = blank(); put(s, tile(2, 1), 1, 'colossus', 9); r = play(s, 'f3s_banish', tile(2, 1)); assert.equal(at(r, tile(2, 1)).str, 5, '放逐：建筑吹不动，改为受 4 点');
   s = blank(); put(s, tile(2, 1), 1, V, 9); r = play(s, 'f3s_banish', tile(2, 1)); assert.equal(at(r, tile(4, 1)).str, 9, '放逐：吹得动的吹回家门口，不掉血'); }
 // 闯关存档：每个场地各记各的进度和卡组；通关阵营场地得一枚徽章（重复通关不再给）；集齐六枚无主之地才开；旧存档（只有一个进行中的场地）读得进来
-{ const { progress, BADGES } = await import('../campaign.js'), deck = { name: '测试', cards: STARTERS.f1 }, clear = k => { let r; progress.enter(k, deck); for (let i = 0; i < 5; i++) r = progress.win(k); return r; };
+{ const { progress, BADGES, AREAS, stageOpts } = await import('../campaign.js'), deck = { name: '测试', cards: STARTERS.f1 }, clear = k => { let r; progress.enter(k, deck); for (let i = 0; i < 5; i++) r = progress.win(k); return r; };
   progress.data = { runs: {}, done: {}, owned: [] }; assert.equal(progress.open('n'), false, '没有徽章进不了无主之地'); assert.ok(progress.open('f3'));
   progress.enter('f2', deck); let r = clear('f1'); assert.ok(r.cleared && r.badge && r.card === 'B_f1'); assert.equal(progress.badges(), 1); assert.ok(!progress.data.runs.f1 && progress.data.runs.f2.at === 0, '一个场地通关不动别的场地的进度');
   r = clear('f1'); assert.ok(r.cleared && !r.badge && !r.card, '再通关一次不重复给徽章和首领牌'); progress.quit('f2'); assert.ok(!progress.data.runs.f2);
   for (const k of BADGES.slice(1, 5)) clear(k); assert.equal(progress.open('n'), false, '五枚还不够'); clear(BADGES[5]); assert.ok(progress.open('n'), '六枚集齐，无主之地开放');
   progress.enter('n', deck); for (let i = 0; i < 4; i++) r = progress.win('n'); assert.ok(!r.cleared && progress.data.runs.n.at === 4, '四个小首领打完才轮到最终首领'); r = progress.win('n'); assert.ok(r.cleared && !r.badge && r.card === 'B_final');
   globalThis.localStorage = { getItem: () => JSON.stringify({ run: { area: 'f3', at: 2, deck }, done: { f1: true }, owned: ['B_f1', '不存在'] }), setItem() {} };
-  progress.load(); assert.equal(progress.data.runs.f3.at, 2, '旧存档里进行中的场地读得进来'); assert.equal(progress.badges(), 1); assert.deepEqual(progress.data.owned, ['B_f1']); delete globalThis.localStorage; }
+  progress.load(); assert.equal(progress.data.runs.f3.at, 2, '旧存档里进行中的场地读得进来'); assert.equal(progress.badges(), 1); assert.deepEqual(progress.data.owned, ['B_f1']); delete globalThis.localStorage;
+  // 存档里类型不对（徽章写成数组、首领牌写成字符串、进度写成小数）：读进来要能用，徽章不能在下一次保存时丢
+  { const mem = {}; globalThis.localStorage = { getItem: () => mem.campaign ?? null, setItem: (k, v) => { mem.campaign = v; } };
+    mem.campaign = JSON.stringify({ runs: { f1: { deck, at: 1.5 }, f2: { deck, at: 1 } }, done: [], owned: 'B_f1' });
+    progress.data = { runs: {}, done: {}, owned: [] }; progress.load();
+    assert.ok(!progress.data.runs.f1, '进度不是整数的场地不读进来'); assert.equal(progress.data.runs.f2.at, 1, '好的那条照读');
+    assert.deepEqual(progress.data.owned, [], '首领牌写成字符串就当没有'); assert.ok(Array.isArray(progress.data.owned));
+    progress.enter('f2', deck); for (let i = 0; i < 5; i++) progress.win('f2');
+    progress.load(); assert.equal(progress.badges(), 1, '徽章写成数组时，通关后也要真的存下来');
+    // 没有这场进度的时候 win 不该抛异常（存档被别的标签页清掉、手改过存档）
+    progress.quit('f2'); const none = progress.win('f2');
+    assert.deepEqual(none, { card: null, cleared: false, badge: false }, '没有进行中的场地时 win 返回空结果');
+    assert.deepEqual(progress.win('不存在的场地'), { card: null, cleared: false, badge: false }, '不存在的场地也不抛');
+    delete globalThis.localStorage; }
+  // 每个首领关的对手卡组里必须真的有那张首领牌，开局也得在对面手里（永冻隘口以前换错了牌，首领一直不出现）
+  for (const a of AREAS) { const boss = a.stages.find(s => s.boss); if (!boss) continue;
+    assert.ok(boss.foe.includes(boss.boss), `${a.name}：首领牌 ${boss.boss} 不在对手卡组里`);
+    assert.equal(boss.foe.length, DECK, `${a.name}：首领关对手还是十二张牌`);
+    const g = newGame([STARTERS.f1, boss.foe], rnd, stageOpts(boss)); assert.ok(g.hand[1].includes(boss.boss), `${a.name}：首领牌要在对面起手里`); }
+}
 // 新手教学的脚本：每一步都合法，对面照脚本走，最后是玩家赢；文案里写死的数字和局面对得上
 { let s = newGame([LESSON.mine, LESSON.foe], keepOrder, { base: LESSON.base, ordered: true }), i = 0; const go = a => { s = apply(s, a).state; };
   while (s.winner === null) {
