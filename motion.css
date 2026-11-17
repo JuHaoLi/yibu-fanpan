@@ -53,6 +53,13 @@
 /* 没有牌可出了：结束回合按钮的描边一收一放，催你 */
 @keyframes m-nudge { to { outline-offset:6px; } }
 #end.is-done, #swap.is-want { outline:2px solid var(--go, #f8e040); outline-offset:2px; animation:m-nudge var(--t-4) steps(2, jump-none) infinite alternate; }   /* 教学里该按“换牌”时，它和结束回合一样催你 */
+/* 通关：新到手的徽章从大到小分几格砸进槽里，落定时往下顿一下；王冠最后落下；彩色碎片分格往下撒。减少动态效果时直接到位、不撒碎片 */
+@keyframes m-badge { 0% { scale:3; opacity:0; } 60% { scale:1; opacity:1; translate:0 0; } 80% { scale:1; opacity:1; translate:0 3px; } 100% { scale:1; opacity:1; translate:0 0; } }
+.clearfx .new { animation:m-badge var(--t-4) steps(6, jump-none) both; animation-delay:calc(var(--t-read) + var(--i, 0) * 140ms); }
+.clearfx .crown { animation:m-badge var(--t-4) steps(6, jump-none) both; animation-delay:calc(var(--t-read) + 6 * 140ms + var(--t-2)); }
+@keyframes m-fall { 0% { translate:0 0; opacity:1; } 100% { translate:var(--dx, 0) 150px; opacity:0; } }
+.clearfx .bit { animation:m-fall 1.4s steps(10, jump-none) both; animation-delay:calc(var(--t-read) + var(--t-3) + var(--d, 0ms)); }
+.calm .clearfx .new, .calm .clearfx .crown, .calm .clearfx .bit { animation:none; }
 @keyframes m-point { to { translate:0 6px; } }
 .kcard.here::before { animation:m-point var(--t-4) steps(2, jump-none) infinite alternate; }   /* 教学：该点的牌头上的箭头一上一下走格 */
 

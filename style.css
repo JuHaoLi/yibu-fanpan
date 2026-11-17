@@ -252,6 +252,16 @@ body.chess header { position:absolute; z-index:6; top:var(--s3); left:max(var(--
   .strip:hover small em { color:var(--ink); } }
 /* 闯关地图：五关排成一列阶梯；打过的是翠色方块，当前这关是纸白，首领关是绯红菱形 */
 #modes { gap:var(--s2); margin-top:var(--s3); } #home.camp .lead { display:none; } #home.camp #picked p { margin-bottom:var(--s2); min-height:0; } #home.camp .opt, #home.camp #newdeck { display:none; }
+/* 徽章：通关一个阵营场地得一枚。盾形小牌，阵营色、中间一颗亮点；没拿到的是暗色空槽 */
+.badge { display:inline-block; flex:none; width:16px; height:20px; vertical-align:-4px; background:var(--night-3); clip-path:polygon(0 0, 100% 0, 100% 60%, 75% 60%, 75% 80%, 62.5% 80%, 62.5% 100%, 37.5% 100%, 37.5% 80%, 25% 80%, 25% 60%, 0 60%); }
+.badge.on { background:linear-gradient(var(--fl) 0 0) 6px 6px / 4px 4px no-repeat, var(--fc); }
+#badges { display:flex; align-items:center; gap:var(--s1); margin:var(--s2) 0; color:var(--dim); font:var(--f12); } #badges span { margin-left:var(--s1); }
+.grp small .badge { width:8px; height:10px; margin-right:var(--s1); vertical-align:-1px; } .grp small .badge.on { background:var(--fc); }
+/* 通关的演出（结算里）：六个徽章槽排一排；打通无主之地时上面多一顶王冠。动的部分在 motion.css */
+.clearfx { position:relative; display:flex; justify-content:center; gap:var(--s2); margin:var(--s3) 0 var(--s2); } .clearfx.all { padding-top:var(--s4); }
+.clearfx .badge { width:32px; height:40px; } .clearfx .badge.on { background:linear-gradient(var(--fl) 0 0) 12px 12px / 8px 8px no-repeat, var(--fc); }
+.clearfx .crown { position:absolute; left:50%; top:-4px; width:40px; height:24px; margin-left:-20px; background:linear-gradient(var(--go) 0 0) 0 16px / 40px 8px no-repeat, linear-gradient(var(--go) 0 0) 0 4px / 8px 12px no-repeat, linear-gradient(var(--go) 0 0) 16px 0 / 8px 16px no-repeat, linear-gradient(var(--go) 0 0) 32px 4px / 8px 12px no-repeat; }
+.clearfx .bit { position:absolute; top:-8px; left:var(--x); width:6px; height:6px; background:var(--fc); opacity:0; pointer-events:none; }
 #ladder { display:flex; gap:var(--s3); margin:var(--s3) 0 var(--s2); padding:0; list-style:none; color:var(--night-4); font:var(--f12); }
 #ladder li { position:relative; padding-top:var(--s3); max-width:96px; } #ladder li::before { content:''; position:absolute; left:0; top:0; width:12px; height:12px; background:var(--night-3); }
 #ladder li.done { color:var(--dim); } #ladder li.done::before { background:var(--boon); } #ladder li.now { color:var(--paper); font-weight:700; } #ladder li.now::before { background:var(--paper); }
@@ -260,7 +270,8 @@ body.chess header { position:absolute; z-index:6; top:var(--s3); left:max(var(--
 .grp small { color:var(--night-4); font:var(--f12); } .grp small.got { color:var(--boon); } .flag:disabled { color:var(--night-4); background:var(--night-1); }
 /* 没赢到手的首领牌：只给剪影 */
 .kcard.locked .art { filter:brightness(0); } .kcard.locked .tx, .kcard.locked .st, .kcard.locked .mv { visibility:hidden; }
-#reward { display:grid; justify-items:center; gap:var(--s3); color:var(--paper); } #reward:empty { display:none; } #reward .kcard { margin-top:var(--s4); }
+#reward { display:grid; justify-items:center; gap:var(--s3); color:var(--paper); } #reward:empty { display:none; }
+#reward:has(.kcard) { grid-template-columns:1fr auto; column-gap:var(--s4); align-items:center; } #reward > :not(.kcard) { grid-column:1; } #reward > .kcard { grid-column:2; grid-row:1 / span 6; }   /* 有奖励牌时：徽章和字在左，牌在右，矮窗口也放得下 */
 #binsight { margin:0; padding:var(--s2) 0 0; display:grid; gap:var(--s1); list-style:none; box-shadow:inset 0 2px 0 var(--night-3); color:var(--dim); font:var(--f12); }   /* 石板里不再套线框：只用顶上一条线和卡条隔开 */
 #binsight li { position:relative; padding-left:var(--s3); } #binsight li::before { content:''; position:absolute; left:0; top:4px; width:8px; height:8px; }
 #binsight li.ok::before { background:var(--boon); } #binsight li.warn { color:var(--paper); } #binsight li.warn::before { background:var(--hurt-hi); clip-path:polygon(50% 0, 100% 100%, 0 100%); }
@@ -340,10 +351,10 @@ button.card.pick { height:auto; margin:0; box-shadow:none; text-align:left; lett
   #hand .kcard .cost { left:-8px; top:-8px; width:32px; height:36px; } #hand .kcard .st { left:-8px; bottom:-8px; width:36px; height:36px; } #hand .kcard .cost .px, #hand .kcard .st .px { --s:2; }
   #hand .kcard .mv { right:var(--s1); }
   #zoom.on { display:block; position:absolute; z-index:5; left:max(var(--s2), var(--sl)); top:48px; pointer-events:none; }
-  #reward .kcard { margin-top:var(--s2); }
+
   /* 结算盖满全屏；拿到首领牌时牌放右边一列，按钮不被挤出屏幕 */
-  #result { position:fixed; z-index:8; overflow:auto; } #result .slab { padding:var(--s3); gap:var(--s2); } #result .slab:has(#reward:not(:empty)) { grid-template-columns:1fr auto; column-gap:var(--s4); } #result .slab > :not(#reward) { grid-column:1; } #reward { grid-column:2; grid-row:1 / span 3; }
-  #result .slab:has(#reward:not(:empty)) #verdict { margin-top:0; }
+  #result { position:fixed; z-index:8; overflow:auto; } #result .slab { padding:var(--s3); gap:var(--s2); } #result .slab:has(#reward .kcard) { grid-template-columns:1fr auto; column-gap:var(--s4); } #result .slab:has(#reward .kcard) #reward { display:contents; } #result .slab > *, #reward > :not(.kcard) { grid-column:1; } #reward > .kcard { grid-column:2; grid-row:1 / span 6; align-self:center; }   /* 小屏：奖励牌独占右列，其余（连同奖励里的徽章和字）都排在左列 */
+  #result .slab:has(#reward:not(:empty)) #verdict { margin-top:0; } .clearfx { margin:0; } .clearfx .badge { width:24px; height:30px; } .clearfx .badge.on { background:linear-gradient(var(--fl) 0 0) 9px 9px / 6px 6px no-repeat, var(--fc); }
 
   /* 开始界面：名字和玩法并成一行；选中的卡组那一段可以滚，开始按钮钉在它下面；十二个兵在右边站两排 */
   #home { --col:min(480px, 58%); }

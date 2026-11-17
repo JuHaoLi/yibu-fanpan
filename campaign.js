@@ -57,19 +57,23 @@ export const areaOf = key => AREAS.find(a => a.key === key);
 export const stageOpts = s => ({ base: s.base, setup: s.setup, boss: s.boss ? 1 : -1, hand: s.boss ? [[], [s.boss]] : undefined }); // 交给 newGame 的开局选项：首领牌保证在对面起手里
 export const battleMusic = (areaKey, i) => areaOf(areaKey).stages[i].music || 'battle_' + (1 + (AREAS.findIndex(a => a.key === areaKey) + i) % 3);
 
-// ---------- 存档：进行中的场地（锁定的卡组、打到第几关）、通关的场地、赢到手的首领牌 ----------
+// ---------- 存档：每个场地各自的进度（进场时选定并锁住的卡组、打到第几关）、通关的场地、赢到手的首领牌 ----------
+// 徽章：六个阵营场地各一枚，通关那个场地的五关就到手（存档里就是 done[场地]）。集齐六枚才能进无主之地。
 const KEY = 'yibu-fanpan.campaign.v1';
+export const BADGES = AREAS.filter(a => a.key !== 'n').map(a => a.key), badgeName = key => areaOf(key).name.slice(0, 2) + '徽章';
 export const progress = {
-  data: { run: null, done: {}, owned: [] },
-  load() { try { const d = JSON.parse(localStorage.getItem(KEY)); if (d && typeof d === 'object') this.data = { run: d.run || null, done: d.done || {}, owned: (d.owned || []).filter(k => CARDS[k] && CARDS[k].boss) }; } catch { /* 读不了就从头来 */ } return this.data; },
+  data: { runs: {}, done: {}, owned: [] },
+  load() { try { const d = JSON.parse(localStorage.getItem(KEY)); if (d && typeof d === 'object') { const runs = d.runs && typeof d.runs === 'object' ? d.runs : {}; if (d.run) runs[d.run.area] = { deck: d.run.deck, at: d.run.at }; // 旧存档只记一个进行中的场地
+      this.data = { runs: Object.fromEntries(Object.entries(runs).filter(([k, r]) => areaOf(k) && r && r.deck && Array.isArray(r.deck.cards) && r.at >= 0 && r.at < areaOf(k).stages.length)), done: d.done || {}, owned: (d.owned || []).filter(k => CARDS[k] && CARDS[k].boss) }; } } catch { /* 读不了就从头来 */ } return this.data; },
   save() { try { localStorage.setItem(KEY, JSON.stringify(this.data)); } catch { /* 存不了就只在这次打开期间有效 */ } },
-  open(key) { return key !== 'n' || AREAS.filter(a => a.key !== 'n').every(a => this.data.done[a.key]); },     // 中立场地要六个阵营都通关才开
-  enter(key, d) { this.data.run = { area: key, deck: { name: d.name, cards: [...d.cards] }, at: 0 }; this.save(); }, // 进场地：卡组从这一刻起锁定
-  quit() { this.data.run = null; this.save(); },                                                                    // 退出场地：这个场地的进度清零
-  win() { // 打赢当前这一关：往下走一关；打赢的是首领就拿到首领牌，场地通关。返回 { card: 新到手的首领牌或 null, cleared: 场地是否通关 }
-    const r = this.data.run, a = areaOf(r.area), s = a.stages[r.at], card = s.boss && !this.data.owned.includes(s.boss) ? s.boss : null;
+  badges() { return BADGES.filter(k => this.data.done[k]).length; },                                                // 已经拿到几枚徽章
+  open(key) { return key !== 'n' || this.badges() === BADGES.length; },                                          // 无主之地：集齐六枚徽章才能进；进去之后四个小首领一个个打过，才轮到最终首领
+  enter(key, d) { this.data.runs[key] = { deck: { name: d.name, cards: [...d.cards] }, at: 0 }; this.save(); },     // 进场地：这个场地的卡组从这一刻起锁定
+  quit(key) { delete this.data.runs[key]; this.save(); },                                                           // 退出场地：这个场地的进度清零（别的场地不受影响）
+  win(key) { // 打赢这个场地当前的一关：往下走一关；打赢的是首领就拿到首领牌，场地通关。返回 { card: 新到手的首领牌或 null, cleared: 场地是否通关, badge: 这次是不是新拿到一枚徽章 }
+    const r = this.data.runs[key], a = areaOf(key), s = a.stages[r.at], card = s.boss && !this.data.owned.includes(s.boss) ? s.boss : null;
     if (card) this.data.owned.push(card);
-    const cleared = r.at === a.stages.length - 1; if (cleared) { this.data.done[a.key] = true; this.data.run = null; } else r.at++;
-    this.save(); return { card, cleared };
+    const cleared = r.at === a.stages.length - 1, badge = cleared && key !== 'n' && !this.data.done[key]; if (cleared) { this.data.done[key] = true; delete this.data.runs[key]; } else r.at++;
+    this.save(); return { card, cleared, badge };
   },
 };

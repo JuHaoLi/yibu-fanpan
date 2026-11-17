@@ -674,6 +674,10 @@ export const board = {
     const m = new THREE.Mesh(new THREE.RingGeometry(.84, 1, 36), new THREE.MeshBasicMaterial({ color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); m.rotation.x = -Math.PI / 2; m.position.set(p.x, .1, p.z); fxLayer.add(m);
     tween(TIME.t4, k => { m.scale.setScalar(1.7 - 1.4 * eIn(k)); m.material.opacity = .15 + .85 * k; }).then(() => drop(m));
     return later(TIME.t4).then(() => { burst(p.clone().setY(.7), col, 0xfff4a0, 1.4); hold = Math.max(hold, .08); quake = Math.max(quake, .08); return later(TIME.t3); }); },
+  cheer(cols) { // 通关：棋盘上空接连炸开七朵焰火，颜色是这个场地的（打通无主之地时六个阵营的颜色轮着来）
+    if (calm) return Promise.resolve();
+    for (let i = 0; i < 7; i++) later(i * .18, () => { burst(new THREE.Vector3((i % 2 ? 1 : -1) * (.8 + (i * 37 % 5) * .9), 2.2 + (i * 53 % 4) * .45, -1 + (i % 3) * .6), cols[i % cols.length], 0xfff4a0, 1.6 + (i % 3) * .3); quake = Math.max(quake, .05); });
+    return later(7 * .18 + .4); },
   rage(side) { // 首领发怒：这一方场上的首领后仰一下，然后涨大一圈，脚下的圈变成火红并一直冒火星，待机动作加快
     let any = false;
     for (const u of units.values()) if (u.side === side && isBoss(u.card) && !u.rage) { any = true; u.rage = true; const p = u.grp.position.clone(), w0 = u.w, sx = u.side ? -1 : 1; u.w *= 1.15; u.ring.material.color.set(0xff5030); setAnim(u, 'hit'); u.mat.color.set(tint(u));

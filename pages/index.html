@@ -96,7 +96,7 @@
   $('device').value = `${os}，${br}，屏幕 ${screen.width}×${screen.height}`;
   // 进度：游戏把闯关存档放在这台设备的浏览器里，这里只读出来填进输入框，不上传
   try { const d = JSON.parse(localStorage.getItem('yibu-fanpan.campaign.v1')), NAME = { f1: '晨曦要塞', f2: '雾隐道场', f3: '千碑谷', f4: '蚀月深坑', f5: '蛮荒巢穴', f6: '永冻隘口', n: '无主之地' };
-    if (d) { const done = Object.keys(d.done || {}).map(k => NAME[k] || k), run = d.run ? `正在打${NAME[d.run.area] || d.run.area}第 ${d.run.at + 1} 关（卡组：${d.run.deck?.name || '？'}）` : '';
+    if (d) { const done = Object.keys(d.done || {}).map(k => NAME[k] || k), runs = { ...(d.runs || {}), ...(d.run ? { [d.run.area]: d.run } : {}) }, run = Object.entries(runs).map(([k, r]) => `${NAME[k] || k}打到第 ${r.at + 1} 关（卡组：${r.deck?.name || '？'}）`).join('、');
       $('progress').value = [done.length ? `闯关已通关：${done.join('、')}` : '闯关还没通关任何场地', run, (d.owned || []).length ? `首领牌 ${d.owned.length} 张` : ''].filter(Boolean).join('；'); } } catch { /* 读不到就留空让人自己填 */ }
   const val = id => $(id).value.trim();
   const text = () => [['用什么设备玩的', val('device')], ['玩了多久，打到哪了', val('progress')], ['好玩程度', state.rating], ['第一次卡住是在哪，为什么', val('stuck')], ['哪条规则或哪张牌的说明看不懂', val('unclear')], ['遇到的问题', val('bugs')], ['最想加或者改的一样东西', val('wish')], ['还会再打开玩吗', state.again]]
