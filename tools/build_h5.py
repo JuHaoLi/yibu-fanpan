@@ -2,7 +2,7 @@
 # TapTap 的要求（taptap-cli 自带说明）：压缩包根目录只能有一个游戏文件夹，index.html 在这个文件夹的第一层。
 # 脚本顺带做三件体检：有没有请求外部网址、包有多大、有没有许可不允许公开发行的素材（见 LICENSES.md 里标“否”的目录）。
 # 用法（项目根目录）：python3 -I tools/build_h5.py
-import re, shutil, sys, zipfile
+import hashlib, re, shutil, sys, zipfile
 from pathlib import Path
 ROOT, OUT, NAME = Path('.'), Path('dist'), 'yibu-fanpan'
 DIRS = ['assets/units', 'assets/icons', 'assets/ui', 'assets/audio', 'vendor']           # 整个目录带上的素材
@@ -38,6 +38,16 @@ for f in sorted(seen): (game / f).parent.mkdir(parents=True, exist_ok=True); shu
 for d in DIRS:
     for p in (ROOT / d).rglob('*'):
         if p.is_file() and not SKIP.search(p.as_posix()): (game / p).parent.mkdir(parents=True, exist_ok=True); shutil.copyfile(p, game / p)
+# 版本号：入口页引用的脚本和样式、脚本之间互相引用的地址都带上 ?v=版本。浏览器会把文件缓存十分钟（GitHub Pages 定的），
+# 不带版本的话刚发布完会出现“新页面配旧脚本”——按钮在、点了没反应。带上之后新页面一定取新脚本；vendor 里的库不常变，不动
+V = hashlib.sha1(b''.join((ROOT / f).read_bytes() for f in sorted(seen))).hexdigest()[:8]
+stamp = lambda text: re.sub(r'''((?:from\s*|import\s*\(\s*|import\s+)['"])(\.{1,2}/[^'"?]+\.js)(['"])''', lambda m: f'{m.group(1)}{m.group(2)}?v={V}{m.group(3)}', text)
+for f in seen:
+    if f.endswith('.js') and not f.startswith('vendor/'): (game / f).write_text(stamp((game / f).read_text(encoding='utf-8')), encoding='utf-8')
+page = (game / 'index.html').read_text(encoding='utf-8')
+page = re.sub(r'(<script[^>]*\bsrc=")([^"?]+\.js)(")', lambda m: f'{m.group(1)}{m.group(2)}?v={V}{m.group(3)}', page)
+page = re.sub(r'(<link[^>]*\bhref=")([^"?]+\.css)(")', lambda m: f'{m.group(1)}{m.group(2)}?v={V}{m.group(3)}', page)
+(game / 'index.html').write_text(page, encoding='utf-8')
 files = [p for p in game.rglob('*') if p.is_file()]
 zp = OUT / f'{NAME}-h5.zip'
 with zipfile.ZipFile(zp, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as z:
