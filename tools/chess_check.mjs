@@ -96,7 +96,7 @@ const at = (r, t) => r.state.board[t];
   s = blank(); put(s, tile(2, 2), 1, V, 3); put(s, tile(2, 3), 1, V, 5); r = play(s, 'f5s_tame', tile(2, 2)); assert.equal(at(r, tile(2, 2)).side, 0, '驯兽：换边'); s = r.state; s.hand[0][0] = 'f5s_tame'; s.left = 9; assert.ok(!legalPlays(s).some(a => a.i === 0), '战力超过 3 的驯不了'); }
 
 { let s = blank(), r; // 种族联动
-  put(s, tile(0, 0), 0, 'drake', 5); put(s, tile(0, 3), 0, 'trinity', 3); put(s, tile(1, 1), 0, V, 3); r = play(s, 'n_dragonspeaker', tile(0, 1)); assert.equal(at(r, tile(0, 0)).str, 7, '龙语者：其他龙各 +2'); assert.equal(at(r, tile(0, 3)).str, 5); assert.equal(at(r, tile(1, 1)).str, 3, '不是龙的不加');
+  put(s, tile(0, 0), 0, 'drake', 5); put(s, tile(0, 3), 0, 'n_dragonling', 3); put(s, tile(1, 1), 0, V, 3); r = play(s, 'n_dragonspeaker', tile(0, 1)); assert.equal(at(r, tile(0, 0)).str, 7, '龙语者：其他龙各 +2'); assert.equal(at(r, tile(0, 3)).str, 5); assert.equal(at(r, tile(1, 1)).str, 3, '不是龙的不加');
   s = blank(); put(s, tile(0, 0), 0, 'squire', 2); put(s, tile(0, 3), 0, 'brome', 2); const k0 = CARDS.n_knightlord.str; r = play(s, 'n_knightlord', tile(0, 1)); assert.equal(r.events.find(e => e.t === 'buff').n, 2, '骑士团长：每有一个其他骑士 +1');
   assert.equal(CARDS.drake.tribe, '龙'); assert.equal(CARDS.neutral_golemstone.tribe, '魔像'); }
 
@@ -115,7 +115,7 @@ const at = (r, t) => r.state.board[t];
   s = blank(); put(s, tile(1, 0), 0, 'f5_ragnoramk2', 8); put(s, tile(2, 0), 1, V, 2); r = endAs(s, 0); assert.equal(at(r, tile(3, 0))?.str, 6, '打完还活着再往前走一步');
   s = blank(); put(s, tile(0, 0), 1, V, 3, { frozen: true }); put(s, tile(1, 2), 1, V, 6, { frozen: true }); const sn = CARDS.f4_siren.str; put(s, tile(1, 0), 0); r = play(s, 'f4_deathknell', tile(1, 1)); assert.ok(at(r, tile(1, 2)), '丧钟只消灭战力不超过 2 的');
   s = blank(); put(s, tile(1, 0), 0); put(s, tile(0, 1), 1, V, 6, { frozen: true }); r = play(s, 'f4_siren', tile(1, 1)); assert.equal(at(r, tile(0, 1)).str, 5, '吸取：敌人 −1'); assert.ok(r.events.some(e => e.t === 'buff' && e.n === 1), '自己 +1');
-  s = blank(); s.hand[0] = ['f2_general', 'squire', 'squire', 'squire']; s.left = 9; r = apply(s, { type: 'play', i: 0, t: tile(0, 0) }); assert.equal(r.state.hand[0].length, 4, '抽牌：打出后手牌补回 4 张'); assert.equal(r.state.hand[0].length + r.state.deck[0].length + r.state.used[0].length, DECK, '手牌、牌库、这回合用掉的，加起来还是 12 张');
+  s = blank(); s.hand[0] = ['n_gambler', 'squire', 'squire', 'squire']; s.left = 9; r = apply(s, { type: 'play', i: 0, t: tile(0, 0) }); assert.equal(r.state.hand[0].length, 4, '抽牌：打出后手牌补回 4 张'); assert.equal(r.state.hand[0].length + r.state.deck[0].length + r.state.used[0].length, DECK, '手牌、牌库、这回合用掉的，加起来还是 12 张');
   s = blank(); s.hand[0] = ['f2_heartofthesonghai']; s.left = 9; r = apply(s, { type: 'play', i: 0, t: tile(0, 0) }); assert.equal(at(r, tile(0, 0)).str, CARDS.f2_heartofthesonghai.str + 5, '最后一张牌 +5');
   s = blank(); s.hand[0][0] = 'f6_general'; s.left = 9; r = apply(s, { type: 'play', i: 0, t: tile(0, 0) }); assert.equal(r.state.left, 0, '霜后花光能量'); assert.ok(r.events.some(e => e.t === 'buff' && e.n === 6), '剩 3 点能量 → +6');
   s = blank(); r = play(s, 'f1_general', tile(0, 1)); assert.equal(at(r, tile(0, 1)).str, CARDS.f1_general.str + 3, '贴着城堡放 +3');
@@ -167,7 +167,7 @@ const never = ids.filter(k => !played.has(k)), tokens = Object.keys(CARDS).filte
 { let s = blank(), r; put(s, tile(1, 0), 0, 'f3_windshriek', 5); put(s, tile(2, 0), 1, 'f4_husk', 1); r = endAs(s, 0); assert.ok(at(r, tile(2, 0)) && at(r, tile(2, 0)).side === 0, '乘风：对面倒下后原地冒出影灵，第二步接着把它打掉并占住那一格'); assert.equal(r.events.filter(e => e.t === 'attack').length, 2);
   s = blank(); put(s, tile(1, 0), 0, 'f3_windshriek', 9); put(s, tile(2, 0), 1, V, 3, { shield: true }); r = endAs(s, 0); assert.equal(at(r, tile(2, 0)).str, 3, '乘风：第一下被圣盾挡了（自己挨 3），第二下照样打，赢了占格'); assert.equal(at(r, tile(2, 0)).side, 0);
   s = blank(); put(s, tile(1, 0), 0, 'f3_windshriek', 3); put(s, tile(2, 0), 0, V, 9); put(s, tile(3, 0), 1, V, 3, { shield: true }); r = endAs(s, 0); assert.ok(at(r, tile(1, 0)), '乘风：被自己人挡住就原地等，不出手');
-  s = blank(); put(s, tile(1, 2), 1, 'f4_husk', 1); r = play(s, 'neutral_windstopper', tile(0, 2)); assert.ok(at(r, tile(1, 2)) && at(r, tile(1, 2)).side === 0, '冲锋：两步的兵打掉面前的敌人，原地冒出的影灵用第二步打掉');
+  s = blank(); put(s, tile(1, 2), 1, 'f4_husk', 1); r = play(s, 'f5_brundlbeast', tile(0, 2)); assert.ok(at(r, tile(1, 2)) && at(r, tile(1, 2)).side === 0, '冲锋：两步的兵打掉面前的敌人，原地冒出的影灵用第二步打掉');
   s = blank(); put(s, tile(4, 1), 1, V, 9); r = play(s, 'f3s_banish', tile(4, 1)); assert.equal(at(r, tile(4, 1)).str, 5, '放逐：已经在自己家门口的吹不动，改为受 4 点');
   s = blank(); put(s, tile(2, 1), 1, 'colossus', 9); r = play(s, 'f3s_banish', tile(2, 1)); assert.equal(at(r, tile(2, 1)).str, 5, '放逐：建筑吹不动，改为受 4 点');
   s = blank(); put(s, tile(2, 1), 1, V, 9); r = play(s, 'f3s_banish', tile(2, 1)); assert.equal(at(r, tile(4, 1)).str, 9, '放逐：吹得动的吹回家门口，不掉血'); }
@@ -185,10 +185,10 @@ const never = ids.filter(k => !played.has(k)), tokens = Object.keys(CARDS).filte
   while (s.winner === null) {
     if (s.turn === 1) { for (const a of foeTurn(s)) go(a); continue; }
     const st = LESSON.steps[i], no = `教学第 ${i + 1} 步`; assert.ok(st, '教学的步骤走完了还没分出胜负'); i++;
-    if (i === 3) assert.equal(s.board[tile(2, 1)]?.str, 1, no + '：步卒 3 对 2 打赢，剩 1，站在第三列');
-    if (i === 6) assert.equal(s.base[1], 3, no + '：定风者进门后对面剩 3');
-    if (i === 8) assert.equal(s.board[tile(4, 1)]?.card, 'n_golemice', no + '：寒冰魔像挡在步卒正前方');
-    if (i === 10) assert.equal(s.board[tile(4, 1)]?.side, 0, no + '：步卒走到了对面门口');
+    if (i === 3) assert.equal(s.board[tile(2, 1)]?.str, 1, no + '：钩锁手 3 对 2 打赢，剩 1，站在第三列');
+    if (i === 6) assert.equal(s.base[1], 4, no + '：蛮角兽进门后对面剩 4');
+    if (i === 8) assert.equal(s.board[tile(4, 1)]?.card, 'n_golemrune', no + '：符文魔像挡在钩锁手正前方');
+    if (i === 10) assert.equal(s.board[tile(4, 1)]?.side, 0, no + '：钩锁手走到了对面门口');
     if (st.do === 'ok') continue;
     const h = s.hand[0].indexOf(st.card), a = st.do === 'end' ? { type: 'end' } : st.do === 'swap' ? { type: 'swap', i: h } : { type: 'play', i: h, t: st.t };
     if (st.do !== 'end') assert.ok(h >= 0, `${no}：手里没有「${st.card}」`);

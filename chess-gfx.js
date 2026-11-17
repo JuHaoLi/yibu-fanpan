@@ -84,13 +84,6 @@ export const MORE_GFX = {
   h: 44,
   scale: 1.3
  },
- "f1_melee": {
-  file: "f1_melee",
-  cell: 80,
-  feet: 64,
-  h: 37,
-  scale: 1.55
- },
  "lion": {
   file: "f1_azuritelion",
   cell: 80,
@@ -391,13 +384,6 @@ export const MORE_GFX = {
   feet: 64,
   h: 37,
   scale: 1.55
- },
- "f4_creepydemon": {
-  file: "f4_creepydemon",
-  cell: 130,
-  feet: 114,
-  h: 48,
-  scale: 1.2
  },
  "f4_arachne": {
   file: "f4_arachne",
@@ -813,7 +799,7 @@ export const MORE_GFX = {
   scale: 1.6
  },
  "f5_egg2": {
-  file: "f5_egg",
+  file: "f5_egg_ancient",
   cell: 80,
   feet: 64,
   h: 31,
@@ -1351,25 +1337,11 @@ export const MORE_GFX = {
   h: 58,
   scale: 1.0
  },
- "f2_general": {
-  file: "f2_general",
-  cell: 80,
-  feet: 64,
-  h: 56,
-  scale: 1.05
- },
  "f2_masteroftaikwai": {
   file: "f2_masteroftaikwai",
   cell: 130,
   feet: 113,
   h: 50,
-  scale: 1.15
- },
- "f2_buildminion": {
-  file: "f2_buildminion",
-  cell: 100,
-  feet: 85,
-  h: 51,
   scale: 1.15
  },
  "f2_buildcommon": {
@@ -1750,13 +1722,6 @@ export const MORE_GFX = {
   h: 56,
   scale: 1.05
  },
- "trinity": {
-  file: "neutral_trinitywing",
-  cell: 100,
-  feet: 85,
-  h: 61,
-  scale: 1.0
- },
  "noshrak": {
   file: "f3_grandmasternoshrak",
   cell: 130,
@@ -1783,13 +1748,6 @@ export const MORE_GFX = {
   cell: 100,
   feet: 85,
   h: 36,
-  scale: 1.6
- },
- "neutral_windstopper": {
-  file: "neutral_windstopper",
-  cell: 80,
-  feet: 64,
-  h: 32,
   scale: 1.6
  },
  "neutral_golemsteel": {
@@ -2001,13 +1959,6 @@ export const MORE_GFX = {
   feet: 64,
   h: 19,
   scale: 1.6
- },
- "n_golemice": {
-  file: "neutral_golemice",
-  cell: 80,
-  feet: 65,
-  h: 44,
-  scale: 1.3
  },
  "n_golemrune": {
   file: "neutral_golemrunesand",

@@ -163,7 +163,6 @@ export function build(H) {
   unit('f1_silvermanevanguard', '银鬃先锋', 'f1_silvermanevanguard', 3, 1, [SHIELD]);
   unit('f1_warblade', '战刃军士', 'f1_warblade', 3, 1, [P(E.aid(1))]);
   unit('f1_kingsguard', '王庭卫士', 'f1_kingsguard', 3, 0, [TAUNT]);
-  unit('f1_melee', '圣辉步卒', 'f1_melee', 3, 1);
   unit('lion', '苍蓝雄狮', 'f1_azuritelion', 4, 2, [P(E.rank(1))]);
   unit('sunriser', '曦光使', 'f1_sunriser', 4, 0, [P(E.heal(2))]);
   unit('ballista', '穿云弓手', 'f1_backlinearcher', 4, 0, [P(E.beam(2))]);
@@ -218,7 +217,6 @@ export function build(H) {
   unit('dancer', '影舞者', 'f4_shadowdancer', 4, 1, [D(E.burn(2))]);
   unit('f4_abyssiansentinel', '深渊哨兵', 'f4_abyssiansentinel', 4, 0, [TAUNT, D(E.spawn('wraith', 2, 'here'))]);
   unit('f4_darkspine', '暗棘元素', 'f4_darkspine', 4, 1, [P(E.taintAdj())]);
-  unit('f4_creepydemon', '暗影恶魔', 'f4_creepydemon', 4, 1, [A(K.cleave(1))]);
   unit('f4_arachne', '蛛后', 'f4_arachne', 4, 1, [D(E.spawn('wraith', 1, 'sides'))]);
   unit('f4_plaguedr', '瘟疫医生', 'f4_plaguedr', 4, 0, [P(E.nova(2))]);
   unit('f4_moonrider', '月骑', 'f4_moonrider', 4, 2, [D(E.taint())]);
@@ -290,7 +288,7 @@ export function build(H) {
   unit('f5_juggernaut', '撞城巨角', 'f5_juggernaut', 6, 2, [SIEGE(3)]);
   unit('f5_ragnoramk2', '拉格诺拉', 'f5_ragnoramk2', 7, 1, [R(E.advance())]);
   egg('f5_egg', '巨兽蛋', 'f5_egg', 2, 2, 'tk_hatch', 2, 5);
-  egg('f5_egg2', '远古之蛋', 'f5_egg', 4, 3, 'tk_rex', 3, 11);
+  egg('f5_egg2', '远古之蛋', 'f5_egg_ancient', 4, 3, 'tk_rex', 3, 11);
   struct('f5_buildminion', '孵化场', 'f5_buildminion', 5, [T(E.spawn('tk_hatch', 2, 'front'))]);
   spell('grow', '巨化', 4, 'ally', '一个友方单位 +4 战力。', (s, ev, side, t, id) => bless(s, ev, id, castle(side), [t], 4));
   spell('f5s_roar', '咆哮', 3, 'none', '你的所有单位各 +1 战力。', (s, ev, side, t, id) => bless(s, ev, id, castle(side), units(s, side), 1), (s, side) => units(s, side).length > 0);
@@ -386,10 +384,8 @@ export function build(H) {
   unit('f2_keshraifanblade', '毒扇忍', 'f2_keshraifanblade', 3, 1, [P(E.venom())]);
   unit('f2_kibeholder', '影缚者', 'f2_kibeholder', 4, 0, [C(E.silenceAdj())]);
   unit('f2_heartofthesonghai', '岚影之心', 'f2_heartofthesonghai', 2, 0, [P(E.last(5))]);
-  unit('f2_general', '影忍头领', 'f2_general', 3, 1, [P(E.draw(1))]);
   unit('f2_masteroftaikwai', '太极宗师', 'f2_masteroftaikwai', 5, 1, [THORNS(3)]);
   spell('f2s_refill', '蓄势', 2, 'none', '把手牌补满到 4 张。', (s, ev, side) => draw(s, ev, side, 4), (s, side) => s.hand[side].length < 4);
-  struct('f2_buildminion', '结界石', 'f2_buildminion', 3, [T(E.nova(1))]);
   struct('f2_buildcommon', '手里剑架', 'f2_buildcommon', 4, [T(E.nova(1))]);
   struct('f2_buildlegendary', '影之祠', 'f2_buildlegendary', 5, [S(E.spawn('tk_paper', 2, 'front'))]);
   spell('f2s_stance', '起手式', 1, 'none', '获得 1 点能量。（算打出一张牌，能接连击、能触发咒印）', (s, ev, side) => { s.left += 1; ev.push({ t: 'mana', side, n: 1 }); });
@@ -464,12 +460,10 @@ export function build(H) {
   unit('neutral_golemstone', '石魔像', 'neutral_golemstone', 3, 0);
   unit('neutral_sai', '剑客赛', 'neutral_sai', 3, 1, [R(E.grow(2))]);
   unit('neutral_silverbeak', '银喙', 'neutral_silverbeak', 3, 1, [P(E.heal(1))]);
-  unit('trinity', '三翼龙', 'neutral_trinitywing', 4, 3);
   unit('noshrak', '雷枪手', 'f3_grandmasternoshrak', 4, 1, [A(K.pierce(2))]);
   unit('maul', '重锤手', 'neutral_goldenhammer', 4, 1, [P(E.push(2))]);
   unit('neutral_rook', '佣兵鲁克', 'neutral_rook', 4, 1);
   unit('neutral_giantcrab', '巨蟹', 'neutral_giantcrab', 4, 0, [TAUNT]);
-  unit('neutral_windstopper', '定风者', 'neutral_windstopper', 4, 2);
   unit('neutral_golemsteel', '钢魔像', 'neutral_golemsteel', 5, 0);
   unit('neutral_bastion', '堡垒卫士', 'neutral_bastion', 5, 0, [GUARD, P(E.aid(1))]);
   unit('neutral_thunderhorn', '雷角兽', 'neutral_thunderhorn', 5, 1, [A(K.cleave(1))]);
@@ -503,7 +497,6 @@ export function build(H) {
   unit('n_dragonling', '幼龙', 'neutral_monsterdragonhawk', 2, 1, [P(E.pack('龙', 2))]);
   unit('n_dragonspeaker', '龙语者', 'neutral_sapphireseer', 4, 0, [P(E.kin('龙', 2))]);
   struct('n_roost', '龙巢', 'neutral_beastcavern', 4, [T(E.kin('龙', 1))]);
-  unit('n_golemice', '寒冰魔像', 'neutral_golemice', 3, 0);
   unit('n_golemrune', '符文魔像', 'neutral_golemrunesand', 4, 0, [P(E.pack('魔像', 2))]);
   unit('n_golemsmith', '魔像匠师', 'neutral_geargrinder', 3, 0, [P(E.kin('魔像', 2))]);
   unit('n_diamond', '钻石魔像', 'neutral_diamondgolem', 6, 0, [TAUNT]);
@@ -539,8 +532,8 @@ export function build(H) {
 
   // 种族：只是一个标签，本身没有效果；有的牌会给同族加成
   const TRIBE = {
-    龙: ['B_n4', 'tk_whelp', 'f6_motherofdrakes', 'drake', 'f6_snowwyvern', 'f6_whitewyvern', 'f2_firewyrm', 'f5_pteryx', 'f5_rex', 'f5_oxalaia', 'bronto', 'trinity', 'n_dragonling'],
-    魔像: ['neutral_golemstone', 'neutral_golemsteel', 'neutral_moltengolem', 'f3_zodiac', 'n_paragon', 'juggernaut', 'n_golemice', 'n_golemrune', 'n_diamond'],
+    龙: ['B_n4', 'tk_whelp', 'f6_motherofdrakes', 'drake', 'f6_snowwyvern', 'f6_whitewyvern', 'f2_firewyrm', 'f5_pteryx', 'f5_rex', 'f5_oxalaia', 'bronto', 'n_dragonling'],
+    魔像: ['neutral_golemstone', 'neutral_golemsteel', 'neutral_moltengolem', 'f3_zodiac', 'n_paragon', 'juggernaut', 'n_golemrune', 'n_diamond'],
     骑士: ['squire', 'tk_knight', 'f1_kingsguard', 'lancer', 'brome', 'f1_sunstonetemplar', 'f1_silvermanevanguard', 'f1_radiantdragoon', 'warden', 'neutral_bastion', 'n_ironclad', 'n_chaosknight', 'neutral_astralcrusader', 'n_bannerman', 'n_knightlord'],
   };
   for (const [tb, list] of Object.entries(TRIBE)) for (const k of list) cards[k].tribe = tb;
@@ -574,7 +567,7 @@ export function build(H) {
   const decks = [
     { f: 'f1', name: '铁壁列阵', plan: '抱团成长：圣盾挡刀，列阵和祝福把一小队人越养越大，靠雄狮冲线收尾。', cards: ['n_militia', 'squire', 'f1_fiz', 'f1_friendsguard', 'f1_spellbladeadept', 'f1_silvermanevanguard', 'f1_warblade', 'f1s_smite', 'lion', 'f1_sunbreaker', 'f1_radiantdragoon', 'f1_archdeacon'] },
     { f: 'f1', name: '骑士冲锋', plan: '种族快攻：铺一排骑士，掌旗官和团长给同族加成，破阵骑士和龙骑直冲城门。', cards: ['n_militia', 'squire', 'neutral_dex', 'f1s_shield', 'n_bannerman', 'f1_kingsguard', 'f1_silvermanevanguard', 'f1s_smite', 'lancer', 'n_knightlord', 'f1_radiantdragoon', 'f1s_rally'] },
-    { f: 'f2', name: '连击快攻', plan: '低费连击：一回合连出三四张小牌触发连击，用抽牌续手，不给对面喘气。', cards: ['f2s_stance', 'f2_melee', 'f2_ace', 'f2_katara', 'f2_support', 'f2s_shuriken', 'f2_general', 'f2_sparrowhawk', 'f2_deathphantom', 'f2_seenoevil', 'f2_supekuta', 'f2_hammonnladeseeker'] },
+    { f: 'f2', name: '连击快攻', plan: '低费连击：一回合连出三四张小牌触发连击，用抽牌续手，不给对面喘气。', cards: ['f2s_stance', 'f2_melee', 'f2_ace', 'f2_katara', 'f2_support', 'f2s_shuriken', 'n_gambler', 'f2_sparrowhawk', 'f2_deathphantom', 'f2_seenoevil', 'f2_supekuta', 'f2_hammonnladeseeker'] },
     { f: 'f2', name: '咒印法术', plan: '法术联动：场上留着带咒印的人，每放一张法术他们就变强、放箭或给全队加战力。', cards: ['f2s_stance', 'f2_melee', 'f2_xho', 'f2s_shuriken', 'f2s_dash', 'f2_caster', 'f2_lanternfox', 'f2_pandabear', 'f2_support', 'f2s_clone', 'f2_buildlegendary', 'f2_kibeholder'] },
     { f: 'f3', name: '方尖碑', plan: '建筑流：先立碑，碑越多人越强；筑城官让碑多干一次活，水晶提供额外能量。', cards: ['f3_dunecaster', 'f3_rae', 'f3_pax', 'f3_obelyskredsand', 'f3_trifectaperfecta', 'f3_general', 'f3_orbweaver', 'n_militia', 'f3_obelyskgoldenflame', 'f3_falcius', 'f3_endlessobelysk', 'f3_dreamshaper'] },
     { f: 'f3', name: '顺风突袭', plan: '速度加吹退：乘风的兵一回合走两步，顺风再推一把，挡路的用风吹开或吹伤。', cards: ['n_courier', 'f3_pax', 'f3_windslicer', 'f3s_tailwind', 'f3_orbweaver', 'f3_windshriek', 'f3_sandhowler', 'f3_scarabtera', 'f3s_sandstorm', 'f3_windstriker', 'f3_ishtarhunter', 'f3_zephyr'] },

@@ -6,21 +6,21 @@ import { tile } from './chess.js';
 const play = (card, r, c, say) => ({ do: 'play', card, t: tile(r, c), say }); // r：离自己城堡几列（0 是家门口）；c：第几路
 const end = say => ({ do: 'end', say }), ok = say => ({ do: 'ok', say });     // ok：纯讲解，点“知道了”往下
 export const LESSON = {
-  lesson: true, name: '新兵训练', area: 'n', base: [10, 7], // 对面的城堡只有 7 点血：进两次门就结束（定风者 4 点，破阵骑士 4 点）
+  lesson: true, name: '新兵训练', area: 'n', base: [10, 7], // 对面的城堡只有 7 点血：进两次门就结束（蛮角兽 3 点，破阵骑士 4 点）
   // 牌序就是抽牌顺序：前四张是起手，后面按顺序补（打出和换掉的牌排到最后）
-  mine: ['f1_melee', 'neutral_windstopper', 'neutral_astralcrusader', 'lancer', 'squire', 'neutral_dex', 'f1s_smite'],
-  foe: ['general', 'n_golemice', 'neutral_rook', 'neutral_golemstone', 'neutral_dex', 'squire'],
-  foePlays: [['general', tile(4, 1)], ['n_golemice', tile(4, 1)], ['neutral_rook', tile(4, 0)]], // 对面第几个回合出哪张、放哪格
+  mine: ['grapple', 'f5_brundlbeast', 'neutral_astralcrusader', 'lancer', 'squire', 'neutral_dex', 'f1s_smite'],
+  foe: ['general', 'n_golemrune', 'neutral_rook', 'neutral_golemstone', 'neutral_dex', 'squire'],
+  foePlays: [['general', tile(4, 1)], ['n_golemrune', tile(4, 1)], ['neutral_rook', tile(4, 0)]], // 对面第几个回合出哪张、放哪格
   foeSay: ['对面也出了兵，朝你冲过来。', '对面放了个大个子挡路。', '对面又出了一个兵。'],
   steps: [
-    play('f1_melee', 0, 1, '目标：把右边那座城堡的血打到 0。先出兵：点「圣辉步卒」，再点亮起的格子。'),
-    end('它有 1 步移动力，一落地就往前走了一格。点「结束回合」，看对面怎么走。'),
+    play('grapple', 0, 1, '目标：把右边那座城堡的血打到 0。先出兵：点「钩锁手」，再点亮起的格子。'),
+    end('它有 1 步移动力，一落地就往前走了一格（它的能力要前面有敌人才用得上，这回合先不管）。点「结束回合」，看对面怎么走。'),
     ok('每回合开始，你的兵自动前进一步。撞上敌人互相扣战力：3 对 2，你赢了，还剩 1。'),
-    play('neutral_windstopper', 2, 2, '新兵只能放在前线以内。前线就是你最靠前的兵所在的那一列。把「定风者」放到亮起的格子。'),
+    play('f5_brundlbeast', 2, 2, '新兵只能放在前线以内。前线就是你最靠前的兵所在的那一列。把「蛮角兽」放到亮起的格子。'),
     end('它有 2 步，一口气冲到了对面门口。点「结束回合」。'),
-    ok('兵走进城门，按自己的战力扣城堡的血。对面只剩 3 了。'),
+    ok('兵走进城门，按自己的战力扣城堡的血。对面只剩 4 了。'),
     { do: 'swap', card: 'neutral_astralcrusader', say: '「星界十字军」要 7 点能量，现在出不起。每回合可以换一张牌：点它，再点「换牌」。' },
-    play('f1s_smite', 4, 1, '换来了法术「惩戒」。对面的寒冰魔像下回合会撞倒你的兵：点「惩戒」，再点它。'),
+    play('f1s_smite', 4, 1, '换来了法术「惩戒」。对面的符文魔像下回合会撞倒你的兵：点「惩戒」，再点它。'),
     end('路清出来了。点「结束回合」。'),
     play('lancer', 3, 2, '你的兵到了对面门口，前线推到了最前面。把「破阵骑士」放到亮起的格子：它有 3 步，直接冲进城门。'),
   ],
