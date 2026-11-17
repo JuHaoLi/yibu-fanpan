@@ -6,13 +6,14 @@ import { areaOf, stageOpts, battleMusic, progress, BADGES, badgeName } from './c
 import { campaignUI } from './campaign-ui.js';
 import { LESSON, keepOrder, stepOk, foeTurn } from './tutorial.js';
 import { createRoom, joinRoom } from './room.js';
+import { llmTurn, enabled as llmOn, cfg as llmCfg, save as llmSave, ping as llmPing } from './llm.js';
 import { sfx, music, unlock, toggleMute, isMuted, eventSound } from './sound.js';
 import * as sound from './sound.js'; // sound.pause / sound.resume：切后台时用（本文件里 pause 这个名字已经是“等一拍”）
 progress.load(); const owned = () => progress.data.owned; // 闯关里赢到手的首领牌
 
 const $ = id => document.getElementById(id), wait = s => new Promise(r => setTimeout(r, s * 1000));
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
-let ME = 0, FOE = 1, WHO = ['你', '电脑'], RIVAL = '电脑', net = null; // 联机时 ME 可能是 1（后手），RIVAL 是对面的称呼；net 是房间连接（见 room.js）
+let ME = 0, FOE = 1, WHO = ['你', '电脑'], RIVAL = '电脑', net = null, ai = false; // ai：这一局的对手是大模型（llm.js），只在自由对战里 // 联机时 ME 可能是 1（后手），RIVAL 是对面的称呼；net 是房间连接（见 room.js）
 const seat = (me, rival) => { ME = me; FOE = 1 - me; RIVAL = rival; WHO = me ? [rival, '你'] : ['你', rival]; };
 let S = null, busy = true, sel = -1, mine = null, theirs = null, chain = false; // chain：正在连着自动走好几步，期间不接受别的操作
 // 新手教学（脚本在 tutorial.js）：lesson.i 是走到第几步。教学里每一刻只放行那一步要的操作：别的牌没有可放的格子，别的按钮按不动
@@ -61,7 +62,7 @@ let mode = 'free'; // 开始界面的两种玩法：自由对战、闯关（闯�
 function home() {
   $('result').hidden = $('builder').hidden = true; $('home').hidden = false; lesson = null; document.body.classList.remove('lesson');
   const list = allDecks(); chosen = Math.min(chosen, list.length - 1);
-  $('home').classList.toggle('camp', mode === 'camp'); $('roombtn').hidden = mode === 'camp'; music('home');
+  $('home').classList.toggle('camp', mode === 'camp'); $('roombtn').hidden = $('aibtn').hidden = mode === 'camp'; aiLabel(); music('home');
   $('modes').replaceChildren(...[['free', '自由对战'], ['camp', '闯关']].map(([m, t]) => { const b = el('button', 'tab n' + (m === mode ? ' on' : ''), t); b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', m === mode); b.onclick = () => { mode = m; home(); }; return b; }));
   if (mode === 'camp') return campUI.show(); campUI.hide();
   $('play').textContent = taught() ? '开始对局' : '新手教学'; $('play').disabled = false; // 第一次来：金色主按钮是两分钟的教学，不想学可以点旁边的“跳过教学”
@@ -89,6 +90,17 @@ function fight(key) { const a = areaOf(key), run = progress.data.runs[key], st =
 $('newdeck').onclick = () => build({ name: `我的卡组 ${customs.length + 1}`, cards: [], at: -1 });
 $('foesel').append(...FKEYS.map(f => { const o = el('option', '', FACTIONS[f].name); o.value = f; return o; }));
 $('play').onclick = () => { if (!taught()) return teach(); const d = allDecks()[chosen], v = $('foesel').value, pool = DECKS.filter(x => v === 'any' || x.f === v), foe = pool[Math.floor(Math.random() * pool.length)]; start(d, { name: `${FACTIONS[foe.f].name}·${foe.name}`, cards: foe.cards }); };
+
+// ---------- AI 对手 ----------
+// 玩家自己填接口、Key、模型名，自由对战里电脑那一方由大模型走；怎么问、怎么回退见 llm.js
+const aiDlg = $('aidlg'); function aiLabel() { $('aibtn').textContent = llmOn() ? 'AI 对手：开' : 'AI 对手'; }
+const aiRead = () => ({ on: $('aion').checked, style: $('aistyle').value, url: $('aiurl').value.trim(), key: $('aikey').value.trim(), model: $('aimodel').value.trim() });
+const aiHolder = () => { const a = $('aistyle').value === 'anthropic'; $('aiurl').placeholder = a ? '例如 https://api.anthropic.com' : '例如 https://api.deepseek.com/v1'; $('aimodel').placeholder = a ? '例如 claude-haiku-5-5' : '例如 deepseek-chat'; };
+const aiSay = (t, bad) => { $('aistat').textContent = t; $('aistat').className = bad ? 'bad' : ''; };
+$('aibtn').onclick = () => { const c = llmCfg(); $('aion').checked = c.on; $('aistyle').value = c.style; $('aiurl').value = c.url; $('aikey').value = c.key; $('aimodel').value = c.model; aiHolder(); aiSay(''); aiDlg.showModal(); };
+$('aistyle').onchange = aiHolder; $('aiclose').onclick = () => aiDlg.close();
+$('aisave').onclick = () => { const c = aiRead(); if (c.on && !llmOn(c)) return aiSay('开启需要填接口地址和模型名。', true); llmSave(c); aiLabel(); aiDlg.close(); };
+$('aitest').onclick = async () => { const b = $('aitest'); b.disabled = true; aiSay('正在测试…'); const r = await llmPing(aiRead()); b.disabled = false; aiSay(r.ok ? `连通了，一次回复 ${r.ms} 毫秒。` : r.why, !r.ok); };
 
 // ---------- 房间对战 ----------
 // 开房的人拿到 4 位房间号，另一个人输入房间号加入；用的都是开始界面上当前选中的那套卡组。传输见 room.js
@@ -244,9 +256,10 @@ async function act(a) { // 执行一步。先回应：牌立刻离手、能量�
 }
 async function endTurn() {
   if (!S || busy || chain || S.turn !== ME || S.winner !== null) return; const g = game;
+  let early = ai && !lesson ? llmTurn(apply(S, { type: 'end' }).state, x => { if (g === game) log(x); }) : null; // AI：对方回合开头的局面现在就确定了，请求马上发出，趁下面这些演出等回复
   await act({ type: 'end' });                       // 结束回合：电脑的兵先各走一步
   if (net) return foeLoop(g);                       // 联机：等对方一步步走
-  while (g === game && S.winner === null && S.turn === FOE) { const list = lesson ? foeTurn(S) : aiTurn(S); await pause(T.t4);   // 对方“想一下”
+  while (g === game && S.winner === null && S.turn === FOE) { const list = lesson ? foeTurn(S) : ai ? await (early || llmTurn(S, x => { if (g === game) log(x); })) : aiTurn(S); early = null; await pause(T.t4);   // 对方“想一下”
     for (const a of list) { if (g !== game || S.winner !== null) break; await act(a); if (a.type !== 'end') await pause(T.t3); } } // 两步之间留一口气
 }
 
@@ -435,7 +448,7 @@ async function curtain(fn) { // 过场：两扇城门合上 → 门后换界面�
 }
 const leave = () => curtain(() => { game++; busy = true; if (net) { net.close(); net = null; } seat(0, '电脑'); clearTimeout(flagT); flagEl.className = revealEl.className = ''; pileEl.replaceChildren(); board.clear(); for (const p of [0, 1]) board.setBase(p, BASE_HP); home(); }).then(() => campUI.arrive()); // 回开始界面：这一局没演完的步骤作废。闯关里刚打赢的那一步，等城门开了才在地图上演
 async function start(d, foe, stage = null, link = null) { // stage：闯关里的这一关（带城堡血量、开局摆的东西）；自由对战是 null；link：联机房间（room.js），有的话座位、牌序都听它的
-  const g = ++game; mine = d; theirs = foe; busy = true; camp = stage; net = link; seat(link ? link.me : 0, link ? '对手' : '电脑');
+  const g = ++game; mine = d; theirs = foe; busy = true; camp = stage; net = link; ai = !stage && !link && llmOn(); seat(link ? link.me : 0, link ? '对手' : ai ? 'AI' : '电脑');
   const bar = gateEl.querySelector('.bricks'), need = [...new Set([...mine.cards, ...theirs.cards, ...(stage?.setup || []).map(x => x.card), ...Object.keys(CARDS).filter(k => CARDS[k].token)])]; let n = 0;
   try { await curtain(async () => { $('home').hidden = $('result').hidden = true; feed.length = 0; log(`你用「${mine.name}」，${RIVAL}用「${theirs.name}」。`); tell(''); bricks(bar, 0);
     await Promise.all(need.map(t => board.preload([t]).then(() => bricks(bar, ++n / need.length)))); if (g !== game) return; // 一种角色一种角色地载，城门上的砖跟着亮

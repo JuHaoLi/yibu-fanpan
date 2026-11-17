@@ -375,11 +375,14 @@ button.card.pick { height:auto; margin:0; box-shadow:none; text-align:left; lett
   .right .row { flex-wrap:nowrap; gap:var(--s3); } #bsave { flex:1 1 0; }
 }
 
-/* 房间对战的小窗：开房、输入房间号加入 */
-#roomdlg { width:min(420px, calc(100vw - 32px)); border:0; color:var(--paper); font:var(--f14); }
-#roomdlg::backdrop { background:var(--ink); opacity:.8; }
-#roomdlg > b { display:block; font:var(--f24); margin-bottom:var(--s2); }
-#roomdlg p { margin:0 0 var(--s3); }
-#roomdlg .row { display:flex; gap:var(--s2); align-items:center; margin-bottom:var(--s3); }
-#roomdlg input { width:96px; height:40px; padding:0 var(--s2); background:var(--night-0); color:var(--paper); border:0; box-shadow:inset 0 2px 0 var(--ink), 0 0 0 2px var(--night-3); font:var(--f24); letter-spacing:.2em; text-align:center; }
-#roomstat { min-height:48px; color:var(--mana-hi); } #roomstat.bad { color:var(--hurt-hi); }
+/* 房间对战、AI 对手的小窗 */
+.dlg { width:min(440px, calc(100vw - 32px)); border:0; color:var(--paper); font:var(--f14); }
+.dlg::backdrop { background:var(--ink); opacity:.8; }
+.dlg > b { display:block; font:var(--f24); margin-bottom:var(--s2); }
+.dlg p { margin:0 0 var(--s3); }
+.dlg .row { display:flex; gap:var(--s2); align-items:center; margin-bottom:var(--s3); }
+.dlg label { display:grid; gap:var(--s1); margin-bottom:var(--s2); }
+.dlg label.chk { display:flex; gap:var(--s2); align-items:center; margin-bottom:var(--s3); }
+.dlg input[type=text], .dlg input[type=password], .dlg select, #roomcode { height:40px; padding:0 var(--s2); background:var(--night-0); color:var(--paper); border:0; box-shadow:inset 0 2px 0 var(--ink), 0 0 0 2px var(--night-3); font:var(--f16); }
+#roomcode { width:96px; font:var(--f24); letter-spacing:.2em; text-align:center; }
+#roomstat, #aistat { min-height:24px; color:var(--mana-hi); } #roomstat { min-height:48px; } #roomstat.bad, #aistat.bad { color:var(--hurt-hi); }
