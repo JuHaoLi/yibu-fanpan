@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>音频试听</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{background:#0c1020;color:#ece4d0;font:14px/1.6 system-ui,sans-serif;margin:0;padding:16px 20px}
+h1{font-size:18px;margin:0 0 8px}h2{font-size:14px;color:#8e98b8;margin:20px 0 8px}
+button{background:#1c2844;color:#ece4d0;border:2px solid #080818;box-shadow:2px 2px 0 #080818;padding:6px 12px;margin:0 6px 6px 0;font:inherit;cursor:pointer}
+button:hover{background:#2c3c5c}button.on{background:#f8e040;color:#080818}
+label{margin-right:16px}#msg{color:#8e98b8;margin:6px 0}
+</style></head><body>
+<h1>音频试听</h1>
+<div id="msg">点任意按钮会先解锁音频（浏览器要求用户点击后才能出声）。</div>
+<div><label>音乐 <input id="vm" type="range" min="0" max="1" step="0.05"></label>
+<label>音效 <input id="vs" type="range" min="0" max="1" step="0.05"></label>
+<button id="mute">静音：关</button><button id="stop">停止音乐</button></div>
+<h2>音乐（点击切换，带交叉淡化）</h2><div id="music"></div>
+<h2>音效</h2><div id="sfx"></div>
+<script type="module">
+import { audio } from './audio.js';
+const $ = id => document.getElementById(id);
+const m = await audio.manifest();
+let on = null;
+const mark = k => { on = k; for (const b of document.querySelectorAll('#music button')) b.classList.toggle('on', b.dataset.k === k); };
+for (const k of Object.keys(m.music)) {
+  const b = document.createElement('button'); b.textContent = k; b.dataset.k = k;
+  b.onclick = () => { audio.unlock(); audio.music(k, { fade: 1 }); mark(k); };
+  $('music').append(b);
+}
+for (const k of Object.keys(m.sfx)) {
+  const b = document.createElement('button'); b.textContent = k;
+  b.onclick = () => { audio.unlock(); audio.sfx(k); };
+  $('sfx').append(b);
+}
+$('stop').onclick = () => { audio.stopMusic(0.5); mark(null); };
+const v = audio.getVolume(); $('vm').value = v.music; $('vs').value = v.sfx;
+$('vm').oninput = $('vs').oninput = () => audio.setVolume({ music: $('vm').value, sfx: $('vs').value });
+const showMute = () => $('mute').textContent = '静音：' + (audio.muted ? '开' : '关');
+$('mute').onclick = () => { audio.unlock(); audio.toggleMute(); showMute(); };
+showMute();
+</script></body></html>

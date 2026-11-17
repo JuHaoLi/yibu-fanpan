@@ -1,0 +1,23 @@
+# 不进公开仓库的东西。注意：注释必须单独成行；只匹配根目录的文件要以 / 开头
+# 下载的原始素材（整仓的角色图源、音频包等）
+/raw/
+# 内部的研究笔记、候选图、过程截图
+/design/
+# 打包产物，用 tools/build_h5.py 生成
+/dist/
+/PRODUCT.md
+/DESIGN.md
+# 早期的解谜和对战试验页，用过没有逐项核对许可的素材，不公开
+/index.html
+/duel.html
+/duel.js
+/duel-ui.js
+/game.js
+/level.js
+/assets/fx/
+/tools/duel_check.mjs
+/tools/duel_probe.mjs
+/tools/find_level.mjs
+.DS_Store
+.playwright-mcp/
+node_modules/

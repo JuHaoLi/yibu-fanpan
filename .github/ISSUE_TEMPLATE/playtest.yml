@@ -1,0 +1,44 @@
+name: 试玩反馈
+description: 玩过之后告诉我们哪里好玩、哪里卡住、哪里坏了
+title: "试玩反馈："
+labels: ["试玩反馈"]
+body:
+  - type: markdown
+    attributes:
+      value: 谢谢你来试玩。每一项都可以只写一两句，不想答的留空。
+  - type: input
+    id: device
+    attributes:
+      label: 用什么设备玩的
+      placeholder: 比如 iPhone 14 的 Safari、安卓手机的 TapTap、Windows 的 Chrome
+  - type: input
+    id: progress
+    attributes:
+      label: 玩了多久，打到哪了
+      placeholder: 比如 玩了 20 分钟，闯关打到晨曦要塞第 3 关
+  - type: dropdown
+    id: rating
+    attributes:
+      label: 好玩程度
+      options: ["5 很好玩，想继续", "4 不错", "3 一般", "2 有点无聊", "1 玩不下去"]
+  - type: textarea
+    id: stuck
+    attributes:
+      label: 第一次卡住是在哪，为什么
+  - type: textarea
+    id: unclear
+    attributes:
+      label: 哪条规则或哪张牌的说明看不懂
+  - type: textarea
+    id: bugs
+    attributes:
+      label: 遇到的问题（怎么做会出现）
+  - type: textarea
+    id: wish
+    attributes:
+      label: 最想加或者改的一样东西
+  - type: dropdown
+    id: again
+    attributes:
+      label: 还会再打开玩吗
+      options: ["会", "不一定", "不会"]
