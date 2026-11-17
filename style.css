@@ -209,7 +209,7 @@ body.chess header { position:absolute; z-index:6; top:var(--s3); left:max(var(--
 #home::before { left:calc(var(--col) + 64px); bottom:var(--tray); background:conic-gradient(var(--ink) 25%, transparent 0) 0 0/4px 4px; }
 .screen .title { color:var(--paper); font:800 var(--f24); letter-spacing:.2em; } .title + .lead { margin-top:var(--s2); }
 #picked b { display:block; margin-bottom:var(--s2); color:var(--fl); font:800 var(--f48); letter-spacing:.1em; white-space:nowrap; } #picked b.long { font:800 var(--f24); line-height:48px; } #picked em { color:var(--dim); font:var(--f12); font-style:normal; } #picked p { max-width:480px; margin:var(--s1) 0 var(--s3); min-height:48px; }
-.startbar { display:flex; align-items:center; gap:var(--s4); margin-top:var(--s3); }
+.startbar { display:flex; flex-wrap:wrap; align-items:center; gap:var(--s4); row-gap:var(--s2); margin-top:var(--s3); }   /* 放不下就折到下一行，不许把东西挤出屏幕 */
 #lineup { position:absolute; z-index:1; left:max(var(--s5), var(--sl)); right:max(var(--s5), var(--sr)); bottom:var(--tray); height:152px; pointer-events:none; }
 .band { position:relative; flex:none; height:var(--tray); padding:var(--s5) max(var(--s5), var(--sr)) 0 max(var(--s5), var(--sl)); display:flex; align-items:flex-start; gap:var(--s3); background:var(--night-1); box-shadow:inset 0 2px 0 var(--night-3); }
 #decklist { flex:1; min-width:0; display:flex; align-items:flex-start; gap:var(--s4); overflow-x:auto; }
@@ -219,7 +219,7 @@ body.chess header { position:absolute; z-index:6; top:var(--s3); left:max(var(--
 @media (hover:hover) { .flag:hover { background:var(--night-3); } }
 .flag.on { width:calc(100% + var(--s3)); background:var(--fc); color:var(--ink); font-weight:700; }                    /* 选中的旗更长、染阵营色，旗头一盏金灯 */
 .flag.on::before { content:''; display:inline-block; width:8px; height:8px; margin:0 var(--s2) 0 2px; background:var(--go); box-shadow:var(--edge); vertical-align:1px; }
-#newdeck { flex:none; margin-top:var(--s3); }
+#newdeck, #editdeck { flex:none; margin-top:var(--s3); }
 .old { position:absolute; top:var(--s3); right:max(var(--s4), var(--sr)); display:flex; align-items:center; gap:var(--s3); text-shadow:var(--edge); } .old .link { font:var(--f12); }
 
 /* ---------- 组牌界面：一面暗砖墙。牌池是主角；右边一块石板是你的卡组 ---------- */
@@ -361,7 +361,7 @@ button.card.pick { height:auto; margin:0; box-shadow:none; text-align:left; lett
   .band { padding:var(--s1) max(var(--s3), var(--sr)) var(--sb) max(var(--s3), var(--sl)); gap:var(--s2); align-items:center; }
   #decklist { gap:var(--s3); align-items:flex-end; }
   .grp { position:relative; flex:none; min-width:0; max-height:none; flex-flow:row nowrap; gap:var(--s1); padding-top:16px; } .grp > em { position:absolute; left:0; top:0; white-space:nowrap; }
-  .flag, .flag.on { flex:none; width:auto; padding-right:var(--s4); } #newdeck { margin-top:2px; }
+  .flag, .flag.on { flex:none; width:auto; padding-right:var(--s4); } #newdeck, #editdeck { margin-top:2px; }
   .old { top:var(--s1); right:max(var(--s2), var(--sr)); height:44px; }
 
   /* 组牌：左边牌池上下滚；右边的石板一直在——十二张卡条排两列，保存钉在底下 */

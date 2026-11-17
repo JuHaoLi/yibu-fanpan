@@ -71,11 +71,14 @@ function home() {
   $('picked').className = f; $('picked').innerHTML = `<b${d.name.length > 6 ? ' class="long"' : ''}>${d.name}</b><em>${d.preset ? '预设' : '自组'} · ${FACTIONS[f].name}</em><p>${d.plan || FACTIONS[f].key || FACTIONS[f].style}</p>`;
   $('lineup').replaceChildren(...[...d.cards].sort(byCost).map(id => cardEl(id)));
   const op = (text, fn, cls = 'link') => { const x = el('button', cls, text); x.onclick = fn; return x; };
-  $('homehint').replaceChildren(op(d.preset ? '改编' : '修改', () => build(d.preset ? { name: d.name + ' 改', cards: [...d.cards], at: -1 } : { name: d.name, cards: [...d.cards], at })),
+  // 编辑入口放在底下那排卡组旗的右边（不跟开始按钮那一排挤，那一排东西多了会被挤出屏幕）；已经选中的旗再点一次也是进编辑
+  const edit = () => build(d.preset ? { name: d.name + ' 改', cards: [...d.cards], at: -1 } : { name: d.name, cards: [...d.cards], at });
+  $('editdeck').textContent = d.preset ? '改编' : '编辑'; $('editdeck').title = d.preset ? '照着这套预设另存一套自己的，再改' : '改这套自组卡组'; $('editdeck').onclick = edit;
+  $('homehint').replaceChildren(
     ...(d.preset ? [] : [op('删除', e => { const b = e.currentTarget; if (b.dataset.sure) { customs.splice(at, 1); store(customs); return home(); } b.dataset.sure = 1; b.textContent = '再点确认'; setTimeout(() => { delete b.dataset.sure; b.textContent = '删除'; }, 2000); }, 'danger')])); // 危险操作两秒内点两下才生效，不弹浏览器的确认框
   $('homehint').append(taught() ? op('教学', teach) : op('跳过教学', () => { taught(true); home(); }));
   // 其余的卡组只是一面旗：每个阵营一组，自组的另成一组
-  const flag = (x, i) => { const b = el('button', 'flag ' + deckFaction(x.cards) + (i === chosen ? ' on' : ''), x.name); b.setAttribute('aria-pressed', i === chosen); b.title = x.plan || ''; b.onclick = () => { chosen = i; home(); }; return b; };
+  const flag = (x, i) => { const b = el('button', 'flag ' + deckFaction(x.cards) + (i === chosen ? ' on' : ''), x.name); b.setAttribute('aria-pressed', i === chosen); b.title = i === chosen ? '再点一次进入编辑' : x.plan || ''; b.onclick = () => { if (i === chosen) return edit(); chosen = i; home(); }; return b; };
   const grp = (cls, name, items) => { const g = el('div', 'grp ' + cls, `<em>${name}</em>`); g.append(...items); return g; };
   $('decklist').replaceChildren(...FKEYS.map(k => grp(k, FACTIONS[k].name, list.map((x, i) => x.preset && x.f === k ? flag(x, i) : null).filter(Boolean))),
     ...(customs.length ? [grp('', '自组', customs.map((x, i) => flag(x, DECKS.length + i)))] : [])); showFlag();
