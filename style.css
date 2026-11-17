@@ -283,7 +283,7 @@ button.card.pick { height:auto; margin:0; box-shadow:none; text-align:left; lett
 /* ---------- 载入界面和横屏提示：墨底上一行字；进度是一排砖，到了几成亮几块 ---------- */
 #boot, #rotate { position:fixed; inset:0; display:grid; place-content:center; justify-items:center; gap:var(--s3); background:var(--ink); text-align:center; }
 #boot { z-index:90; } #boot b, #rotate b { font:800 var(--f24); letter-spacing:.2em; } #boot p, #rotate p { color:var(--dim); }
-#boot.fail p { color:var(--paper); } #boot.fail .bricks i.on { background:var(--hurt); }
+#boot.fail p { color:var(--paper); } #boot.fail .bricks i.on { background:var(--hurt); } #boot .px { position:absolute; visibility:hidden; }
 .bricks { display:flex; gap:var(--s1); } .bricks i { width:16px; height:8px; background:var(--night-2); } .bricks i.on { background:var(--paper); }
 #rotate { z-index:100; display:none; }
 #rotate i { width:48px; height:80px; margin:var(--s3) 0 var(--s4); background:linear-gradient(var(--night-4) 0 0) 50% calc(100% - 8px)/16px 4px no-repeat, var(--night-1); box-shadow:0 0 0 4px var(--paper), 0 0 0 6px var(--ink), 6px 10px 0 4px var(--night-2); }   /* 一部竖着的手机：纸白的框、底下一道横条 */
@@ -302,7 +302,7 @@ button.card.pick { height:auto; margin:0; box-shadow:none; text-align:left; lett
   button.danger, .flag, .strip, select, #bq, #bname { height:44px; } .flag { line-height:44px; }
   .tab { height:44px; line-height:36px; } .tab.on { height:52px; line-height:40px; } .tab:disabled { height:36px; line-height:28px; } .tab:hover:not(:disabled, .on) { height:48px; line-height:40px; } #tabs { min-height:52px; }
   .grp { max-height:120px; }
-  .old a { display:none; }   /* 旧页面没做触屏，进去了也没有返回键：手机上不给入口 */
+  .old a { display:none; } .old .link::after { inset:-13px -8px; }   /* 旧页面没做触屏，进去了也没有返回键：手机上不给入口；留下的声音开关字小一号，能点的范围多放一点 */
 }
 
 /* ---------- 手机横屏（高 540 以内）：石桌压薄，手牌换成只管认和点的小版式，选中的那张在左边放大成全文；开始界面和组牌界面各收一收 ---------- */
@@ -318,19 +318,19 @@ button.card.pick { height:auto; margin:0; box-shadow:none; text-align:left; lett
   #foe .who { display:none; } #log { margin-top:0; } #side:not(.open) #log > :not(:last-child) { display:none; }
   #deckn { display:none; }
   /* 石桌一行三段：能量、手牌、换牌和结束回合 */
-  #bar { display:grid; grid-template-columns:auto minmax(0, 1fr) auto; align-items:end; align-content:end; column-gap:var(--s3); padding:0 max(var(--s3), var(--sr)) calc(var(--s2) + var(--sb)) max(var(--s3), var(--sl)); }
+  #bar { display:grid; grid-template-columns:auto minmax(0, 1fr) auto; align-items:end; align-content:end; column-gap:var(--s2); padding:0 max(var(--s3), var(--sr)) calc(var(--s2) + var(--sb)) max(var(--s3), var(--sl)); }
   #mana, #btns { position:static; }
   #hand { margin-bottom:var(--s2); }   /* 牌比两边的东西高 8px：左下角的战力徽章还要探出牌外，不能被屏幕底边切掉 */
-  #mana { width:76px; } #mana .lbl { display:none; } #mana .px { --s:4; margin:0 var(--s1) 0 0; }
-  #mana div { display:grid; grid-template-columns:repeat(6, 10px); gap:2px; min-height:0; margin-top:var(--s2); } #mana div i { width:10px; height:12px; margin:0; }
+  #mana { width:92px; white-space:nowrap; } #mana .lbl { display:none; } #mana .px { --s:4; margin:0 var(--s1) 0 0; }   /* 92：后期“12/12”两位数也要排在一行里 */
+  #mana div { display:grid; grid-template-columns:repeat(6, 10px); gap:2px; min-height:0; margin-top:var(--s1); } #mana div i { width:10px; height:12px; margin:0; }
   #btns { width:auto; flex-direction:row; align-items:flex-end; gap:var(--s2); }
-  #hand { justify-self:center; min-height:120px; padding:0; }
-  #hand .kcard, #hand .kcard.mid, #hand .kcard.long { --w:96px; --h:120px; --rib:72px; --poke:16px; --m:12px; --g:9px; --b:8px; --cut:16px; margin:0 -4px; }
+  #hand { justify-self:end; min-height:120px; padding:0; }   /* 手牌靠右：左边那一截要让给放大的牌，740 宽时两者正好不打架 */
+  #hand .kcard, #hand .kcard.mid, #hand .kcard.long { --w:96px; --h:120px; --rib:72px; --poke:16px; --m:12px; --g:9px; --b:8px; --cut:16px; margin:0 2px; }   /* 小牌不叠压：名字绶带只有 12px 的字，被下一张压住一个字就认不出了 */
   #hand .kcard .art { --aw:calc(var(--pw) * var(--hs) * 1px); --ah:calc(var(--ph) * var(--hs) * 1px); }   /* 立绘按整数倍减半（--hs 由 cardEl 写在画布上），不做小数倍缩放 */
   #hand .kcard .nm { height:20px; font:700 var(--f12); line-height:20px; } #hand .kcard :is(.tx, .ty) { display:none; }
   #hand .kcard .cost { left:-8px; top:-8px; width:32px; height:36px; } #hand .kcard .st { left:-8px; bottom:-8px; width:36px; height:36px; } #hand .kcard .cost .px, #hand .kcard .st .px { --s:2; }
-  #hand .kcard .mv { right:var(--s2); }
-  #zoom.on { display:block; position:absolute; z-index:5; left:max(var(--s3), var(--sl)); top:48px; pointer-events:none; }
+  #hand .kcard .mv { right:var(--s1); }
+  #zoom.on { display:block; position:absolute; z-index:5; left:max(var(--s2), var(--sl)); top:48px; pointer-events:none; }
   #reward .kcard { margin-top:var(--s2); }
   /* 结算盖满全屏；拿到首领牌时牌放右边一列，按钮不被挤出屏幕 */
   #result { position:fixed; z-index:8; overflow:auto; } #result .slab { padding:var(--s3); gap:var(--s2); } #result .slab:has(#reward:not(:empty)) { grid-template-columns:1fr auto; column-gap:var(--s4); } #result .slab > :not(#reward) { grid-column:1; } #reward { grid-column:2; grid-row:1 / span 3; }
@@ -354,9 +354,9 @@ button.card.pick { height:auto; margin:0; box-shadow:none; text-align:left; lett
   /* 组牌：左边牌池上下滚；右边的石板一直在——十二张卡条排两列，保存钉在底下 */
   #builder { padding:var(--s2) max(var(--s2), var(--sr)) calc(var(--s2) + var(--sb)) max(var(--s2), var(--sl)); }
   .wrap.two { grid-template-columns:minmax(0, 1fr) 224px; gap:var(--s3); }
-  #builder .title, #tabinfo, #curve, #bfaction { display:none; }
+  #builder .title, #tabinfo, #curve, #bfaction { display:none; } #tabs .tab { padding:0 var(--s2) var(--s2); }   /* 七面旗要排进一行 */
   #filters { gap:0 var(--s3); margin-top:var(--s1); } #pool { gap:var(--s3) var(--s2); padding:var(--s3) 0 var(--s2); }
-  .right { position:sticky; top:var(--s2); max-height:calc(100vh - 16px - var(--sb)); padding:var(--s2); gap:var(--s1); }
+  .right { position:sticky; top:0; max-height:calc(100vh - 16px - var(--sb)); padding:var(--s2); gap:var(--s1); } .right > :not(.scroll) { flex:none; }   /* 放不下的时候只压卡条那一段（它自己能滚），名字和按钮不许被压扁 */
   #bname { font:700 var(--f16); } #bcount .px { margin-left:var(--s2); }
   .scroll { min-height:44px; } #bcards { display:grid; grid-template-columns:1fr 1fr; gap:2px var(--s1); } .strip { grid-template-columns:16px 1fr; } .strip small { display:none; }
   .right .row { flex-wrap:nowrap; gap:var(--s3); } #bsave { flex:1 1 0; }

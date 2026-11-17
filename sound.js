@@ -9,6 +9,8 @@ export const music = (key, opt) => { want = key; try { a?.music(key, opt); } cat
 export const unlock = () => { try { a?.unlock(); } catch { /* 同上 */ } };
 export const toggleMute = () => { try { a?.toggleMute(); return !!a?.muted; } catch { return false; } };
 export const isMuted = () => !!a?.muted;
+export const pause = () => { try { a?.pause(); } catch { /* 同上 */ } };   // 切后台停、回来接着放（界面在 visibilitychange 里调）
+export const resume = () => { try { a?.resume(); } catch { /* 同上 */ } };
 // 规则里每一类事件对应的声音。法术和能力的特效再按阵营细分：圣辉是圣光，深渊是暗影，霜原是冰，沙海是风，其余是通用的施法声
 const EL = { f1: 'holy', f3: 'wind', f4: 'shadow', f6: 'ice' };
 const FX = { frost: 'ice', bless: 'buff', heal: 'heal', summon: 'summon', gust: 'wind', venom: 'poison', shade: 'shadow', creep: 'shadow', drain: 'shadow', thorn: 'hit_light', slash: 'hit_light' };

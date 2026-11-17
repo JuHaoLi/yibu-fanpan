@@ -109,6 +109,8 @@ export const audio = {
   },
   getVolume() { return { music: st.music, sfx: st.sfx }; },
   toggleMute() { st.muted = !st.muted; save(); applyVol(); return st.muted; },
+  pause() { ctx?.suspend().catch(() => {}); },  // 切到后台：挂起音频时钟，音乐停在原处；回来 resume 接着放
+  resume() { ctx?.resume().catch(() => {}); },
   get muted() { return st.muted; },
   // 给试听页用：读清单
   async manifest() { await loadManifest(); return manifest; },

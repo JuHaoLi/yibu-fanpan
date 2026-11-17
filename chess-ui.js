@@ -4,7 +4,7 @@ import { CARDS, FACTIONS, DECKS, FKEYS, DECK, deckInsight, BASE_HP, newGame, app
 import { board, GFX } from './board3d.js';
 import { AREAS, areaOf, stageOpts, progress } from './campaign.js';
 import { sfx, music, unlock, toggleMute, isMuted, eventSound } from './sound.js';
-import * as sound from './sound.js'; // 只为探测 sound.pause / sound.resume 有没有（切后台时用，见文件末尾）
+import * as sound from './sound.js'; // sound.pause / sound.resume：切后台时用（本文件里 pause 这个名字已经是“等一拍”）
 progress.load(); const owned = () => progress.data.owned; // 闯关里赢到手的首领牌
 
 const $ = id => document.getElementById(id), wait = s => new Promise(r => setTimeout(r, s * 1000));
@@ -329,7 +329,8 @@ stage.addEventListener('click', e => { if (touch && S && e.target.tagName === 'C
 function tipAt(t) { // 这一格上的单位是什么、身上有什么（连同这一格的暗影）。鼠标悬停时出，手指点一下也出
   const tip = $('tip'), u = t >= 0 && S ? S.board[t] : null, dark = t >= 0 && S && S.creep[t] >= 0 ? `<br>这一格有${WHO[S.creep[t]]}的暗影：站在上面的敌人每回合 −1` : '';
   if (u || dark) { const c = u && CARDS[u.card]; tip.innerHTML = (u ? `<b>${c.name}</b>${c.tribe ? `〔${c.tribe}〕` : ''}（${WHO[u.side]}）战力 ${u.str}${u.shield ? ' · 有圣盾' : ''}${u.frozen ? ' · 冻住了（不前进，能力暂时失效）' : ''}${u.poison ? ' · 中毒（每回合 −1）' : ''}${u.vital ? ' · 活力（每回合 +1）' : ''}${u.mute ? ' · 能力被禁用' : ''}${u.timer !== undefined ? ` · 还要 ${u.timer} 个回合孵出` : ''}<br>${u.mute || u.frozen ? `<s>${c.text}</s>` : rich(c.text)}${u.gear ? `<br><b>${CARDS[u.gear].name}</b>：${CARDS[u.gear].text.replace(/^装备：一个友方单位.*?获得「/, '').replace(/」。$/, '')}` : ''}` : '空格子') + dark; tip.style.display = 'block'; const r = stage.getBoundingClientRect(), p = board.screen(t), x = p.x - r.left, y = p.y - r.top; // 锚在格子上而不是跟着鼠标跑；正在看预演时放到格子下方，不盖住被瞄准的单位和头上的结果标记
-    tip.style.left = Math.min(r.width - 256, Math.max(0, x < r.width / 2 ? x + 48 : x - 288)) + 'px'; tip.style.top = Math.max(0, Math.min(r.height - tip.offsetHeight - 8, sel >= 0 || y < 152 ? y + 40 : y - 104)) + 'px'; } // 舞台矮的时候：上面放不下（会盖住顶上那排字）就放到格子下方，也不许掉到舞台外面
+    const zl = zoomEl.offsetWidth ? zoomEl.getBoundingClientRect().right - r.left + 8 : 0; // 小屏左边可能正摆着放大的牌：说明让到它右边
+    tip.style.left = Math.min(r.width - 256, Math.max(zl, x < r.width / 2 ? x + 48 : x - 288)) + 'px'; tip.style.top = Math.max(0, Math.min(handTop() - r.top - tip.offsetHeight, sel >= 0 || y < 152 ? y + 40 : y - 104)) + 'px'; } // 舞台矮的时候：上面放不下（会盖住顶上那排字）就放到格子下方；再往下是手牌，不许压进去
   else tip.style.display = 'none';
 }
 board.onHover(t => {
@@ -354,8 +355,8 @@ addEventListener('pointermove', e => { const d = drag; if (!d || e.pointerId !==
   if (!d.on) { if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 12 || !S || !idle()) return;      // 挪出 12px 才算拖：手指点一下难免带一点滑
     const i = cardsIn().indexOf(d.c); if (i >= 0 && sel !== i) pick(i); if (i < 0 || sel !== i || !targets(S, i).length) return void (drag = null); // 打不出的牌拖不动（为什么打不出，pick 已经说了）
     d.on = true; try { d.c.setPointerCapture(e.pointerId); } catch { /* 抓不住指针也照常拖 */ } dragEl.className = 'on ' + factionOf(V.hand[i]); dragEl.replaceChildren(cardEl(V.hand[i]).querySelector('canvas'), el('b', '', CARDS[V.hand[i]].name)); }
-  const x = e.clientX, y = e.clientY - (e.pointerType === 'mouse' ? 0 : 40), t = tileNear(x, y);       // 手指会挡住要放的格子：小牌和落点都比指尖高一截
-  dragEl.style.translate = `${Math.round(x - dragEl.offsetWidth / 2)}px ${Math.round(y - dragEl.offsetHeight - 8)}px`; d.cast = y < handTop();
+  const x = e.clientX, y = e.clientY - (e.pointerType === 'mouse' ? 0 : 40), t = tileNear(x, y);       // 手指会挡住要放的格子：落点比指尖高一截
+  dragEl.style.translate = `${Math.round(x - dragEl.offsetWidth / 2)}px ${Math.round(y + 16)}px`; d.cast = y < handTop(); // 小牌挂在落点下面：上面要留给预演（虚影、伤害数字）
   if (t !== d.t) { d.t = t; if (t >= 0) { armed = t; preview(t); } else unpreview(); }
 });
 const drop = e => { const d = drag; if (!d || e.pointerId !== d.id) return; drag = null; if (!d.on) return; dragEl.className = ''; dragAt = performance.now();
@@ -400,10 +401,10 @@ async function start(d, foe, stage = null) { // stage：闯关里的这一关（
   const bar = gateEl.querySelector('.bricks'), need = [...new Set([...mine.cards, ...theirs.cards, ...(stage?.setup || []).map(x => x.card), ...Object.keys(CARDS).filter(k => CARDS[k].token)])]; let n = 0;
   try { await curtain(async () => { $('home').hidden = $('result').hidden = true; feed.length = 0; log(`你用「${mine.name}」，电脑用「${theirs.name}」。`); tell(''); bricks(bar, 0);
     await Promise.all(need.map(t => board.preload([t]).then(() => bricks(bar, ++n / need.length)))); if (g !== game) return; // 一种角色一种角色地载，城门上的砖跟着亮
-    board.clear(); S = newGame([mine.cards, theirs.cards], Math.random, stage ? stageOpts(stage) : {}); for (const [t, u] of S.board.entries()) if (u) board.add({ ...u, tile: t }); sel = -1; V = { hand: [], left: 0, max: 0 }; handEl.replaceChildren(); revealEl.className = ''; syncBoard(); }); }
-  catch { if (g === game) { game++; home(); $('homehint').append(el('span', '', '没载入成功，检查网络后再试。')); } return; } // 图没载下来（手机上网络说断就断）：回开始界面说一声，不把人晾在空棋盘上
+    board.clear(); board.theme?.(stage?.area || deckFaction(theirs.cards)); S = newGame([mine.cards, theirs.cards], Math.random, stage ? stageOpts(stage) : {}); for (const [t, u] of S.board.entries()) if (u) board.add({ ...u, tile: t }); sel = -1; V = { hand: [], left: 0, max: 0 }; handEl.replaceChildren(); revealEl.className = ''; syncBoard(); }); } // 场景趁城门关着换装（按场地，自由对战按对手的阵营）：开门时不会先露出上一套再跳变
+  catch (e) { console.error(e); if (g === game) { game++; home(); $('homehint').append(el('span', '', '没载入成功，检查网络后再试。')); } return; } // 图没载下来（手机上网络说断就断）：回开始界面说一声，不把人晾在空棋盘上
   finally { bricks(bar, 0); }
-  if (g !== game) return; board.theme?.(stage?.area || deckFaction(theirs.cards)); music(stage?.music || 'battle_' + (1 + Math.floor(Math.random() * 3))); if (stage?.boss) sfx('boss_enter'); board.intro(); busy = false; sync(); // 场景按场地（自由对战按对手的阵营）换装；首领战放它自己的曲子                                   // 城门打开：镜头推进来，四张起手牌从牌库堆发到手里
+  if (g !== game) return; music(stage?.music || 'battle_' + (1 + Math.floor(Math.random() * 3))); if (stage?.boss) sfx('boss_enter'); board.intro(); busy = false; sync(); // 首领战放它自己的曲子                                   // 城门打开：镜头推进来，四张起手牌从牌库堆发到手里
   flag(-1, `${mine.name}<i>对</i>${theirs.name}`, `<span>${stage?.boss ? '首领战 · ' : ''}第 1 回合 · 你先手</span>`, T.read * 2); // 开局只有这一条：对阵双方和谁先手
 }
 function finish() { // 结算：底色淡入、胜负盖章、统计随后；按钮最后才出现并可点，免得刚才还在点棋盘的手误触
@@ -425,20 +426,19 @@ if (new URLSearchParams(location.search).has('timer')) window.__t = { CARDS, boa
 let heard = false; const wake = () => { heard = true; unlock(); }; addEventListener('pointerdown', wake, { once: true }); addEventListener('keydown', wake, { once: true });
 document.addEventListener('click', e => { const b = e.target.closest('button'); if (b && !b.disabled && !b.classList.contains('kcard')) sfx('ui_click'); });
 const mutes = [...document.querySelectorAll('.mute')], drawMute = () => { for (const b of mutes) { b.textContent = isMuted() ? '声音关' : '声音开'; b.setAttribute('aria-pressed', isMuted()); } }; // 开始界面和对局里各有一个，状态一起变
-// 切到后台就停声音，回来接着放。sound.js 导出了 pause / resume 就用它们；现在还没有，先拿静音开关顶着，并在本地记一笔——万一在后台被系统杀掉，下次进来不至于一直是静音
+// 切到后台就停声音，回来接着放。早先的试玩版是拿静音开关顶的，并在本地记了一笔；unhush 把那一笔消掉，免得老玩家一直是静音
 const BG = 'yibu-fanpan.bgmute', unhush = () => { try { if (localStorage.getItem(BG)) { localStorage.removeItem(BG); if (isMuted()) toggleMute(); } } catch { /* 存不了就算了 */ } };
 for (const b of mutes) b.onclick = () => { toggleMute(); drawMute(); }; setTimeout(() => { unhush(); drawMute(); }, 600);
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) { board.speed(1); if (sound.pause) sound.pause(); else if (!isMuted()) { toggleMute(); try { localStorage.setItem(BG, 1); } catch { /* 同上 */ } } }
-  else { if (sound.resume) sound.resume(); else unhush(); drawMute(); if (heard) { unlock(); addEventListener('pointerdown', unlock, { once: true }); } } // 有的手机要等下一次点按才肯重新出声
+  if (document.hidden) { board.speed(1); sound.pause(); }
+  else { sound.resume(); drawMute(); if (heard) { unlock(); addEventListener('pointerdown', unlock, { once: true }); } } // 有的手机要等下一次点按才肯重新出声
 });
 
 // ---------- 手机上的杂事 ----------
 const dock = () => (phone.matches ? document.querySelector('main > header') : $('btns')).append($('auto')); phone.addEventListener('change', dock); dock(); // 小屏的石桌只放得下换牌和结束回合：托管挪到顶上那排系统按钮里
 $('side').onclick = () => $('side').classList.toggle('open');                                      // 小屏只留最近一条战报，点一下展开四条（大屏上这块不接收点按）
 document.addEventListener('click', e => { if (touch && $('rules').open && !$('rules').contains(e.target)) $('rules').open = false; }); // 触屏上点别处就收起规则
-document.addEventListener('gesturestart', e => e.preventDefault());                                // 不许双指缩放（旧版 iOS 不认样式里的 touch-action）
-document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+document.addEventListener('gesturestart', e => e.preventDefault());                                // iOS 的双指缩放手势：样式里的 touch-action 之外再拦一道。不挂 touchmove 监听——那会拖慢列表滚动
 document.addEventListener('contextmenu', e => { if (touch && !/^(INPUT|TEXTAREA)$/.test(e.target.tagName)) e.preventDefault(); }); // 长按不出菜单
 
 // ---------- 进游戏 ----------
