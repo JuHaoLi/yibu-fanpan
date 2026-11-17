@@ -797,8 +797,9 @@ composer.addPass(new OutputPass());
 let dist = 20;
 let zoom = 1;                                    // 进对局时镜头从稍远处推进来（board.intro）
 function place(px) { const d = dist * zoom; camera.position.set(LOOK.x + px, LOOK.y + d * Math.sin(PITCH), LOOK.z + d * Math.cos(PITCH)); camera.lookAt(LOOK.x + px, LOOK.y, LOOK.z); }
-const TAN = 2 * Math.tan(FOV * Math.PI / 360), TOP = new THREE.Vector3(0, 3.2, -DEPTH / 2 + .35), FOOT = new THREE.Vector3(0, .07, tileZ(COLS - 1) + LZ / 2), v3 = new THREE.Vector3(); // TOP：城堡最高的塔尖；FOOT：最靠近镜头那一路的底边
+const TAN = 2 * Math.tan(FOV * Math.PI / 360), TOP = new THREE.Vector3(0, 3.2, -DEPTH / 2 + .35), FOOT = new THREE.Vector3(0, .07, tileZ(COLS - 1) + LZ / 2), TAG = new THREE.Vector3(0, 2.5, .2), v3 = new THREE.Vector3(); // TOP：城堡最高的塔尖；FOOT：最靠近镜头那一路的底边；TAG：城堡血量牌的上沿
 const handZone = () => parseFloat(getComputedStyle(stage).getPropertyValue('--hand-zone')) || 136; // 手牌探进舞台底部多高：版式在 #stage3d 上用 --hand-zone（px）告诉我们，读不到就按桌面版的 136
+const skyZone = () => parseFloat(getComputedStyle(stage).getPropertyValue('--sky')) || 0; // 矮屏幕（手机横屏）用 --sky 说“顶上这么高是按钮和提示”：这时只保证血量牌以下进画面，塔尖出画，换棋盘大一圈
 let zone = 136;
 function resize() {
   const w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return; zone = handZone();
@@ -808,7 +809,7 @@ function resize() {
   const row = p => { place(0); camera.updateMatrixWorld(true); camera.matrixWorldInverse.copy(camera.matrixWorld).invert(); return (1 - v3.copy(p).project(camera).y) / 2 * h; }; // 场景里的一个点落在画面的第几行
   dist = Math.max((ROWS + 5.8) / camera.aspect, 6.2) / TAN; // 先退到两座城堡左右都在画面里
   // 再看竖向：从塔尖到最下面一路的底边，要整个装进“手牌以上”的那一截（手机横屏又矮又宽，卡的是这个）；装不下就再退远。一格小到 40 像素就不再退——再小手指点不准，宁可让塔尖出画
-  const room = h - zone - 6, span = row(FOOT) - row(TOP); if (span > room) dist = Math.max(dist, Math.min(dist * span / room, h / (40 * TAN)));
+  const sky = skyZone(), room = h - zone - (sky || 6), span = row(FOOT) - row(sky ? TAG : TOP); if (span > room) dist = Math.max(dist, Math.min(dist * span / room, h / (40 * TAN)));
   const up = Math.max(0, Math.round(row(FOOT) - (h - zone))); if (up) camera.setViewOffset(w, h, 0, up, w, h); // 最下面一路还被手牌盖着：把整个画面上移到刚好露出来
   zoom = z0; tiltH.uniforms.dir.value.set(1.3 / w, 0); tiltV.uniforms.dir.value.set(0, 1.3 / h); moteM.uniforms.px.value = h * pr / TAN; place(0);
 }

@@ -25,8 +25,8 @@ const hero = cards => [...cards].filter(k => CARDS[k].kind === 'unit').sort((a, 
 const gated = key => !BADGES.includes(key);                                                // 城门后面的场地
 const opened = d => BADGES.every(k => d.done[k]);
 const goal = (d, key) => gated(key) && !opened(d) ? -1 : d.runs[key] ? d.runs[key].at : 0; // 这个场地现在能去的那一关；进不去是 -1。通关过的场地可以从第一关再打一遍
-const pickArea = (d, was) => was && goal(d, was) >= 0 && (d.runs[was] || !d.done[was]) ? was       // 棋子默认站哪：上次站的地方 → 打到一半的 → 还没打过的；全打完了就哪也不站
-  : (AREAS.find(a => d.runs[a.key]) || AREAS.find(a => !d.done[a.key] && goal(d, a.key) >= 0))?.key || null;
+const pickArea = (d, was) => was && goal(d, was) >= 0 && (d.runs[was] || !d.done[was]) ? was       // 棋子默认站哪：上次站的地方 → 打到一半的 → 还没打过的；全打完了就留在原地（刚打开就站最后一个场地），从第一关可以再打一遍
+  : (AREAS.find(a => d.runs[a.key]) || AREAS.find(a => !d.done[a.key] && goal(d, a.key) >= 0) || (was && goal(d, was) >= 0 ? areaOf(was) : AREAS.findLast(a => goal(d, a.key) >= 0)))?.key || null;
 
 // host：开始界面（#home）；px：像素数字；decks()：全部卡组；chosen() / choose(i)：开始界面上选中的那套；fight(场地)：开打这个场地当前的一关
 export function campaignUI({ host, px, decks, chosen, choose, fight }) {
@@ -54,7 +54,7 @@ export function campaignUI({ host, px, decks, chosen, choose, fight }) {
   function paint(d, cur) { // 节点、徽章槽、城门：全按存档算，不留自己的状态
     for (const a of AREAS) { const run = d.runs[a.key], g = goal(d, a.key);
       a.stages.forEach((s, i) => { const b = nodes[a.key][i], done = run ? i < run.at : !!d.done[a.key], state = i === g && a.key === cur ? 'here' : done ? 'done' : i === g ? 'next' : 'locked';
-        b.dataset.state = state; b.toggleAttribute('data-got', !!s.boss && d.owned.includes(s.boss)); b.setAttribute('aria-disabled', i !== g); b.tabIndex = state === 'here' ? 0 : -1;
+        b.dataset.state = state; b.classList.toggle('cur', a.key === cur); b.toggleAttribute('data-got', !!s.boss && d.owned.includes(s.boss)); b.setAttribute('aria-disabled', i !== g); b.tabIndex = state === 'here' ? 0 : -1;
         b.title = `${a.name} · ${s.name}`; b.setAttribute('aria-label', `${a.name}第 ${i + 1} 关：${s.name}${s.boss ? '（首领）' : ''}，${WORD[state]}${state === 'done' && i === g ? '，可以再打' : ''}`); }); }
     for (const k of BADGES) { slots[k].classList.toggle('on', !!d.done[k]); slots[k].setAttribute('aria-label', badgeName(k) + (d.done[k] ? '：已获得' : '：未获得')); }
     map.classList.toggle('open', opened(d));

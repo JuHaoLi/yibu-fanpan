@@ -77,6 +77,7 @@
   #home.camp .hero { position:absolute; z-index:1; top:0; right:calc(max(var(--s2), var(--sr)) + 80px); padding:var(--s1) 0 0; }   /* 屏幕矮，六行要尽量高：玩法页签挪到右上角（城门后面那片的上方是空的），不单占一行 */
   #home.camp .title { display:none; }
   .cmap { --sprite:40; margin:calc(var(--s4) + var(--s2)) max(var(--s3), var(--sr)) var(--s1) max(var(--s3), var(--sl)); }   /* 顶上留 32px：第一行的首领和棋子要露出头 */
+  .node[data-boss]:not(.cur, .lane) .spr { display:none; }   /* 一行只有四十来像素高，首领比行高：六位叠成一柱谁也认不出。只让棋子所在这条路（.cur）的首领站出来，别的路只留红菱形 */
   .cinfo { min-height:calc(64px + var(--sb)); gap:var(--s3); padding:var(--s1) max(var(--s3), var(--sr)) calc(var(--s1) + var(--sb)) max(var(--s3), var(--sl)); }
   .cinfo b { font:800 var(--f16); } .cinfo p { font:var(--f12); } .cinfo .px { --s:2; } .hp .px { margin-right:var(--s2); }
   .slot .badge, .fly { width:16px; height:20px; } .slot.on .badge, .fly { background:linear-gradient(var(--fl) 0 0) 6px 6px / 4px 4px no-repeat, var(--fc); } .fly { margin:-10px -8px; }
