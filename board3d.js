@@ -493,12 +493,12 @@ const PX = 1 / 64, ANIMS = ['idle', 'run', 'attack', 'hit', 'death'], sheets = {
 function preload(types) { // 把要用到的角色帧图先全部载入
   return Promise.all([...new Set(types)].filter(t => GFX[t] && !sheets[t]).flatMap(type => {
     const g = GFX[type], s = sheets[type] = { geo: new THREE.PlaneGeometry(1, 1).translate(0, g.feet / g.cell - .5, 0), tex: {}, n: {} };
-    return ANIMS.map(a => new Promise((res, rej) => { const img = new Image();
+    return (g.cast ? [...ANIMS, 'cast'] : ANIMS).map(a => new Promise((res, rej) => { const img = new Image(); // 有施法帧的首领多一条 cast
       img.onload = () => { const t = new THREE.Texture(img); t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.colorSpace = THREE.SRGBColorSpace; s.n[a] = Math.max(1, Math.round(img.width / g.cell)); t.repeat.set(1 / s.n[a], 1); t.needsUpdate = true; s.tex[a] = t; res(); };
       img.onerror = rej; img.src = `assets/units/${g.file}_${a}.png`; }));
   }));
 }
-let now = 0, speed = 1, hold = 0; const tweens = [], units = new Map(); // now 是补间时钟：慢放（?timer=0.25）、加速（board.speed）、命中定格（hold）都只动这一只钟
+let now = 0, speed = 1, hold = 0; const tweens = [], units = new Map(), dying = new Set(); // dying：正在倒下的（已经不算在场，但倒下帧还要接着播） // now 是补间时钟：慢放（?timer=0.25）、加速（board.speed）、命中定格（hold）都只动这一只钟
 // 全局节奏表：和 motion.css 的 --t-1…--t-read、--e-out / --e-in / --e-io 一一对应。不用回弹和弹性
 const TIME = { t1: .1, t2: .2, t3: .3, t4: .5, read: .7 }, eOut = k => 1 - (1 - k) ** 3, eIn = k => k * k * k;
 const tween = (dur, fn) => new Promise(res => tweens.push({ t0: now, dur, fn, res }));       // 一段随时间推进的动画；结束时兑现
@@ -506,7 +506,7 @@ const ease = k => k * k * (3 - 2 * k); // 就是 --e-io：起步和停下都有
 const spot = t => new THREE.Vector3(tileX(Math.floor(t / COLS)), .065, tileZ(t % COLS)); // 格子中心
 function setAnim(u, name, loop = false) {
   const sh = sheets[u.card], tex = u.tex[name] ||= Object.assign(sh.tex[name].clone(), { needsUpdate: true }), n = sh.n[name];
-  u.anim = { name, loop, n, t0: now, fps: name === 'idle' ? 10 : name === 'run' ? 14 : name === 'attack' ? n / .46 : name === 'death' ? n / .55 : 14 };
+  u.anim = { name, loop, n, t0: now, fps: name === 'idle' ? 10 : name === 'run' ? 14 : name === 'attack' ? n / .46 : name === 'death' ? n / (isBoss(u.card) ? 1.3 : .55) : name === 'cast' ? n / .6 : 14 }; if (name === 'idle' && u.rage) u.anim.fps = 15; // 首领倒下放慢；发怒后待机加快
   u.mat.map = u.depth.map = tex; tex.offset.x = 0;
 }
 function float(text, color, at, rise = .7, big = 1) { // 冒出来的字：数字用像素字形。先分三格缩到位、停一下给人读，再上飘淡出
@@ -614,28 +614,31 @@ const creeps = tiles.map(t => { const m = new THREE.Mesh(new THREE.PlaneGeometry
 
 
 const free = u => { scene.remove(u.grp); for (const t of Object.values(u.tex)) t.dispose(); for (const sp of [u.power, u.tag, u.gearS]) if (sp) { sp.material.map.dispose(); sp.material.dispose(); } for (const m of [u.mat, u.depth, u.bubble.material, u.grp.children[0].material, u.grp.children[1].material]) m.dispose(); }; // 单位离场：它自己的牌子、材质、贴图一起释放，打久了才不会越积越多
-const tint = u => u.frozen ? 0x8fd8ff : u.poison ? 0xa8f070 : u.muted ? 0x9a9aa8 : 0xffffff; // 角色身上的状态色：冻住发蓝，中毒发绿，被禁用发灰
+const isBoss = card => card.startsWith('B_'); // 首领牌（chess-cards.js 里 bossUnit 建的那十一张）
+const tint = u => u.frozen ? 0x8fd8ff : u.poison ? 0xa8f070 : u.muted ? 0x9a9aa8 : u.rage ? 0xffc8b8 : 0xffffff; // 角色身上的状态色：冻住发蓝，中毒发绿，被禁用发灰
 // 给 chess-ui.js 用的接口。带动画的都返回一个“演完了”的约定
 export const board = {
   preload, cols: COLS, rows: ROWS, T: TIME, calm,
   wait: s => tween(s, () => {}),                 // 界面的等待也走补间时钟，这样慢放、加速、定格对界面和棋盘是同一个倍率
   speed(x) { speed = x; }, rate: () => slow * speed,
-  clear() { for (const u of units.values()) free(u); units.clear(); wipe(arrowLayer); wipe(pathLayer); board.tags([]); board.ghost(null); board.threat(0); board.mark([]); creeps.forEach(m => { m.visible = false; m.material.opacity = 0; }); castles.forEach(c => { c.g.position.y = 0; }); },
+  clear() { for (const u of units.values()) free(u); units.clear(); for (const u of dying) free(u); dying.clear(); wipe(arrowLayer); wipe(pathLayer); board.tags([]); board.ghost(null); board.threat(0); board.mark([]); creeps.forEach(m => { m.visible = false; m.material.opacity = 0; }); castles.forEach(c => { c.g.position.y = 0; }); },
   add({ id, card, side, tile, str, shield }) { // 出场：从半格高处砸下来，落地压扁一下再站直，脚下一圈阵营色的波纹，地格跟着沉一下——让人看见“有东西落在这一格了”
-    const g = GFX[card], sh = sheets[card], grp = new THREE.Group(), w = g.cell * PX * (g.scale || 1); grp.position.copy(spot(tile));
+    const g = GFX[card], sh = sheets[card], grp = new THREE.Group(), w = g.cell * PX * (g.scale || 1), big = isBoss(card); grp.position.copy(spot(tile)); // big：首领登场，从高处砸下来，镜头推近，落地重震、两圈波纹、定格一下
     const blob = new THREE.Mesh(blobGeo, new THREE.MeshBasicMaterial({ color: 0x04040c, transparent: true, opacity: .45, depthWrite: false })); blob.rotation.x = -Math.PI / 2; blob.scale.set(1, .62, 1); grp.add(blob);
-    const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: TEAM[side].hex, transparent: true, opacity: .95, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = .004; ring.scale.set(1.15, .8, 1); grp.add(ring);
+    const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: TEAM[side].hex, transparent: true, opacity: .95, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = .004; ring.scale.set(big ? 1.6 : 1.15, big ? 1.1 : .8, 1); grp.add(ring);
     const mat = new THREE.MeshBasicMaterial({ alphaTest: .5, side: THREE.DoubleSide }), depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, alphaTest: .5 });
     const spr = new THREE.Mesh(sh.geo, mat); spr.customDepthMaterial = depth; spr.castShadow = true; spr.scale.set(side ? -w : w, w, 1); grp.add(spr); // 左边的人朝右，右边的人朝左
     const power = badge(String(str), TEAM[side].ramp[3], .24); power.position.set(.34, .1, .32); grp.add(power);
     const bubble = new THREE.Sprite(new THREE.SpriteMaterial({ map: bubbleT, color: 0xfff4a0, transparent: true, depthTest: false, blending: THREE.AdditiveBlending })); bubble.scale.setScalar(1.25); bubble.position.y = .5; bubble.visible = !!shield; bubble.renderOrder = 7; grp.add(bubble);
-    const u = { id, card, side, grp, spr, mat, depth, power, w, bubble, tex: {}, frozen: false, gen: 0, stack: 0 }; units.set(id, u); setAnim(u, 'idle', true); scene.add(grp);
+    const u = { id, card, side, grp, spr, mat, depth, power, w, bubble, ring, tex: {}, frozen: false, gen: 0, stack: 0 }; units.set(id, u); setAnim(u, 'idle', true); scene.add(grp);
     const sx = side ? -w : w, tl = tiles[tile]; spr.scale.set(sx, w, 1);
     if (calm) { mat.alphaTest = .05; mat.transparent = true; return tween(.12, k => { mat.opacity = k; }).then(() => { mat.alphaTest = .5; mat.transparent = false; }); } // 减少动效：原地淡入
-    return tween(TIME.t2, k => { grp.position.y = .065 + (1 - eIn(k)) * .6; }).then(() => {
-      wave(spot(tile), TEAM[side].hex, .55, TIME.t3); quake = Math.max(quake, .04);
-      tween(TIME.t2, k => { const q = k < .4 ? k / .4 : 1 - eOut((k - .4) / .6); spr.scale.set(sx * (1 + .15 * q), w * (1 - .2 * q), 1); tl.position.y = tl.userData.base - .03 * q; });
-      return later(TIME.t1); });
+    if (big) tween(TIME.t4 * 2, k => { zoom = 1 - .1 * Math.sin(k * Math.PI); });
+    return tween(big ? TIME.t4 : TIME.t2, k => { grp.position.y = .065 + (1 - eIn(k)) * (big ? 3 : .6); }).then(() => {
+      wave(spot(tile), TEAM[side].hex, big ? 1.5 : .55, big ? TIME.t4 : TIME.t3); quake = Math.max(quake, big ? .22 : .04);
+      if (big) { wave(spot(tile), 0xfff4a0, .9, TIME.t3); burst(spot(tile).setY(.35), TEAM[side].hex, 0xfff4a0, 1.6); hold = Math.max(hold, .1); }
+      tween(TIME.t2, k => { const q = (k < .4 ? k / .4 : 1 - eOut((k - .4) / .6)) * (big ? 1.5 : 1); spr.scale.set(sx * (1 + .15 * q), w * (1 - .2 * q), 1); tl.position.y = tl.userData.base - .03 * q; });
+      return later(big ? TIME.t4 : TIME.t1); });
   },
   move(id, to, dur = TIME.t3) { const u = units.get(id); if (!u) return Promise.resolve(); const a = u.grp.position.clone(), b = spot(to), g = ++u.gen; setAnim(u, 'run', true); // 起步和停下都有，途中两个小跳，和跑步帧对上；gen 变了说明别的动作接手了这个单位，旧补间就不再写位置
     return tween(calm ? .12 : dur, k => { if (u.gen !== g) return; u.grp.position.lerpVectors(a, b, calm ? k : ease(k)); if (!calm) u.grp.position.y += Math.abs(Math.sin(k * Math.PI * 2)) * .05; }).then(() => { if (u.gen === g) setAnim(u, 'idle', true); }); },
@@ -643,7 +646,9 @@ export const board = {
   lunge(id, to) { // 出手四拍：蓄力后缩 → 突进 → 命中（在这一刻兑现，伤害数字从这时开始跳，hurt() 会让画面定格一下）→ 收回
     const u = units.get(id); if (!u) return Promise.resolve(); const a = u.grp.position.clone(), d = spot(to).sub(a), g = ++u.gen, put = f => { if (u.gen === g) u.grp.position.copy(a).addScaledVector(d, f); }; setAnim(u, 'attack');
     if (calm) return tween(.12, k => put(.42 * k)).then(() => { tween(.12, k => put(.42 * (1 - k))); });
-    return tween(TIME.t1, k => put(-.08 * eOut(k))).then(() => tween(TIME.t1, k => put(-.08 + .5 * eIn(k)))).then(() => { tween(TIME.t2, k => put(.42 * (1 - ease(k)))); });
+    const big = isBoss(u.card), back = big ? -.2 : -.08, reach = big ? .62 : .42; // 首领的重击：多一拍蓄力，退得更深、冲得更远，命中时重震并多定格一下
+    return tween(big ? TIME.t3 : TIME.t1, k => put(back * eOut(k))).then(() => tween(TIME.t1, k => put(back + (reach - back) * eIn(k)))).then(() => {
+      if (big) { quake = Math.max(quake, .16); hold = Math.max(hold, .09); burst(spot(to).setY(.4), TEAM[u.side].hex, 0xffffff, 1.3); } tween(TIME.t2, k => put(reach * (1 - ease(k)))); });
   },
   storm(id, side, tile) { // 走进对方城门
     const u = units.get(id); if (!u) return Promise.resolve(); const a = u.grp.position.clone(), b = gate(side, tile); setAnim(u, 'run', true);
@@ -654,10 +659,29 @@ export const board = {
     if (str > 0) setAnim(u, 'hit'); u.mat.color.set(0xff8080); tween(.2, k => { if (k >= 1) u.mat.color.set(tint(u)); }); },
   buff(id, n, str) { const u = units.get(id); if (!u) return; pop(u, '+' + n, '#68f0b0'); setStr(u, str); if (!calm) tween(TIME.t2, k => u.spr.scale.set((u.side ? -u.w : u.w) * (1 + .18 * Math.sin(k * Math.PI)), u.w * (1 + .18 * Math.sin(k * Math.PI)), 1)); },
   die(id) { // 倒下：播倒下帧，然后碎成几块阵营色的小方块往上散（硬边方块，不是柔光点）
-    const u = units.get(id); if (!u) return Promise.resolve(); units.delete(id); ++u.gen; setAnim(u, 'death'); u.power.visible = u.bubble.visible = false; if (u.gearS) u.gearS.visible = false; if (u.tag) u.tag.visible = false; const p = u.grp.position.clone(); puff(p.clone(), TEAM[u.side].hex);
+    const u = units.get(id); if (!u) return Promise.resolve(); units.delete(id); dying.add(u); ++u.gen; setAnim(u, 'death'); u.power.visible = u.bubble.visible = false; if (u.gearS) u.gearS.visible = false; if (u.tag) u.tag.visible = false; const p = u.grp.position.clone(), col = TEAM[u.side].hex, done = () => { if (dying.delete(u)) free(u); };
+    if (isBoss(u.card) && !calm) { // 首领倒下：倒下帧放慢，镜头推近，身上接连炸三下（一下比一下重），最后才散
+      tween(1.5, k => { zoom = 1 - .08 * Math.sin(k * Math.PI); });
+      for (let i = 0; i < 3; i++) later(.15 + i * .35, () => { burst(new THREE.Vector3(p.x + (i - 1) * .22, .35 + i * .18, p.z), col, 0xfff4a0, 1.2 + i * .3); quake = Math.max(quake, .1 + i * .06); if (i === 2) hold = Math.max(hold, .12); });
+      return tween(1.5, k => { if (k > .75) { u.mat.opacity = 1 - (k - .75) / .25; u.mat.transparent = true; } }).then(() => { puff(p.clone(), col); wave(p, col, 1.6, TIME.t4); done(); }); }
+    puff(p.clone(), col);
     if (!calm) later(.25, () => { for (let i = 0; i < 7; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ color: i % 3 ? TEAM[u.side].hex : 0xece4d0, depthTest: false, transparent: true })), a = i * 2.4 + id, h = .6 + (i % 3) * .25; s.scale.setScalar(.06 + (i % 2) * .03); s.renderOrder = 8; fxLayer.add(s);
       tween(TIME.t4, k => { s.position.set(p.x + Math.cos(a) * .45 * k, .35 + h * eOut(k), p.z + Math.sin(a) * .3 * k); s.material.opacity = 1 - k * k; }).then(() => drop(s)); } });
-    return tween(.6, k => { if (k > .55) { u.mat.opacity = 1 - (k - .55) / .45; u.mat.transparent = true; } }).then(() => free(u)); },
+    return tween(.6, k => { if (k > .55) { u.mat.opacity = 1 - (k - .55) / .45; u.mat.transparent = true; } }).then(done); },
+  cast(id) { // 首领施法：原地摆出施法的架势（有施法帧用施法帧，没有就用出手帧），脚下一圈本方颜色的光往里收，出手那一刻一闪、定格
+    const u = units.get(id); if (!u) return Promise.resolve(); const p = u.grp.position.clone(), col = TEAM[u.side].hex; ++u.gen; setAnim(u, sheets[u.card].tex.cast ? 'cast' : 'attack');
+    if (calm) return later(.12);
+    const m = new THREE.Mesh(new THREE.RingGeometry(.84, 1, 36), new THREE.MeshBasicMaterial({ color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); m.rotation.x = -Math.PI / 2; m.position.set(p.x, .1, p.z); fxLayer.add(m);
+    tween(TIME.t4, k => { m.scale.setScalar(1.7 - 1.4 * eIn(k)); m.material.opacity = .15 + .85 * k; }).then(() => drop(m));
+    return later(TIME.t4).then(() => { burst(p.clone().setY(.7), col, 0xfff4a0, 1.4); hold = Math.max(hold, .08); quake = Math.max(quake, .08); return later(TIME.t3); }); },
+  rage(side) { // 首领发怒：这一方场上的首领后仰一下，然后涨大一圈，脚下的圈变成火红并一直冒火星，待机动作加快
+    let any = false;
+    for (const u of units.values()) if (u.side === side && isBoss(u.card) && !u.rage) { any = true; u.rage = true; const p = u.grp.position.clone(), w0 = u.w, sx = u.side ? -1 : 1; u.w *= 1.15; u.ring.material.color.set(0xff5030); setAnim(u, 'hit'); u.mat.color.set(tint(u));
+      if (calm) { u.spr.scale.set(sx * u.w, u.w, 1); continue; }
+      burst(p.clone().setY(.5), 0xf84850, 0xfff4a0, 1.8); wave(p, 0xff5030, 1.6, TIME.t4);
+      tween(TIME.t4, k => { const w = w0 + (u.w - w0) * eOut(k); u.spr.scale.set(sx * w, w, 1); u.ring.scale.set(1.6 + .4 * eOut(k), 1.1 + .28 * eOut(k), 1); }); }
+    if (any && !calm) { quake = Math.max(quake, .3); hold = Math.max(hold, .12); tween(TIME.read, k => { zoom = 1 - .07 * Math.sin(k * Math.PI); }); }
+    return later(any ? TIME.t4 : 0); },
   freeze(id, on) { const u = units.get(id); if (!u) return; u.frozen = on; u.mat.color.set(tint(u)); if (on) pop(u, '冻住', '#a8fff8'); }, // 冻住的角色待机动画停在第一帧（见 loop）
   base(side, n, hp) { // 城堡掉血或回血：牌子上的数字一格一格跳到位；掉血时定格、重震、城堡抖
     const c = castles[side], from = c.hp; float((n > 0 ? '+' : '') + n, n > 0 ? '#68f0b0' : '#f06878', new THREE.Vector3(c.g.position.x, 2.75, .2), .9, 1.6);
@@ -791,12 +815,14 @@ let last = -1, pan = 0, air = 0, tick = 0; const frame = { calls: 0, tris: 0 };
 function loop(stamp) {
   const raw = last < 0 ? 0 : (stamp - last) / 1000, dt = raw * speed; last = stamp; if (hold > 0) hold -= dt; else now += dt; const t = now; // 定格期间时钟不走：补间、角色换帧、等待一起停
   for (let i = tweens.length - 1; i >= 0; i--) { const w = tweens[i], k = Math.min(1, (t - w.t0) / w.dur); w.fn(k); if (k >= 1) { tweens.splice(i, 1); w.res(); } }
-  for (const u of units.values()) { // 每个角色按自己当前的动作换帧；一次性的动作播完回到待机，倒下停在最后一帧
+  for (const u of [...units.values(), ...dying]) { // 每个角色按自己当前的动作换帧；一次性的动作播完回到待机，倒下停在最后一帧
     const a = u.anim; let f = Math.floor((t - a.t0) * a.fps);
     if (u.frozen && a.name === 'idle') f = 0; else if (a.loop) f %= a.n; else if (f >= a.n) { if (a.name === 'death') f = a.n - 1; else { setAnim(u, 'idle', true); f = 0; } }
     u.mat.map.offset.x = f / u.anim.n; u.spr.quaternion.copy(camera.quaternion);
   }
   if (!calm) { // 减少动态效果时这一段整个不走：镜头不晃，光不闪，飘的东西停在原地
+    if (!low) for (const u of units.values()) if (u.rage && air - (u.ember || 0) > .22) { u.ember = air; const e = spark(0xff7040, .1, .9), x = u.grp.position.x + Math.sin(air * 7 + u.id) * .3, z = u.grp.position.z + .05; // 发怒的首领脚下一直冒火星（低画质档不冒）
+      tween(.7, k => { e.position.set(x, .12 + k * .9, z); e.material.opacity = .9 * (1 - k); e.scale.setScalar(.1 * (1 - .5 * k)); }).then(() => drop(e)); }
     air += Math.min(raw, .1);                                                                // 场景自己的钟，不跟着加速和定格走：雪不会因为打中一下就停住
     pan += (mx * .3 - pan) * .05; place(pan + (Math.random() - .5) * quake); quake *= .86;   // 镜头只做很小的左右平移；被打中时抖一下
     glowM.opacity = .88 + Math.sin(air * 2.2) * .12; for (const g of gems) { g.rotation.y = air * .9; g.position.y = g.userData.y + Math.sin(air * 1.5 + g.position.x) * .04; }

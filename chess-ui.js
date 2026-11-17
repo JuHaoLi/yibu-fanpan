@@ -190,9 +190,10 @@ const tell = text => { const box = $('hint'), st = step(); if (!st || !text) { b
   if (st.do === 'ok' && idle()) { const b = el('button', '', '知道了'); b.onclick = () => { lesson.i++; sync(); }; box.append(b); b.focus({ preventScroll: true }); } };                                       // 现在该做什么
 async function show(events, next, g) { // next：这一步之后的局面（抽牌、回合数从它取）；g：开演时是第几局，中途换了局就停
   for (let k = 0; k < events.length; k++) { const e = events[k], nx = events[k + 1]; if (g !== game) return; const snd = eventSound(e, ME); if (snd) sfx(snd); switch (e.t) {
-    case 'rage': log('首领发怒了：场上的首领 +3 战力并获得圣盾。'); flag(e.side, '首领发怒', '<span>+3 战力 · 圣盾</span>', T.read * 1.5); board.quake?.(.3); await pause(T.read); break;
+    case 'rage': log('首领发怒了：场上的首领 +3 战力并获得圣盾。'); flag(e.side, '首领发怒', '<span>+3 战力 · 圣盾</span>', T.read * 1.5); await board.rage(e.side); await pause(T.read); break;
     case 'play': log(`${WHO[e.side]}${CARDS[e.card].kind === 'spell' ? '用了' : '打出'}「${CARDS[e.card].name}」` + (CARDS[e.card].kind === 'spell' || e.side === FOE ? `：${CARDS[e.card].text}` : '')); if (e.side === FOE) await reveal(e); break;
-    case 'spawn': await board.add(e); break;
+    case 'spawn': await board.add(e); if (CARDS[e.card].boss) { const c = CARDS[e.card]; log(`首领登场：${c.title} ${c.name}`); sfx('boss_enter'); flag(e.side, `${c.title} ${c.name}`, '<span>首领登场</span>', T.read * 1.5); // 首领：名号打出来；对面已经发过怒的话，它一落地就是发怒的样子；有出场能力的先摆一个施法的架势
+      if (S.rage[e.side]) await board.rage(e.side); if (c.onPlay) await board.cast(e.id); } break;
     case 'move': { const ids = new Set([e.id]), all = [board.move(e.id, e.to)]; // 接连几个互不相干的兵一起迈步（各错开半拍），不排成一条匀速的流水
       while (events[k + 1]?.t === 'move' && !ids.has(events[k + 1].id)) { const m = events[++k]; ids.add(m.id); await pause(T.t1 / 2); all.push(board.move(m.id, m.to)); } await Promise.all(all); break; }
     case 'pull': case 'push': await board.shift(e.id, e.to); break;
@@ -212,11 +213,12 @@ async function show(events, next, g) { // next：这一步之后的局面（抽�
     case 'spend': board.note(`花掉 ${e.n} 能量`, '#a8fff8', e.side); if (e.side === ME) { V.left = Math.max(0, V.left - e.n); drawMana(); } await pause(T.t2); break;
     case 'draw': board.note(`抽 ${e.n} 张牌`, '#fff4a0', e.side); if (e.side === ME) { log(`你抽了 ${e.n} 张牌`); V.hand = [...next.hand[ME]]; drawPile(next); renderHand(); } await pause(T.t3); break;
     case 'swap': if (e.side === FOE) { log('电脑换了一张牌'); board.note('换牌', '#a8fff8', FOE); await pause(T.t3); } break; // 我方换牌的过程在 act() 里：旧牌滑回牌库堆，新牌发过来
-    case 'die': board.die(e.id); await pause(T.t3); break;
+    case 'die': { const boss = S.board.find(u => u && u.id === e.id && CARDS[u.card].boss); if (boss) { log(`${CARDS[boss.card].title} ${CARDS[boss.card].name} 倒下了`); await board.die(e.id); } else { board.die(e.id); await pause(T.t3); } break; } // 首领倒下要演完：慢放、三连炸
     case 'base': if (e.id !== undefined) await board.storm(e.id, 1 - e.side, e.from); if (e.side === ME) restart(edgeEl, 'on'); await board.base(e.side, -e.n, e.hp); log(`${WHO[e.side]}的城堡 −${e.n}，还剩 ${e.hp}`); break;
     case 'heal': await board.base(e.side, e.n, e.hp); break;
     case 'turn': await flag(e.side, e.side === ME ? '你的回合' : '电脑的回合', `<span>第 ${Math.floor(next.n / 2) + 1} 回合</span>` + (e.side === ME ? `<span class="m">能量 ${px(e.mana, 3)}</span>` : ''), e.side === ME ? T.read : T.t4);
-      if (e.side === ME) { V.left = e.mana; V.max = next.mana[ME]; drawMana(); } break;                     // 轮到我：能量在这一刻回满
+      if (e.side === ME) { V.left = e.mana; V.max = next.mana[ME]; drawMana(); }
+      for (const u of S.board) if (u && u.side === e.side && CARDS[u.card].boss && CARDS[u.card].onTurn && !u.mute && !u.frozen) await board.cast(u.id); break; // 首领有“回合开始时”的能力：先摆施法的架势，效果随后                     // 轮到我：能量在这一刻回满
   } }
 }
 async function act(a) { // 执行一步。先回应：牌立刻离手、能量立刻扣掉、其余手牌补位；后演出：棋盘上的过程播完，再换成新局面

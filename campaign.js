@@ -19,7 +19,7 @@ const area = (key, name, intro, a, b, names, s3, s4, bossCard, out, extra = []) 
 
 export const AREAS = [
   area('f1', '晨曦要塞', '金甲骑士守着的石头要塞。他们抱团、带盾、还会给城堡回血。', '铁壁列阵', '骑士冲锋',
-    ['城门卫队', '骑士团的冲锋', '盾墙', '破晓之前', '日冕圣骑 奥瑞安',
+    ['城门卫队', '骑士团的冲锋', '盾墙', '破晓之前', '三环圣者 奥瑞安',
      '先认识圣盾：它挡下第一次伤害，用小伤害把它敲掉再打。', '一排骑士互相加成，别让他们凑齐。', '对面开局就有两座镇关巨像挡路。', '对面开局有一座丰碑，每回合给旁边的人加战力。', '首领一出场，全队都有圣盾。'],
     [put('colossus', 0, 1, 5), put('colossus', 0, 2, 5)], [put('f1_ironcliffemonument', 0, 1)], 'B_f1', 'f1s_rally'),
   area('f2', '雾隐道场', '忍者的山中道场。他们一回合连出几张牌，还能把兵直接放到你身边。', '连击快攻', '咒印法术',
@@ -31,7 +31,7 @@ export const AREAS = [
      '对面的兵一回合走两步，别让他们溜进城门。', '碑越多对面越强，优先拆碑。', '对面开局就有红沙碑和金焰碑。', '对面开局有一座无尽碑，每回合出一只 3 战力的沙灵。', '首领出场会让所有的碑立刻再干一次活。'],
     [put('f3_obelyskredsand', 0, 0), put('f3_obelyskgoldenflame', 0, 3)], [put('f3_endlessobelysk', 0, 1)], 'B_f3', 'f3_dreamshaper', [put('f3_obelyskgoldenflame', 0, 3)]),
   area('f4', '蚀月深坑', '暗影和恶魔的巢穴。满地影灵，很多东西死了才生效。', '影灵海', '毒与暗影',
-    ['影灵潮', '毒沼', '暗影祭坛', '灵魂熔炉', '噬魂者 薇尔',
+    ['影灵潮', '毒沼', '暗影祭坛', '灵魂熔炉', '噬魂巨怪 厄古',
      '对面铺一地小兵，范围伤害最管用。', '中毒和暗影会慢慢磨掉你的兵，速战速决。', '对面开局就有暗影祭坛和魔门。', '对面开局有一座灵魂熔炉，每回合烧你的城堡 1 点。', '首领在场时，对面每死一个兵她就 +2 战力；她倒下时烧你的城堡 3 点。'],
     [put('f4_buildminion', 0, 1), put('f4_daemongate', 0, 2)], [put('f4_buildlegendary', 0, 2)], 'B_f4', 'f4_megafiend'),
   area('f5', '蛮荒巢穴', '巨兽的领地。它们越拖越大，有的谁碰谁受伤。', '越养越大', '荆棘反击',
@@ -42,12 +42,12 @@ export const AREAS = [
     ['初雪', '渗透者', '冰墙阵', '引力井', '霜冕 伊蕾娜',
      '被冻住的兵下回合不走，能力也失效。', '对面喜欢把兵放进你的半场，守住前线。', '对面开局就有两堵冰墙和一座引力井。', '对面开局有引力井和冰棘。', '首领出场冻住你所有的兵，被冻住的她一刀一个。'],
     [put('icewall', 1, 1, 4), put('icewall', 1, 2, 4), put('f6_gravitywell', 0, 1)], [put('f6_gravitywell', 0, 1), put('f6_blazingspines', 0, 2)], 'B_f6', 'drake'),
-  { key: 'n', name: '无主之地', intro: '不属于任何阵营的强者。四个小首领，最后是军团之主。', boss: 'B_final', stages: [
-    { name: '熔火舞者 辛德拉', intro: '她在场时，你所有的兵每回合掉 1 点。', foe: ['neutral_dex', 'neutral_jaxi', 'n_arrow', 'neutral_sai', 'n_widow', 'neutral_silverbeak', 'maul', 'n_grenadier', 'neutral_bloodletter', 'gem', 'n_herbalist', 'B_n1'], base: [10, 12], boss: 'B_n1', music: 'boss_n1' },
-    { name: '铁甲巨兵 震荡者', intro: '它一出场，你所有兵的能力都失效。对面是一队魔像。', foe: ['neutral_golemstone', 'n_golemice', 'n_golemsmith', 'warden', 'n_golemrune', 'neutral_giantcrab', 'n_ironclad', 'neutral_golemsteel', 'n_diamond', 'g_shield', 'potion', 'B_n2'], base: [10, 12], boss: 'B_n2', music: 'boss_n2' },
-    { name: '苍穹巨像 戈尔', intro: '14 战力，打城堡还多 4 点。别让它走到头。', foe: ['neutral_dex', 'general', 'grapple', 'neutral_rook', 'n_breach', 'n_grenadier', 'neutral_thunderhorn', 'n_kron', 'neutral_astralcrusader', 'sword', 'n_bonereaper', 'B_n3'], base: [10, 12], boss: 'B_n3', music: 'boss_n3' },
-    { name: '金翼龙使 烬翎', intro: '一出场带两条雏龙，所有的龙都变强。', foe: ['n_dragonling', 'neutral_dex', 'martyr', 'n_dragonspeaker', 'trinity', 'n_roost', 'neutral_windstopper', 'neutral_bloodletter', 'n_soulstealer', 'n_vigor', 'g_spear', 'B_n4'], base: [10, 12], boss: 'B_n4', music: 'boss_n4' },
-    { name: '军团之主 莱金', intro: '他会把你最弱的两个兵变成他的，每回合身后再多一只残魔。', foe: ['neutral_jaxi', 'n_abjudicator', 'n_artificer', 'n_rejuvenator', 'n_harmony', 'n_vampire', 'n_spelleater', 'n_chaosknight', 'n_shadowlord', 'tyrant', 'n_turn', 'B_final'], base: [10, 15], boss: 'B_final', music: 'boss_final' },
+  { key: 'n', name: '无主之地', intro: '不属于任何阵营的强者。四个小首领，最后是糖果暴君。', boss: 'B_final', stages: [
+    { name: '影刃宗师 李俊昊', intro: '他在场时，你所有的兵每回合挨一刀，掉 1 点。', foe: ['neutral_dex', 'neutral_jaxi', 'n_arrow', 'neutral_sai', 'n_widow', 'neutral_silverbeak', 'maul', 'n_grenadier', 'neutral_bloodletter', 'gem', 'n_herbalist', 'B_n1'], base: [10, 12], boss: 'B_n1', music: 'boss_n1' },
+    { name: '六臂默者 王嘉伟', intro: '它一出场，你所有兵的能力都失效。对面是一队魔像。', foe: ['neutral_golemstone', 'n_golemice', 'n_golemsmith', 'warden', 'n_golemrune', 'neutral_giantcrab', 'n_ironclad', 'neutral_golemsteel', 'n_diamond', 'g_shield', 'potion', 'B_n2'], base: [10, 12], boss: 'B_n2', music: 'boss_n2' },
+    { name: '霜暴巨兽 戈尔', intro: '14 战力，打城堡还多 4 点。别让它走到头。', foe: ['neutral_dex', 'general', 'grapple', 'neutral_rook', 'n_breach', 'n_grenadier', 'neutral_thunderhorn', 'n_kron', 'neutral_astralcrusader', 'sword', 'n_bonereaper', 'B_n3'], base: [10, 12], boss: 'B_n3', music: 'boss_n3' },
+    { name: '赤翼龙使 烬翎', intro: '一出场带两条雏龙，所有的龙都变强。', foe: ['n_dragonling', 'neutral_dex', 'martyr', 'n_dragonspeaker', 'trinity', 'n_roost', 'neutral_windstopper', 'neutral_bloodletter', 'n_soulstealer', 'n_vigor', 'g_spear', 'B_n4'], base: [10, 12], boss: 'B_n4', music: 'boss_n4' },
+    { name: '糖果暴君 团团', intro: '别看它小：它会把你最弱的两个兵收买过去，每回合身后再多一只小熊猫。', foe: ['neutral_jaxi', 'n_abjudicator', 'n_artificer', 'n_rejuvenator', 'n_harmony', 'n_vampire', 'n_spelleater', 'n_chaosknight', 'n_shadowlord', 'tyrant', 'n_turn', 'B_final'], base: [10, 15], boss: 'B_final', music: 'boss_final' },
   ] },
 ];
 for (const a of AREAS) a.stages.forEach((s, i) => { if (HP[a.key]?.[i]) s.base = HP[a.key][i]; });

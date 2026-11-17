@@ -520,18 +520,18 @@ export function build(H) {
   spell('n_scroll', '蓄能卷轴', 1, 'none', '获得 2 点能量。', (s, ev, side) => { s.left += 2; ev.push({ t: 'mana', side, n: 2 }); });
 
   // ======== 首领牌：闯关模式里每个场地的首领，击败后获得。角色是之前没用过的“将军”和首领图 ========
-  F = 'f1'; bossUnit('B_f1', '日冕圣骑', '奥瑞安', 'f1_3rdgeneral', 7, 1, 9, [SHIELD, P(E.wardAll()), T(E.heal(1))]);
+  F = 'f1'; bossUnit('B_f1', '三环圣者', '奥瑞安', 'f1_scintilla', 7, 1, 9, [SHIELD, P(E.wardAll()), T(E.heal(1))]);
   F = 'f2'; bossUnit('B_f2', '千刃', '胧', 'f2_altgeneral', 6, 2, 6, [AMBUSH, P(E.tempest(2))]);
-  F = 'f3'; bossUnit('B_f3', '砂之王', '赫鲁', 'f3_tier2general', 7, 1, 8, [P(E.rouseAll()), P(E.build(2))]);
-  F = 'f4'; bossUnit('B_f4', '噬魂者', '薇尔', 'f4_3rdgeneral', 7, 1, 8, [P(E.spawn('wraith', 2, 'sides')), O(E.grow(2)), D(E.burn(3))]);
+  F = 'f3'; bossUnit('B_f3', '砂之王', '赫鲁', 'f3_altgeneraltier2', 7, 1, 8, [P(E.rouseAll()), P(E.build(2))]);
+  F = 'f4'; bossUnit('B_f4', '噬魂巨怪', '厄古', 'f4_abomination', 7, 1, 8, [P(E.spawn('wraith', 2, 'sides')), O(E.grow(2)), D(E.burn(3))]);
   F = 'f5'; bossUnit('B_f5', '蛮荒之主', '格鲁姆', 'f5_tier2general', 8, 1, 11, [T(E.grow(2)), A(K.cleave(3)), R(E.advance())]);
   F = 'f6'; bossUnit('B_f6', '霜冕', '伊蕾娜', 'f6_altgeneral', 7, 1, 8, [P(E.chillEvery()), A(K.shatterKill())]);
   F = 'n';
-  bossUnit('B_n1', '熔火舞者', '辛德拉', 'boss_cindera', 6, 1, 7, [T(E.scorch(1))]);
-  bossUnit('B_n2', '铁甲巨兵', '震荡者', 'boss_emp', 7, 0, 12, [TAUNT, P(E.silenceEvery())]);
-  bossUnit('B_n3', '苍穹巨像', '戈尔', 'boss_gol', 8, 1, 14, [SIEGE(4)]);
-  bossUnit('B_n4', '金翼龙使', '烬翎', 'boss_treatdrake', 7, 2, 7, [P(E.spawn('tk_whelp', 4, 'sides')), P(E.kin('龙', 2))]);
-  bossUnit('B_final', '军团之主', '莱金', 'boss_legion', 8, 1, 12, [P(E.enthrall(2)), T(E.spawn('tk_demon', 3, 'behind'))]);
+  bossUnit('B_n1', '影刃宗师', '李俊昊', 'boss_shinkagezendo', 6, 1, 7, [T(E.scorch(1))]);
+  bossUnit('B_n2', '六臂默者', '王嘉伟', 'boss_dissonance', 7, 0, 12, [TAUNT, P(E.silenceEvery())]);
+  bossUnit('B_n3', '霜暴巨兽', '戈尔', 'boss_borealjuggernaut', 8, 1, 14, [SIEGE(4)]);
+  bossUnit('B_n4', '赤翼龙使', '烬翎', 'boss_skurge', 7, 2, 7, [P(E.spawn('tk_whelp', 4, 'sides')), P(E.kin('龙', 2))]);
+  bossUnit('B_final', '糖果暴君', '团团', 'boss_candypanda', 8, 1, 12, [P(E.enthrall(2)), T(E.spawn('tk_panda', 3, 'behind'))]);
 
   // 种族：只是一个标签，本身没有效果；有的牌会给同族加成
   const TRIBE = {

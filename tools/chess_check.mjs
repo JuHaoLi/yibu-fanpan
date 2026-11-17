@@ -128,7 +128,7 @@ const at = (r, t) => r.state.board[t];
   assert.deepEqual(s.base, [12, 8]); assert.equal(s.board[tile(ROWS - 1, 1)].card, 'colossus', '开局摆在场上的东西');
   s = newGame([deck('f1'), [...deck('f4').slice(1), 'B_f4']], rnd, { hand: [[], ['B_f4']], boss: 1 }); assert.ok(s.hand[1].includes('B_f4'), '首领牌保证在对面起手里');
   s = newGame([deck('f1'), deck('f4')], rnd, { base: [10, 10], boss: 1 }); put(s, tile(3, 1), 1, 'B_f4', 8); put(s, tile(ROWS - 1, 0), 0, V, 5); r = endAs(s, 0); assert.ok(r.state.rage[1], '首领一方的城堡掉到一半：发怒'); assert.equal(at(r, tile(3, 1)).str, 11, '发怒 +3'); assert.ok(at(r, tile(3, 1)).shield);
-  s = blank(); put(s, tile(3, 1), 1, 'B_f4', 8); put(s, tile(2, 3), 1, V, 1); s.turn = 0; r = play(s, 'gem', tile(2, 3)); assert.equal(at(r, tile(3, 1)).str, 10, '薇尔：友军倒下 +2');
+  s = blank(); put(s, tile(3, 1), 1, 'B_f4', 8); put(s, tile(2, 3), 1, V, 1); s.turn = 0; r = play(s, 'gem', tile(2, 3)); assert.equal(at(r, tile(3, 1)).str, 10, '厄古：友军倒下 +2');
   s = blank(); put(s, tile(1, 0), 0, V, 3); put(s, tile(1, 3), 0, V, 3); r = play(s, 'B_f1', tile(0, 1)); assert.ok(at(r, tile(1, 0)).shield && at(r, tile(1, 3)).shield, '奥瑞安：全队圣盾');
   s = blank(); put(s, tile(2, 0), 1, V, 9); put(s, tile(3, 3), 1, V, 9); put(s, tile(1, 2), 0); r = play(s, 'B_f6', tile(1, 1)); assert.ok(at(r, tile(2, 0)).frozen && at(r, tile(3, 3)).frozen, '伊蕾娜：冻住所有敌方单位');
   s = blank(); put(s, tile(2, 0), 1, V, 2); put(s, tile(3, 3), 1, V, 9); put(s, tile(3, 1), 1, V, 4); r = play(s, 'B_final', tile(0, 1)); assert.equal(at(r, tile(2, 0)).side, 0); assert.equal(at(r, tile(3, 1)).side, 0, '莱金：最弱的两个变成你的'); assert.equal(at(r, tile(3, 3)).side, 1);

@@ -2031,80 +2031,84 @@ export const MORE_GFX = {
   scale: 1.1
  },
  "B_f1": {
-  file: "f1_3rdgeneral",
+  file: "f1_scintilla",
   cell: 130,
   feet: 114,
-  h: 55,
-  scale: 1.05
+  h: 60,
+  scale: 1.1
  },
  "B_f2": {
   file: "f2_altgeneral",
   cell: 130,
   feet: 114,
   h: 52,
-  scale: 1.1
+  scale: 1.25,
+  cast: true
  },
  "B_f3": {
-  file: "f3_tier2general",
-  cell: 140,
-  feet: 124,
-  h: 63,
-  scale: 1.0
- },
- "B_f4": {
-  file: "f4_3rdgeneral",
+  file: "f3_altgeneraltier2",
   cell: 130,
   feet: 114,
-  h: 55,
-  scale: 1.05
+  h: 65,
+  scale: 1.0,
+  cast: true
+ },
+ "B_f4": {
+  file: "f4_abomination",
+  cell: 140,
+  feet: 125,
+  h: 58,
+  scale: 1.15
  },
  "B_f5": {
   file: "f5_tier2general",
   cell: 114,
   feet: 98,
   h: 68,
-  scale: 1.0
+  scale: 1.0,
+  cast: true
  },
  "B_f6": {
   file: "f6_altgeneral",
   cell: 100,
   feet: 85,
   h: 66,
-  scale: 1.0
+  scale: 1.0,
+  cast: true
  },
  "B_n1": {
-  file: "boss_cindera",
+  file: "boss_shinkagezendo",
   cell: 130,
-  feet: 112,
-  h: 60,
-  scale: 1.0
+  feet: 114,
+  h: 56,
+  scale: 1.2
  },
  "B_n2": {
-  file: "boss_emp",
+  file: "boss_dissonance",
   cell: 100,
-  feet: 84,
-  h: 60,
+  feet: 91,
+  h: 65,
   scale: 1.0
  },
  "B_n3": {
-  file: "boss_gol",
-  cell: 140,
-  feet: 124,
-  h: 66,
-  scale: 1.0
- },
- "B_n4": {
-  file: "boss_treatdrake",
+  file: "boss_borealjuggernaut",
   cell: 120,
   feet: 105,
-  h: 69,
-  scale: 1.0
+  h: 48,
+  scale: 1.4
+ },
+ "B_n4": {
+  file: "boss_skurge",
+  cell: 80,
+  feet: 64,
+  h: 41,
+  scale: 1.6
  },
  "B_final": {
-  file: "boss_legion",
-  cell: 120,
-  feet: 104,
-  h: 76,
-  scale: 1.0
+  file: "boss_candypanda",
+  cell: 100,
+  feet: 84,
+  h: 22,
+  scale: 2.4
  }
 };
