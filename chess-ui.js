@@ -497,6 +497,7 @@ document.addEventListener('visibilitychange', () => {
 
 // ---------- 手机上的杂事 ----------
 const dock = () => (phone.matches ? document.querySelector('main > header') : $('btns')).append($('auto')); phone.addEventListener('change', dock); dock(); // 小屏的石桌只放得下换牌和结束回合：托管挪到顶上那排系统按钮里
+{ const bar = document.querySelector('main > header'), fold = on => { bar.classList.toggle('open', on); $('menu').setAttribute('aria-expanded', on); }; $('menu').onclick = () => fold(!bar.classList.contains('open')); addEventListener('pointerdown', e => { if (!bar.contains(e.target)) fold(false); }, true); } /* 小屏：顶上那排系统按钮收在左上角的菜单里，点别处收起 */
 $('side').onclick = () => $('side').classList.toggle('open');                                      // 小屏只留最近一条战报，点一下展开四条（大屏上这块不接收点按）
 document.addEventListener('click', e => { if (touch && $('rules').open && !$('rules').contains(e.target)) $('rules').open = false; }); // 触屏上点别处就收起规则
 document.addEventListener('gesturestart', e => e.preventDefault());                                // iOS 的双指缩放手势：样式里的 touch-action 之外再拦一道。不挂 touchmove 监听——那会拖慢列表滚动

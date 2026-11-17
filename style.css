@@ -166,6 +166,7 @@ body.chess:has(#home:not([hidden]), #builder:not([hidden])) main > :not(#stage3d
 #stage3d { --hand-zone:136px;   /* 和场景的约定：手牌探进舞台底部多高（含选中抬起的余量），纯 px 数字；场景据此把画面往上让 */
   position:absolute; inset:0 0 var(--tray) 0; background:var(--night-0); }
 #stage3d > canvas { display:block; width:100%; height:100%; touch-action:none; }
+#menu { display:none; }
 body.chess header { position:absolute; z-index:6; top:var(--s3); left:max(var(--s4), var(--sl)); display:flex; align-items:center; gap:var(--s3); text-shadow:var(--edge); }
 #rules { position:relative; } #rules summary { list-style:none; text-shadow:var(--edge); color:var(--paper); } #rules summary::-webkit-details-marker { display:none; }
 #rules ul { position:absolute; top:calc(100% + var(--s2)); left:0; width:480px; max-height:60vh; overflow:auto; margin:0; padding:var(--s3) var(--s3) var(--s3) var(--s5); color:var(--dim); }
@@ -321,14 +322,19 @@ button.card.pick { height:auto; margin:0; box-shadow:none; text-align:left; lett
 /* ---------- 手机横屏（高 540 以内）：石桌压薄，手牌换成只管认和点的小版式，选中的那张在左边放大成全文；开始界面和组牌界面各收一收 ---------- */
 @media (max-height:540px) {
   :root { --tray:calc(72px + var(--sb)); }
-  #stage3d { --hand-zone:88px; --sky:48px; }   /* 小牌探出 72，选中抬 8，余量 8；--sky：顶上 48px 是按钮和提示，场景只保证血量牌以下进画面（塔尖出画，棋盘大一圈） */
+  #stage3d { --hand-zone:80px; --sky:28px; bottom:calc(64px + var(--sb)); scroll-margin:0 max(var(--sr), 8px) 0 max(var(--sl), 8px); }   /* 小牌探出 52，选中抬 8，再留 20 的空：棋盘底边不贴着牌；--sky：顶上 28px 是角上的菜单和对手那一行，场景只保证血量牌以下进画面（塔尖出画，棋盘尽量大）；scroll-margin 只是把左右安全区的宽度递给场景（见 board3d.js 的 resize） */
+  #bar { height:calc(64px + var(--sb)); }   /* 石桌再压薄 8px，让给棋盘 */
   button.primary { min-width:0; padding:0 var(--s3); font:800 var(--f16); line-height:48px; letter-spacing:.1em; }
   /* 对局顶上一排：系统按钮（托管由脚本挪过来）、提示、对手和最近一条战报（点一下展开四条） */
   body.chess header { top:var(--s1); left:max(var(--s2), var(--sl)); height:44px; gap:var(--s3); }
+  /* 顶上那一排收成左上角一个菜单：平时只有三道杠，点开才是放弃、声音、规则、托管。棋盘上方不再压着一排字 */
+  #menu { display:block; width:44px; height:44px; padding:0; background:linear-gradient(var(--paper) 0 0) 50% 14px / 20px 2px no-repeat, linear-gradient(var(--paper) 0 0) 50% 20px / 20px 2px no-repeat, linear-gradient(var(--paper) 0 0) 50% 26px / 20px 2px no-repeat, var(--night-1); }
+  body.chess header:not(.open) > :not(#menu) { display:none; } body.chess header.open { padding-right:var(--s3); background:var(--night-1); box-shadow:var(--edge); }
+  body:not(.lesson) #hint { display:none; }   /* 常驻的操作提示不要了（教学里的告示牌照旧）：亮起的格子、回合旗带、牌上的拒绝原因已经在说同一件事 */
   #rules ul { position:fixed; top:48px; left:max(var(--s2), var(--sl)); width:min(480px, 100vw - 16px - var(--sl) - var(--sr)); max-height:calc(100vh - 56px - var(--sb)); }
   #hint { top:var(--s2); max-width:calc(100% - 2 * (224px + max(var(--sl), var(--sr)))); line-height:20px; } .lesson #hint { padding:var(--s1) var(--s2); display:grid; grid-template-columns:1fr auto; column-gap:var(--s2); align-items:end; } .lesson #hint small { grid-column:1 / -1; } .lesson #hint button { margin:0 0 4px; }   /* 小屏上告示牌不能高过城堡的血量：按钮排在话的右边，不另起一行 */
   #side { top:var(--s1); right:max(var(--s2), var(--sr)); width:200px; padding:var(--s1) var(--s2); pointer-events:auto; }
-  #foe .who { display:none; } #log { margin-top:0; } #side:not(.open) #log > :not(:last-child) { display:none; }
+  #foe .who { display:none; } #log { margin-top:0; } #side:not(.open) { width:auto; padding:0 var(--s1); background:none; } #side:not(.open) #log { display:none; }   /* 右上角平时只有对手的能量和手牌一行，点一下展开战报 */
   #deckn { display:none; }
   /* 石桌一行三段：能量、手牌、换牌和结束回合 */
   #bar { display:grid; grid-template-columns:auto minmax(0, 1fr) auto; align-items:end; align-content:end; column-gap:var(--s2); padding:0 max(var(--s3), var(--sr)) calc(var(--s2) + var(--sb)) max(var(--s3), var(--sl)); }
@@ -337,8 +343,8 @@ button.card.pick { height:auto; margin:0; box-shadow:none; text-align:left; lett
   #mana { width:92px; white-space:nowrap; } #mana .lbl { display:none; } #mana .px { --s:4; margin:0 var(--s1) 0 0; }   /* 92：后期“12/12”两位数也要排在一行里 */
   #mana div { display:grid; grid-template-columns:repeat(6, 10px); gap:2px; min-height:0; margin-top:var(--s1); } #mana div i { width:10px; height:12px; margin:0; }
   #btns { width:auto; flex-direction:row; align-items:flex-end; gap:var(--s2); }
-  #hand { justify-self:end; min-height:128px; padding:0; }   /* 手牌靠右：左边那一截要让给放大的牌，740 宽时两者正好不打架 */
-  #hand .kcard, #hand .kcard.mid, #hand .kcard.long { --w:80px; --h:128px; --rib:80px; --poke:16px; --m:12px; --g:9px; --b:8px; --cut:16px; margin:0 4px; }   /* 和桌面的牌同一个比例（5:8，正好一半）。小牌不叠压：名字绶带只有 12px 的字，被下一张压住一个字就认不出了 */
+  #hand { justify-self:end; min-height:108px; padding:0; }   /* 手牌靠右：左边那一截要让给放大的牌，740 宽时两者正好不打架 */
+  #hand .kcard, #hand .kcard.mid, #hand .kcard.long { --w:68px; --h:108px; --rib:60px; --poke:16px; --m:12px; --g:9px; --b:8px; --cut:16px; margin:0 4px; }   /* 和桌面的牌同一个比例（5:8）。手机上牌只管认和点，全文看左边放大的那张，所以尽量小，高度让给棋盘。小牌不叠压：名字绶带只有 12px 的字，被下一张压住一个字就认不出了 */
   #hand .kcard .art { --aw:calc(var(--pw) * var(--hs) * 1px); --ah:calc(var(--ph) * var(--hs) * 1px); }   /* 立绘按整数倍减半（--hs 由 cardEl 写在画布上），不做小数倍缩放 */
   #hand .kcard .nm { height:20px; font:700 var(--f12); line-height:20px; } #hand .kcard :is(.tx, .ty) { display:none; }
   #hand .kcard .cost { left:-8px; top:-8px; width:32px; height:36px; } #hand .kcard .st { left:-8px; bottom:-8px; width:36px; height:36px; } #hand .kcard .cost .px, #hand .kcard .st .px { --s:2; }

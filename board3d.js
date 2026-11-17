@@ -15,10 +15,13 @@ import { MORE_GFX } from './chess-gfx.js';
 import { COLS, ROWS, CARDS } from './chess.js';
 export const GFX = { ...OLD_GFX, ...MORE_GFX };
 
-const LZ = 1.2;                                  // 两条路之间的间隔比格子长一点，前后的人才不会互相挡太多
-const tileX = r => r - (ROWS - 1) / 2;           // 第 0 行贴着你的城堡（左），最后一行贴着电脑的城堡（右）
+const SHORT = Math.min(innerWidth, innerHeight) <= 540;  // 手机（和样式里“高 540 以内”的断点同一个数）：横过来又宽又矮。载入时定一次；看短边，竖着打开再横过来也算
+const LX = SHORT ? 1.5 : 1;                      // 一格左右有多长。手机上拉长一半：屏幕又宽又矮，战场主要往两边长
+const LZ = SHORT ? 1.4 : 1.2;                    // 两条路之间的间隔比格子长一点，前后的人才不会互相挡太多；手机上再宽一点，每条路在画面里高一些
+const HPY = SHORT ? 1.75 : 2.2;                  // 城堡血量牌挂多高。手机上挂低半格：它上面的东西都要出画，挂低了棋盘才能再大一圈
+const tileX = r => (r - (ROWS - 1) / 2) * LX;    // 第 0 行贴着你的城堡（左），最后一行贴着电脑的城堡（右）
 const tileZ = c => (c - (COLS - 1) / 2) * LZ;    // 第 0 路最远，最后一路最靠近镜头
-const HALF = ROWS / 2, DEPTH = COLS * LZ;
+const HALF = ROWS * LX / 2, DEPTH = COLS * LZ;
 const Q = new URLSearchParams(location.search);
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches || Q.has('calm'); // 减少动态效果：跟系统设置走；地址带 ?calm 也算（测试用）
 document.documentElement.classList.toggle('calm', calm);                               // motion.css 按这个类降级
@@ -49,7 +52,7 @@ renderer.toneMapping = THREE.NoToneMapping; renderer.info.autoReset = false;    
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 stage.append(renderer.domElement);
 const scene = new THREE.Scene(); scene.background = new THREE.Color(0x05050f);
-const FOV = 22, PITCH = 25 * Math.PI / 180, LOOK = new THREE.Vector3(0, .95, -.1);
+const FOV = 22, PITCH = (SHORT ? 30 : 25) * Math.PI / 180, /* 手机上俯角大一些（30°，负责人定的）：屏幕矮，从高一点的地方看下去，四条路在画面里各自高一些 */ LOOK = new THREE.Vector3(0, .95, -.1);
 const camera = new THREE.PerspectiveCamera(FOV, 1, 1, 200);
 
 // ---------- 像素画：64 像素对应场景里的 1 格，和角色的像素一样大 ----------
@@ -209,15 +212,15 @@ Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 7, bottom: -7, near:
 scene.add(amb, sun);
 
 // ---------- 棋盘：格子、前线、光标是常驻的，换场地只换格子的贴图 ----------
-const tiles = [], tileSkin = {}, tileGeo = new THREE.BoxGeometry(.97, .06, LZ - .05);
+const tiles = [], tileSkin = {}, tileGeo = new THREE.BoxGeometry(LX - .03, .06, LZ - .05);
 { const uv = tileGeo.attributes.uv; for (let i = 0; i < uv.count; i++) if (i < 8 || i > 11) uv.setXY(i, .5 / 64, 1 - .5 / 64); } // 只有顶面铺贴图，四边都取贴图角上那颗墨色像素：一格只要画一次
 for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
   const team = r < (ROWS - 1) / 2 ? -1 : r > (ROWS - 1) / 2 ? 1 : 0, key = team + '|' + (r + c) % 2, skin = tileSkin[key] ||= new THREE.MeshLambertMaterial();
   const t = new THREE.Mesh(tileGeo, skin); t.position.set(tileX(r), .03, tileZ(c)); t.receiveShadow = true; t.userData = { c, r, base: .03 }; scene.add(t); tiles.push(t);
 }
 // 前线：各自能出兵的最远一行，用一条细的发光线标出来（开局只能放在离自己城堡最近的那一行）
-const lines = [[TEAM[0].hex, tileX(0) + .5], [TEAM[1].hex, tileX(ROWS - 1) - .5]].map(([color, x]) => { const m = new THREE.Mesh(new THREE.BoxGeometry(.05, .02, DEPTH - .1), new THREE.MeshBasicMaterial({ color, transparent: true })); m.position.set(x, .075, 0); scene.add(m); return m; });
-const cursor = new THREE.Mesh(new THREE.PlaneGeometry(.99, LZ - .03), new THREE.MeshBasicMaterial({ color: 0xfff4a0, transparent: true, opacity: .28, depthWrite: false }));
+const lines = [[TEAM[0].hex, tileX(0) + LX / 2], [TEAM[1].hex, tileX(ROWS - 1) - LX / 2]].map(([color, x]) => { const m = new THREE.Mesh(new THREE.BoxGeometry(.05, .02, DEPTH - .1), new THREE.MeshBasicMaterial({ color, transparent: true })); m.position.set(x, .075, 0); scene.add(m); return m; });
+const cursor = new THREE.Mesh(new THREE.PlaneGeometry(LX - .01, LZ - .03), new THREE.MeshBasicMaterial({ color: 0xfff4a0, transparent: true, opacity: .28, depthWrite: false }));
 cursor.rotation.x = -Math.PI / 2; cursor.visible = false; scene.add(cursor);
 
 // ---------- 道具的画法：每个都是一张带墨线的像素画（64 像素 = 1 格，和角色同一个像素大小），颜色由调用的场地给 ----------
@@ -255,7 +258,7 @@ const strip = (a, hi, lo, dot) => canvas(16, 16, g => { R(g, 0, 0, 16, 16, a); R
 const tiled = (c, lineC, hiC) => canvas(32, 32, g => { R(g, 0, 0, 32, 32, c); for (let y = 0; y < 32; y += 8) for (let x = (y / 8 % 2 ? -8 : 0); x < 32; x += 16) { R(g, x, y + 7, 16, 1, lineC); R(g, x, y, 1, 8, lineC); R(g, x + 1, y, 15, 1, hiC); } }); // 一片屋瓦 / 冰面 / 晶面
 
 // ---------- 城堡：横跨四条路的城墙，每条路一个门洞和一块队伍色的门槛，前后两座塔；塔顶一颗队伍色的水晶。我方（左）永远是同一个样子，对面（右）跟着场地换 ----------
-const castles = [-1, 1].map((side, i) => { const g = new THREE.Group(); g.position.x = side * (HALF + 1.3); scene.add(g); const label = badge('♥ 10', TEAM[i].ramp[3], .42); label.position.set(0, 2.2, .2); g.add(label); return { g, label, hp: 10, alarm: false, body: null }; });
+const castles = [-1, 1].map((side, i) => { const g = new THREE.Group(); g.position.x = side * (HALF + 1.3); scene.add(g); const label = badge('♥ 10', TEAM[i].ramp[3], .42); label.position.set(0, HPY, .2); g.add(label); return { g, label, hp: 10, alarm: false, body: null }; });
 const plate = c => c.label.userData.set('♥ ' + c.hp, c.alarm ? '#f06878' : undefined);
 const gemGeo = new THREE.OctahedronGeometry(.2, 0), gems = []; gemGeo.userData.keep = true;
 const roofed = (B, W, x, z, w, h, rh) => { B.box(w, h, w, W.wall, x, h / 2, z, W.tint, W.cap); B.box(w + .24, .16, w + .24, W.trim, x, h + .08, z); B.taper(w + .2, rh, w + .2, 0, 0, W.roof, x, h + .16, z, W.roofTint); return h + .16 + rh; }; // 方塔：塔身 + 出檐 + 四面坡的尖顶
@@ -473,12 +476,15 @@ function theme(key = 'n') {
   const back = canvas(512, 512, () => {}), bg = back.getContext('2d'); let by = 0;
   [[th.sky, 160, -2, -13], [th.far, 112, -1.5, -11.5], [th.mid, 96, -.8, -9.6]].forEach(([paint, h, y, z]) => { bg.save(); bg.translate(0, by); bg.beginPath(); bg.rect(0, 0, 512, h); bg.clip(); paint(bg, 512, h); bg.restore(); for (const k of [-1, 0, 1]) B.card({ c: back, x: 0, y: by, w: 512, h }, 2, k * 16, y, z, { flip: !!k }); by += h + 2; });
   // 舞台：一整块石台，前沿是台沿和嵌饰带；棋盘前后各一道镶边，后沿一排灯柱
-  B.box(30, 2.4, 10.6, th.face, 0, -1.2, -2.1, undefined, th.floor);
-  for (const s of [-1, 1]) B.box(ROWS + .9, .09, .22, th.edge, 0, .045, s * (DEPTH / 2 + .14));
-  for (let r = 1; r < ROWS; r++) { const x = r - HALF; B.card(th.lamp[0], 1, x, 0, -DEPTH / 2 - .34, { shadow: true }); B.halo(x, .98, -DEPTH / 2 - .32, th.lamp[1], .42, .4); }
-  for (let x = -14.5; x <= 14.5; x += 1) B.halo(x, -.27, 3.26, th.rune[0], .4, th.rune[1]);                                               // 台沿嵌饰上的一点光
-  const strew = (items, step, far = 13.4) => { for (let x = -far; x <= far; x += step + rnd() * step * .7) { if ((Math.abs(x) > HALF + .1 && Math.abs(x) < HALF + 2.7) || Math.abs(x) < HALF - .4) continue; B.card(pick(items), 1, x, 0, -DEPTH / 2 - .9 - rnd() * 4, { shadow: true, flip: rnd() < .5 }); } }; // 两侧随手撒的道具；棋盘正后方留给各场地自己摆
+  B.box(30, 2.4, DEPTH / 2 + 8.2, th.face, 0, -1.2, DEPTH / 4 - 3.3, undefined, th.floor); // 后沿固定在 z = -7.4，前沿比棋盘多出 0.8
+  for (const s of [-1, 1]) B.box(ROWS * LX + .9, .09, .22, th.edge, 0, .045, s * (DEPTH / 2 + .14));
+  for (let r = 1; r < ROWS; r++) { const x = r * LX - HALF; B.card(th.lamp[0], 1, x, 0, -DEPTH / 2 - .34, { shadow: true }); B.halo(x, .98, -DEPTH / 2 - .32, th.lamp[1], .42, .4); }
+  for (let x = -14.5; x <= 14.5; x += 1) B.halo(x, -.27, DEPTH / 2 + .86, th.rune[0], .4, th.rune[1]);                                               // 台沿嵌饰上的一点光
+  const pool = [], strew = (items, step, far = 13.4) => { pool.push(...items); for (let x = -far; x <= far; x += step + rnd() * step * .7) { if ((Math.abs(x) > HALF + .1 && Math.abs(x) < HALF + 2.7) || Math.abs(x) < HALF - .4) continue; B.card(pick(items), 1, x, 0, -DEPTH / 2 - .9 - rnd() * 4, { shadow: true, flip: rnd() < .5 }); } }; // 两侧随手撒的道具；棋盘正后方留给各场地自己摆
   th.dress(B, strew);
+  if (SHORT && pool.length) { const small = pool.filter(it => it.h <= 80), near = small.length ? small : pool; // 手机上镜头贴得近，棋盘后面那几排道具大半出画：用这个场地自己的道具围着两座城堡再摆一圈——外侧一列，外侧墙角两件矮的
+    for (const s of [-1, 1]) { for (let z = .3 - DEPTH / 2; z <= DEPTH / 2 - .1; z += 1.1 + rnd() * .5) B.card(pick(pool), 1, s * (HALF + 3.2 + rnd() * .6), 0, z, { shadow: true, flip: s > 0 });
+      for (const x of [2.35, 2.95]) B.card(pick(near), 1, s * (HALF + x + rnd() * .2), 0, DEPTH / 2 + .45 + rnd() * .2, { shadow: true, flip: rnd() < .5 }); } } // 城墙脚下只放在外侧墙角：正面挂着阵营旗，不能挡
   for (const s of [-1, 1]) B.card(th.fore[0], 4, s * (HALF + 4.4), -2.4, 3.8, { color: th.fore[1], flip: s > 0 });                         // 前景两角压暗的剪影，把画面框住
   B.build(set, cache);
   if (th.drift) { const [c, v, op, quads] = th.drift, p = [], u = []; driftT = Object.assign(new THREE.CanvasTexture(c), { colorSpace: THREE.SRGBColorSpace, magFilter: THREE.NearestFilter, minFilter: THREE.NearestFilter, generateMipmaps: false, wrapS: THREE.RepeatWrapping }); driftV = v; // 贴着地面飘的一带东西（雾、流沙、暗影）：几张横幅，贴图横着滚
@@ -691,7 +697,7 @@ export const board = {
     return later(any ? TIME.t4 : 0); },
   freeze(id, on) { const u = units.get(id); if (!u) return; u.frozen = on; u.mat.color.set(tint(u)); if (on) pop(u, '冻住', '#a8fff8'); retag(u); }, // 冻住的角色待机动画停在第一帧（见 loop）
   base(side, n, hp) { // 城堡掉血或回血：牌子上的数字一格一格跳到位；掉血时定格、重震、城堡抖
-    const c = castles[side], from = c.hp; float((n > 0 ? '+' : '') + n, n > 0 ? '#68f0b0' : '#f06878', new THREE.Vector3(c.g.position.x, 2.75, .2), .9, 1.6);
+    const c = castles[side], from = c.hp; float((n > 0 ? '+' : '') + n, n > 0 ? '#68f0b0' : '#f06878', new THREE.Vector3(c.g.position.x, HPY + .55, .2), .9, 1.6);
     tween(Math.max(.01, Math.min(.4, Math.abs(hp - from) * .04)), k => { const v = Math.round(from + (hp - from) * k); if (v !== c.hp) { c.hp = v; plate(c); } });
     if (n < 0) { quake = Math.max(quake, .16); if (!calm) hold = Math.max(hold, .09); burst(new THREE.Vector3(c.g.position.x - (side ? 1 : -1) * .9, .7, 0), 0xf84850, 0xfff4a0, 1.5); }
     const x0 = (side ? 1 : -1) * (HALF + 1.3); return tween(TIME.t3, k => { c.g.position.x = x0 + (n < 0 && !calm ? Math.sin(k * 40) * .06 * (1 - k) : 0); }); },
@@ -700,7 +706,7 @@ export const board = {
     const c = castles[side], x0 = c.g.position.x; quake = Math.max(quake, .2); for (let i = 0; i < 4; i++) later(i * .15, () => puff(new THREE.Vector3(x0 + (i - 1.5) * .4, 0, (i % 2 - .5) * 2), 0x8e98b8));
     return tween(TIME.read, k => { c.g.position.y = -.5 * (calm ? k : eIn(k)); if (!calm) c.g.position.x = x0 + Math.sin(k * 60) * .04 * (1 - k); }); },
   front(side, depth) { // 前线：这一方能出兵的最远一行。位置变了就滑过去，不跳
-    const m = lines[side], x = side ? tileX(ROWS - 1 - depth) - .5 : tileX(depth) + .5, x0 = m.position.x; if (Math.abs(x - x0) < .01 || m.userData.to === x) return; m.userData.to = x;
+    const m = lines[side], x = side ? tileX(ROWS - 1 - depth) - LX / 2 : tileX(depth) + LX / 2, x0 = m.position.x; if (Math.abs(x - x0) < .01 || m.userData.to === x) return; m.userData.to = x;
     tween(calm ? .01 : TIME.t2, k => { if (m.userData.to === x) m.position.x = x0 + (x - x0) * eOut(k); }); },
   mark(list, color = 0x68f0b0, shape = 'put') { // 把能放的格子标出来：从自己城堡一侧向前逐列亮起，之后慢慢呼吸（见 loop）
     marks.forEach((m, t) => { const on = list.includes(t); if (on && !m.visible) m.userData.t0 = now + Math.floor(t / COLS) * .025; m.visible = on; m.material.color.set(color); m.material.map = markT[shape]; }); },
@@ -713,7 +719,7 @@ export const board = {
     if (n > 0) { threat = tag('-' + n, '#f06878', new THREE.Vector3(c.g.position.x, 1.66, .2), 1.3); scene.add(threat); } },
   path(list) { wipe(pathLayer); for (const e of list) arrow(pathLayer, spot(e.from), e.to === 'base' ? gate(e.side, e.from) : spot(e.to), 0xece4d0, e.kind !== 'move'); },        // 这张牌打下去会怎么走
   tags(list) { // 预演的结果直接标在场上：{ tile 或 base: 哪一方, text: '-3' / '+2' / 'dead', color }
-    wipe(tagLayer); const seen = {}; for (const e of list) { const key = e.tile ?? 'b' + e.base, k = seen[key] = (seen[key] ?? -1) + 1; tagLayer.add(tag(e.text, e.color, e.tile !== undefined ? spot(e.tile).setY(1.2 + k * .42) : new THREE.Vector3((e.base ? 1 : -1) * (HALF + 1.3), 1.66 - k * .42, .2), e.base !== undefined ? 1.3 : 1)); } },
+    wipe(tagLayer); const seen = {}; for (const e of list) { const key = e.tile ?? 'b' + e.base, k = seen[key] = (seen[key] ?? -1) + 1; tagLayer.add(tag(e.text, e.color, e.tile !== undefined ? spot(e.tile).setY(1.2 + k * .42) : new THREE.Vector3((e.base ? 1 : -1) * (HALF + 1.3), HPY - .54 - k * .42, .2), e.base !== undefined ? 1.3 : 1)); } },
   ghost(card, side, tile) { // 预演：这张牌放下去会站在这里（半透明的虚影）
     if (ghost) { scene.remove(ghost); ghost.material.dispose(); ghost = null; } const sh = card && sheets[card]; if (!sh) return;
     const w = GFX[card].cell * PX * (GFX[card].scale || 1); ghost = new THREE.Mesh(sh.geo, new THREE.MeshBasicMaterial({ map: sh.tex.idle, transparent: true, opacity: .5, alphaTest: .05, side: THREE.DoubleSide, depthWrite: false }));
@@ -756,7 +762,7 @@ export const board = {
     pop(u, '装备', '#fff4a0'); tween(TIME.t3, k => s.scale.setScalar(.36 * (1 + .8 * Math.sin(k * Math.PI)))); },
   screen(p) { // 一个格子（或 { base: 哪一方 } 的城堡）在页面上的像素位置，给界面做“牌从手里飞到格子”这类动画用
     const v = at(p, .45).project(camera), r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height }; },
-  note(text, color, side) { float(text, color, new THREE.Vector3((side ? 1 : -1) * (HALF + 1.3), 3.1, .2), .7); },
+  note(text, color, side) { float(text, color, new THREE.Vector3((side ? 1 : -1) * (HALF + 1.3), HPY + .9, .2), .7); },
   onTile(fn) { handlers.tile = fn; }, onHover(fn) { handlers.hover = fn; },
   theme, quality, resize: () => resize(),        // 换场地（七套：f1…f6、n）；画质档位 'low' / 'high'；版式变了可以叫场景重新取景
   stats: () => ({ theme: themeKey, quality: quality(), calls: frame.calls, tris: frame.tris, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, objects: (n => { scene.traverse(() => n++); return n; })(0) }), // 自测用：一帧画了几次、内存里有多少几何体和贴图
@@ -797,7 +803,7 @@ composer.addPass(new OutputPass());
 let dist = 20;
 let zoom = 1;                                    // 进对局时镜头从稍远处推进来（board.intro）
 function place(px) { const d = dist * zoom; camera.position.set(LOOK.x + px, LOOK.y + d * Math.sin(PITCH), LOOK.z + d * Math.cos(PITCH)); camera.lookAt(LOOK.x + px, LOOK.y, LOOK.z); }
-const TAN = 2 * Math.tan(FOV * Math.PI / 360), TOP = new THREE.Vector3(0, 3.2, -DEPTH / 2 + .35), FOOT = new THREE.Vector3(0, .07, tileZ(COLS - 1) + LZ / 2), TAG = new THREE.Vector3(0, 2.5, .2), v3 = new THREE.Vector3(); // TOP：城堡最高的塔尖；FOOT：最靠近镜头那一路的底边；TAG：城堡血量牌的上沿
+const TAN = 2 * Math.tan(FOV * Math.PI / 360), TOP = new THREE.Vector3(0, 3.2, -DEPTH / 2 + .35), FOOT = new THREE.Vector3(0, .07, tileZ(COLS - 1) + LZ / 2), TAG = new THREE.Vector3(0, HPY + .3, .2), v3 = new THREE.Vector3(); // TOP：城堡最高的塔尖；FOOT：最靠近镜头那一路的底边；TAG：城堡血量牌的上沿
 const handZone = () => parseFloat(getComputedStyle(stage).getPropertyValue('--hand-zone')) || 136; // 手牌探进舞台底部多高：版式在 #stage3d 上用 --hand-zone（px）告诉我们，读不到就按桌面版的 136
 const skyZone = () => parseFloat(getComputedStyle(stage).getPropertyValue('--sky')) || 0; // 矮屏幕（手机横屏）用 --sky 说“顶上这么高是按钮和提示”：这时只保证血量牌以下进画面，塔尖出画，换棋盘大一圈
 let zone = 136;
@@ -807,10 +813,11 @@ function resize() {
   renderer.setPixelRatio(pr); renderer.setSize(w, h, false); if (!low) { composer.setPixelRatio(pr); composer.setSize(w, h); }
   camera.aspect = w / h; camera.updateProjectionMatrix(); camera.clearViewOffset();
   const row = p => { place(0); camera.updateMatrixWorld(true); camera.matrixWorldInverse.copy(camera.matrixWorld).invert(); return (1 - v3.copy(p).project(camera).y) / 2 * h; }; // 场景里的一个点落在画面的第几行
-  dist = Math.max((ROWS + 5.8) / camera.aspect, 6.2) / TAN; // 先退到两座城堡左右都在画面里
+  const sky = skyZone(), cs = sky ? getComputedStyle(stage) : null, pad = cs ? (parseFloat(cs.scrollMarginLeft) || 0) + (parseFloat(cs.scrollMarginRight) || 0) : 0; // 矮屏幕：左右各让出刘海那一截（版式用 scroll-margin 把安全区的宽度告诉我们，这个属性本身不起别的作用）
+  dist = Math.max((ROWS * LX + (sky ? 6.6 : 5.8)) / (camera.aspect * (1 - pad / w)), sky ? 3 : 6.2) / TAN; // 先退到两座城堡左右都在画面里。矮屏幕不设“最近”的下限，能贴多近由下面的竖向那一步定
   // 再看竖向：从塔尖到最下面一路的底边，要整个装进“手牌以上”的那一截（手机横屏又矮又宽，卡的是这个）；装不下就再退远。一格小到 40 像素就不再退——再小手指点不准，宁可让塔尖出画
-  const sky = skyZone(), room = h - zone - (sky || 6), span = row(FOOT) - row(sky ? TAG : TOP); if (span > room) dist = Math.max(dist, Math.min(dist * span / room, h / (40 * TAN)));
-  const up = Math.max(0, Math.round(row(FOOT) - (h - zone))); if (up) camera.setViewOffset(w, h, 0, up, w, h); // 最下面一路还被手牌盖着：把整个画面上移到刚好露出来
+  const room = h - zone - (sky || 6), span = row(FOOT) - row(sky ? TAG : TOP); if (span > room) dist = Math.max(dist, Math.min(dist * span / room, h / (40 * TAN)));
+  const slack = sky ? Math.max(0, room - (row(FOOT) - row(TAG))) : 0, up = Math.max(0, Math.round(row(FOOT) - (h - zone) + slack / 2)); if (up) camera.setViewOffset(w, h, 0, up, w, h); // 最下面一路还被手牌盖着：把整个画面上移到刚好露出来。矮屏幕竖向有富余时（卡的是宽度）再往上挪一半富余：棋盘离手牌远一点，不挤
   zoom = z0; tiltH.uniforms.dir.value.set(1.3 / w, 0); tiltV.uniforms.dir.value.set(0, 1.3 / h); moteM.uniforms.px.value = h * pr / TAN; place(0);
 }
 function quality(q) { // 画质档位：不带参数是查询；'low' / 'high' 是切换

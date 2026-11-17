@@ -110,7 +110,7 @@
 #rotate i { animation:m-turn 1.6s steps(1) infinite; }                                                    /* 手机图标分三格转成横的 */
 #zoom.on { animation:m-fade var(--t-1) var(--e-out); }
 
-/* ---------- 手机横屏：手牌是小版式，抬起的幅度也跟着小（和 #stage3d 的 --hand-zone 对应：探出 72 + 抬 8 + 余量 8） ---------- */
+/* ---------- 手机横屏：手牌是小版式，抬起的幅度也跟着小（和 #stage3d 的 --hand-zone 对应：探出 52 + 抬 8 + 余量 8） ---------- */
 @media (max-height:540px) {
   #hand .kcard.sel, #hand .kcard.sel:hover, #hand .kcard.ok:hover { --lift:-8px; }
   #pile { right:max(8px, var(--sr, 0px)); bottom:8px; width:64px; padding:4px; gap:2px; } #pile .back { width:24px; height:28px; background-size:8px 8px; } #pile small { display:none; }   /* 牌库：缩成舞台右下角一小块，只留张数 */
