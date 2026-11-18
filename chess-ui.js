@@ -6,6 +6,7 @@ import { board, GFX } from './board3d.js';
 import { areaOf, stageOpts, battleMusic, progress, BADGES, badgeName } from './campaign.js';
 import { campaignUI } from './campaign-ui.js';
 import { cupUI } from './cup-ui.js';
+import { TIERS, opts as cupOpts } from './cup.js';
 import { LESSON, keepOrder, stepOk, foeTurn } from './tutorial.js';
 import { createRoom, joinRoom } from './room.js';
 import { llmTurn, enabled as llmOn, cfg as llmCfg, save as llmSave, ping as llmPing } from './llm.js';
@@ -103,12 +104,14 @@ const cups = cupUI({ host: $('home'), px, decks: allDecks, card: mdCard, valid: 
 function fight(key) { const a = areaOf(key), run = progress.data.runs[key], st = a.stages[run.at]; start(run.deck, { name: `${a.name}·${st.name}`, cards: st.foe }, { ...st, area: key, music: battleMusic(key, run.at) }); } // 打这个场地当前的一关
 $('newdeck').onclick = () => build({ name: `我的卡组 ${customs.length + 1}`, cards: [], at: -1 });
 $('foesel').append(...FKEYS.map(f => { const o = el('option', '', FACTIONS[f].name); o.value = f; return o; }));
-// 自由对战的难度。大师 = 整回合搜索 + 价值网络（tools/lab 自我对打训练出来的，对困难约赢 64%）；网络权重第一次选大师开局时才下载，下不来就退回困难
+// 自由对战的难度。大师 = 整回合搜索 + 价值网络（tools/lab 自我对打训练出来的，对困难约赢 64%）。锦标赛的三个种子选手也用大师；闯关还是普通电脑（换大师的话血量要差到 14 比 5 才拉得回通关率，先不换）。
+// 网络权重打开页面就在后台下载；下不来就退回困难
 const DIFFS = { easy: ['入门', { skill: .6 }], normal: ['普通', {}], hard: ['困难', STRONG], master: ['大师', null] }, DKEY = 'yibu-fanpan.diff.v1';
 let diff = (() => { try { return DIFFS[localStorage.getItem(DKEY)] ? localStorage.getItem(DKEY) : 'hard'; } catch { return 'hard'; } })(), MASTER = null, masterP = null;
 $('diffsel').append(...Object.entries(DIFFS).map(([k, [n]]) => { const o = el('option', '', n); o.value = k; o.selected = k === diff; return o; }));
 $('diffsel').onchange = e => { diff = e.target.value; try { localStorage.setItem(DKEY, diff); } catch { /* 存不了就只记这一次 */ } };
-const loadMaster = () => masterP ??= fetch('assets/ai/net-g3.json').then(r => r.json()).then(o => { MASTER = mixAI(fromJSON(o)); }).catch(e => { console.warn('大师电脑没载入，用困难代替', e); masterP = null; });
+const loadMaster = () => masterP ??= fetch('assets/ai/net-g3.json').then(r => r.json()).then(o => { MASTER = TIERS.max = mixAI(fromJSON(o)); }).catch(e => { console.warn('大师电脑没载入，用困难代替', e); masterP = null; });
+loadMaster();
 const freeAI = () => diff === 'master' ? MASTER || STRONG : DIFFS[diff][1];
 $('play').onclick = () => { if (!taught()) return teach(); const d = allDecks()[chosen], v = $('foesel').value, pool = DECKS.filter(x => v === 'any' || x.f === v), foe = pool[Math.floor(Math.random() * pool.length)]; start(d, { name: `${FACTIONS[foe.f].name}·${foe.name}`, cards: foe.cards }); };
 
@@ -294,7 +297,7 @@ async function endTurn() {
   let early = ai && !lesson ? llmTurn(apply(S, { type: 'end' }).state, x => { if (g === game) log(x); }) : null; // AI：对方回合开头的局面现在就确定了，请求马上发出，趁下面这些演出等回复
   await act({ type: 'end' });                       // 结束回合：电脑的兵先各走一步
   if (net) return foeLoop(g);                       // 联机：等对方一步步走
-  while (g === game && S.winner === null && S.turn === FOE) { const list = lesson ? foeTurn(S) : ai ? await (early || llmTurn(S, x => { if (g === game) log(x); })) : aiTurn(S, camp?.cup ? camp.cup.ai : camp ? undefined : freeAI()); early = null; /* 自由对战按选的难度；闯关照旧用普通电脑（关卡血量是按它校准的） */ await pause(T.t4);   // 对方“想一下”
+  while (g === game && S.winner === null && S.turn === FOE) { const list = lesson ? foeTurn(S) : ai ? await (early || llmTurn(S, x => { if (g === game) log(x); })) : aiTurn(S, camp?.cup ? cupOpts(camp.cup.foeP) : camp ? undefined : freeAI()); early = null; /* 自由对战按选的难度；锦标赛按选手的档次；闯关照旧用普通电脑（关卡血量是按它校准的） */ await pause(T.t4);   // 对方“想一下”
     for (const a of list) { if (g !== game || S.winner !== null) break; await act(a); if (a.type !== 'end') await pause(T.t3); } } // 两步之间留一口气
 }
 
@@ -493,7 +496,7 @@ async function start(d, foe, stage = null, link = null) { // stage：闯关里�
   const g = ++game; mine = d; theirs = foe; busy = true; camp = stage; net = link; ai = !stage && !link && llmOn(); seat(link ? link.me : 0, link ? '对手' : ai ? 'AI' : stage?.cup ? stage.cup.rival : stage ? '电脑' : DIFFS[diff][0] + '电脑');
   const bar = gateEl.querySelector('.bricks'), need = [...new Set([...mine.cards, ...theirs.cards, ...(stage?.setup || []).map(x => x.card), ...Object.keys(CARDS).filter(k => CARDS[k].token)])]; let n = 0;
   try { await curtain(async () => { $('home').hidden = $('result').hidden = true; feed.length = 0; log(`你用「${mine.name}」，${RIVAL}用「${theirs.name}」。`); tell(''); bricks(bar, 0);
-    await Promise.all([...need.map(t => board.preload([t]).then(() => bricks(bar, ++n / need.length))), !stage && !link && diff === 'master' ? loadMaster() : null]); if (g !== game) return; // 一种角色一种角色地载，城门上的砖跟着亮
+    await Promise.all([...need.map(t => board.preload([t]).then(() => bricks(bar, ++n / need.length))), !link && !ai && (stage?.cup || !stage && diff === 'master') ? loadMaster() : null]); if (g !== game) return; // 一种角色一种角色地载，城门上的砖跟着亮
     board.clear(); board.theme?.(stage?.area || deckFaction(theirs.cards)); lesson = stage?.lesson ? { i: 0 } : null; document.body.classList.toggle('lesson', !!lesson); S = newGame(link ? link.decks : [mine.cards, theirs.cards], link ? link.rnd : lesson ? keepOrder : Math.random, stage ? { ...stageOpts(stage), ordered: !!lesson } : {}); /* 教学里牌按写好的顺序发；别的对局抽牌是随机的 */ for (const [t, u] of S.board.entries()) if (u) board.add({ ...u, tile: t }); sel = -1; V = { hand: [], left: 0, max: 0 }; handEl.replaceChildren(); revealEl.className = ''; syncBoard(); }); } // 场景趁城门关着换装（按场地，自由对战按对手的阵营）：开门时不会先露出上一套再跳变
   catch (e) { console.error(e); if (g === game) { game++; home(); const t = '没载入成功，检查网络后再试。'; if (mode === 'camp') campUI.say(t); else $('homehint').append(el('span', '', t)); } return; } // 图没载下来（手机上网络说断就断）：回开始界面说一声，不把人晾在空棋盘上
   finally { bricks(bar, 0); }

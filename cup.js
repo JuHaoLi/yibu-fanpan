@@ -8,6 +8,7 @@ export const WIN = 3, LOSE = 3, SWISS = 5, KO_NAMES = ['八强赛', '半决赛',
 export const bestOf = round => round <= 2 ? 1 : 3; // 瑞士轮第几轮打几局；淘汰赛都是 3
 const pre = name => { const d = DECKS.find(x => x.name === name); return { name, f: d.f, cards: [...d.cards] }; };
 // 电脑的强度（aiTurn 的选项，见 chess.js）。实测：满强度（整回合组合搜索每层留 12 个）对只预演一步的老满强度赢 74%；AI 角色每层留 4 个，对满强度约 46%；路人不预演、随机看走眼
+// 游戏里网络权重载入后，max 会被换成大师电脑（chess-ui.js 的 loadMaster，搜索 + 价值网络，对满强度约 64%）；node 里的自检照旧用满强度
 export const TIERS = { max: STRONG, ai: { deep: true, beam: 4 } };
 export const ROSTER = [
   { key: 'q1', name: 'Q1', tag: '卫冕冠军', tier: 'max', hp: 12, decks: [{ name: '零号协议', f: 'n', cards: [...PROTOCOL] },
