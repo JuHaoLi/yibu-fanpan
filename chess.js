@@ -253,8 +253,8 @@ export function aiTurn(state, o = {}) {
   for (let k = 0; k < 12 && s.winner === null; k++) {
     if (slack && k && rnd() < slack * .3) break; // 偷懒：能量没花完就收手
     let best = null, bs = null, bv = score(s) + .5;
-    for (const a of legalPlays(s)) { const r = apply(s, a).state, made = r.left - (s.left - cost(s.hand[me][a.i])), drew = r.hand[me].length - (s.hand[me].length - 1), v = score(r) + 1.2 * made + drew + (slack ? slack * 8 * (rnd() - .5) : 0); if (v > bv) { bv = v; best = a; bs = r; } } // made：这张牌额外换来的能量；drew：额外抽到的牌，都算收益
-    if (best) { acts.push(best); s = bs; continue; }
+    for (const a of legalPlays(s)) { const r = apply(s, a).state, made = r.left - (s.left - cost(s.hand[me][a.i])), drew = r.hand[me].length - (s.hand[me].length - 1), v = score(r) + 1.2 * made + drew - (CARDS[s.hand[me][a.i]].hold?.(s, me) ? 9 : 0) + (slack ? slack * 8 * (rnd() - .5) : 0); if (v > bv) { bv = v; best = a; bs = r; } } // made：这张牌额外换来的能量；drew：额外抽到的牌，都算收益
+    if (best) { acts.push(best); s = bs; continue; } // hold：牌自带的出牌时机提示（比如 Q-01 要攒够算力再出），时机不对的那一步评分扣 9，局面真要它时照样会打
     if (!(s.left > 0 && swap())) break; // 没有更好的出法了：还剩能量的话换一张牌再看
   }
   if (s.winner === null) acts.push({ type: 'end' });

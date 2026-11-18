@@ -95,7 +95,7 @@ const badgeEl = (key, on = !!progress.data.done[key]) => { const b = el('i', `ba
 // 闯关地图在 campaign-ui.js：这里只告诉它卡组从哪来、怎么开打
 const campUI = campaignUI({ host: $('home'), px, decks: allDecks, chosen: () => chosen, choose: i => { chosen = i; }, fight });
 // 锦标赛（cup-ui.js）：报名、抽签、赛程都在它那一屏；每一局开打交给这里，打完在结算里回报比分
-const cups = cupUI({ host: $('home'), px, decks: allDecks, card: mdCard, valid: c => deckError(c, owned()), fight: ctx => start(ctx.mine, ctx.foe, { cup: ctx, music: ctx.music }) });
+const cups = cupUI({ host: $('home'), px, decks: allDecks, card: mdCard, valid: c => deckError(c, owned()), fight: ctx => start(ctx.mine, ctx.foe, { cup: ctx, music: ctx.music, base: ctx.base }) });
 function fight(key) { const a = areaOf(key), run = progress.data.runs[key], st = a.stages[run.at]; start(run.deck, { name: `${a.name}·${st.name}`, cards: st.foe }, { ...st, area: key, music: battleMusic(key, run.at) }); } // 打这个场地当前的一关
 $('newdeck').onclick = () => build({ name: `我的卡组 ${customs.length + 1}`, cards: [], at: -1 });
 $('foesel').append(...FKEYS.map(f => { const o = el('option', '', FACTIONS[f].name); o.value = f; return o; }));

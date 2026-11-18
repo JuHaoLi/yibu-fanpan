@@ -10,7 +10,7 @@ const pre = name => { const d = DECKS.find(x => x.name === name); return { name,
 // 电脑的强度（aiTurn 的选项，见 chess.js）。实测（tools/cup_check.mjs 里有对打）：deep 对普通贪心赢约七成；skill .92 对满强度约五五开偏弱；路人对满强度两到三成
 export const TIERS = { max: { deep: true }, ai: { deep: true, skill: .92 } };
 export const ROSTER = [
-  { key: 'q1', name: 'Q1', tag: '卫冕冠军', tier: 'max', decks: [{ name: '零号协议', f: 'n', cards: [...PROTOCOL] },
+  { key: 'q1', name: 'Q1', tag: '卫冕冠军', tier: 'max', hp: 12, decks: [{ name: '零号协议', f: 'n', cards: [...PROTOCOL] },
     { name: '零号协议·超频', f: 'n', cards: ['q_probe', 'q_helm', 'q_field', 'q_wing', 'q_cannon', 'q_sword', 'q_glitch', 'q_chassis', 'n_soulstealer', 'gem', 'q_emp', 'q_super'] }] },
   { key: 'claude', name: '克劳德', face: 'claude', tier: 'max', decks: [pre('方尖碑'), pre('荆棘反击')] },
   { key: 'gptsol', name: 'GPT嗖', face: 'gptsol', tier: 'max', decks: [pre('荆棘反击'), pre('方尖碑')] },
@@ -25,6 +25,7 @@ export const ROSTER = [
 ];
 const WALKERS = ['老铁匠', '流浪诗人', '酒馆老板', '新兵蛋子', '赌场常客', '退役骑士', '牌桌幽灵', '夜班守卫', '算命先生', '码头搬运工'];
 export const opts = p => p.tier === 'walk' ? { skill: p.skill } : TIERS[p.tier] || {}; // 这位电脑选手的 aiTurn 选项
+export const HP = 10, hpOf = p => p.hp || HP; // 城堡血量：卫冕冠军 Q1 是 12（和闯关首领一样的待遇），其余都是 10
 
 // 带种子的随机数（mulberry32）：存档里只存一个整数，读档后接着走
 export const rng = seed => { let a = seed >>> 0; const f = () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; f.state = () => a; return f; };
@@ -96,7 +97,7 @@ export function firstOf(s, m) { const prev = m.games[m.games.length - 1]; return
 export function simGame(s, m) {
   const A = s.players[m.a], B = s.players[m.b], da = npcDeck(s, m, 'a'), db = npcDeck(s, m, 'b'), first = firstOf(s, m), rnd = R(s);
   const seat = first === 'a' ? [A, B] : [B, A], decks = first === 'a' ? [A.decks[da].cards, B.decks[db].cards] : [B.decks[db].cards, A.decks[da].cards];
-  let st = newGame(decks, rnd);
+  let st = newGame(decks, rnd, { base: [hpOf(seat[0]), hpOf(seat[1])] });
   while (st.winner === null && st.n <= 70) for (const x of aiTurn(st, { ...opts(seat[st.turn]), rnd })) st = apply(st, x).state;
   const w0 = st.winner ?? (st.base[0] === st.base[1] ? 0 : st.base[0] > st.base[1] ? 0 : 1), hpA = first === 'a' ? st.base[0] : st.base[1], hpB = first === 'a' ? st.base[1] : st.base[0];
   return addGame(s, m, { w: (w0 === 0) === (first === 'a') ? 'a' : 'b', da, db, hp: [Math.max(0, hpA), Math.max(0, hpB)], n: Math.ceil(st.n / 2) });

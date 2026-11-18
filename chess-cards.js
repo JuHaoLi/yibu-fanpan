@@ -78,6 +78,7 @@ export function build(H) {
     byStruct: n => [`挨着友方建筑放的话，自己 +${n} 战力`, .5 * n, (s, ev, u, t) => { if (pals(s, u.side, adj4(t)).some(x => !isUnit(s.board[x]))) buff(s, ev, t, n); }],
     rouse: () => ['相邻的友方建筑立刻再生效一次', 1.6, (s, ev, u, t) => { for (const x of pals(s, u.side, adj4(t)).filter(x => !isUnit(s.board[x]))) { const w = s.board[x], f = w && w.side === u.side && !w.mute && cards[w.card].onTurn; if (f) { fx(ev, 'bless', u.card, t, [x]); f(s, ev, w, x); } } }],
     drain: n => [`从相邻的敌方单位身上各吸走 ${n} 点战力`, 2 * n, (s, ev, u, t) => { const ts = foes(s, u.side, adj4(t)).filter(x => isUnit(s.board[x])); if (!ts.length) return; const got = ts.reduce((a, x) => a + Math.min(n, s.board[x].str), 0); fx(ev, 'drain', u.card, ts[0], [t]); ts.forEach(x => hurt(s, ev, x, n)); if (s.board[t] === u) buff(s, ev, t, got); }],
+    cullAdj: n => [`消灭相邻战力不超过 ${n} 的敌方单位`, .7 * n + .4, (s, ev, u, t) => { const ts = foes(s, u.side, adj4(t)).filter(x => isUnit(s.board[x]) && s.board[x].str <= n); if (ts.length) { fx(ev, 'slash', u.card, t, ts); ts.forEach(x => kill(s, ev, x)); } }],
     cull: n => [`消灭周围一圈战力不超过 ${n} 的敌方单位`, 1.2 * n + .6, (s, ev, u, t) => { const ts = foes(s, u.side, adj8(t)).filter(x => isUnit(s.board[x]) && s.board[x].str <= n); if (ts.length) { fx(ev, 'slash', u.card, t, ts); ts.forEach(x => s.board[x] && kill(s, ev, x)); } }],
     raze: n => [`周围一圈的敌方建筑各受 ${n} 点伤害`, .3 * n, (s, ev, u, t) => zap(s, ev, u.card, t, foes(s, u.side, adj8(t)).filter(x => !isUnit(s.board[x])), n, 'nova')],
     selfBase: n => [`你自己的城堡受 ${n} 点伤害`, -1.1 * n, (s, ev, u, t) => { fx(ev, 'drain', u.card, t, [{ base: u.side }]); _hb(s, ev, u.side, n); }],
@@ -235,14 +236,14 @@ export function build(H) {
   unit('f4_furosa', '血怒小鬼', 'f4_furosa', 2, 2, [D(E.selfBase(1))]);
   unit('f4_underworldbrute', '冥界蛮兵', 'f4_underworldbrute', 4, 2, [P(E.selfBase(2))]);
   unit('f4_siren', '塞壬', 'f4_siren', 4, 1, [P(E.drain(1))]);
-  unit('f4_deathknell', '丧钟', 'f4_deathknell', 4, 0, [P(E.cull(2))]);
-  spell('f4s_price', '血的代价', 4, 'foe', '消灭一个战力不超过 7 的敌方单位或建筑，你自己的城堡受 3 点伤害。', (s, ev, side, t, id) => { fx(ev, 'bolt', id, castle(side), [t]); kill(s, ev, t); _hb(s, ev, side, 3); }, (s, side, t) => s.board[t].str <= 7 && s.base[side] > 3);
+  unit('f4_deathknell', '丧钟', 'f4_deathknell', 4, 0, [P(E.cullAdj(2))]); // 原来是周围一圈：一张 4 费牌清掉整片小兵，人手里太强
+  spell('f4s_price', '血的代价', 4, 'foe', '消灭一个战力不超过 5 的敌方单位或建筑，你自己的城堡受 3 点伤害。', (s, ev, side, t, id) => { fx(ev, 'bolt', id, castle(side), [t]); kill(s, ev, t); _hb(s, ev, side, 3); }, (s, side, t) => s.board[t].str <= 5 && s.base[side] > 3);
   struct('f4_daemongate', '魔门', 'f4_daemongate', 4, [T(E.spawn('wraith', 1, 'front'))]);
   struct('f4_buildminion', '暗影祭坛', 'f4_buildminion', 3, [P(E.taintAdj()), MOURN('对方城堡受 1 点伤害', 2, (s, ev, w, x, t) => { fx(ev, 'bolt', w.card, x, [{ base: 1 - w.side }]); hitBase(s, ev, 1 - w.side, 1); })]);
-  struct('f4_buildlegendary', '灵魂熔炉', 'f4_buildlegendary', 5, [T(E.burn(1))]);
+  struct('f4_buildlegendary', '灵魂熔炉', 'f4_buildlegendary', 6, [T(E.burn(1))]); // 原来 5 费：每回合白扣 1 血，慢卡组拿它没办法
   spell('siphon', '灵魂虹吸', 3, 'foe', '对一个敌方单位或建筑造成 3 点伤害，你的城堡 +1 血。', (s, ev, side, t, id) => { zap(s, ev, id, castle(side), [t], 3, 'drain'); mend(s, ev, side, 1); });
   spell('f4s_swarm', '影灵涌现', 3, 'none', '在你家门口的每个空格放一只 1 战力的影灵。', (s, ev, side, t, id) => { const ts = [...Array(COLS)].map((_, c) => tile(side ? ROWS - 1 : 0, c)).filter(x => !s.board[x]); fx(ev, 'summon', id, castle(side), ts); ts.forEach(x => summon(s, ev, side, 'wraith', x, 1)); }, (s, side) => [...Array(COLS)].some((_, c) => !s.board[tile(side ? ROWS - 1 : 0, c)]));
-  spell('f4s_ritual', '黑暗献祭', 2, 'ally', '消灭一个友方单位，对方城堡受到它战力一半的伤害（向上取整）。', (s, ev, side, t, id) => { const n = Math.ceil(s.board[t].str / 2); fx(ev, 'drain', id, t, [castle(1 - side)]); kill(s, ev, t); hitBase(s, ev, 1 - side, n); });
+  spell('f4s_ritual', '黑暗献祭', 3, 'ally', '消灭一个友方单位，对方城堡受到它战力一半的伤害（向上取整）。', (s, ev, side, t, id) => { const n = Math.ceil(s.board[t].str / 2); fx(ev, 'drain', id, t, [castle(1 - side)]); kill(s, ev, t); hitBase(s, ev, 1 - side, n); });
   spell('f4s_shadow', '蔓延暗影', 3, 'foe', '对一个敌人造成 2 点伤害，并在它脚下和相邻的格子留下暗影（留 3 个回合）。', (s, ev, side, t, id) => { zap(s, ev, id, castle(side), [t], 2, 'bolt'); taint(s, ev, id, t, [t, ...adj4(t)], side); });
   spell('f4s_plague', '瘟疫', 5, 'none', '所有敌方单位和建筑各受 1 点伤害。', (s, ev, side, t, id) => zap(s, ev, id, castle(side), enemies(s, side), 1, 'storm'), (s, side) => enemies(s, side).length > 0);
   spell('f4s_doom', '末日审判', 6, 'foe', '对一个敌方单位或建筑造成 7 点伤害。', (s, ev, side, t, id) => zap(s, ev, id, castle(side), [t], 7, 'bolt'));
@@ -522,7 +523,7 @@ export function build(H) {
   const laser = n => [`对本路前方第一个敌人造成 ${n} 点伤害`, .9 * n, (s, ev, u, t) => { const x = ahead(s, u.side, t); if (x >= 0) zap(s, ev, u.card, t, [x], n, 'laser'); }];
   const qspell = (id, nm, cost, target, text, cast, can) => spell(id, nm, cost, target, text, cast, can);
   unit('q_probe', '探针', 'neutral_z0r', 1, 0, [P(calc(1, 'scan'))]);
-  qspell('q_patch', '补丁程序', 1, 'none', '算力 +2。', (s, ev, side, t, id) => { fx(ev, 'core', id, castle(side), [castle(side)]); charge(s, ev, side, 2); }, (s, side) => s.core[side] < CORE);
+  qspell('q_patch', '补丁程序', 1, 'none', '算力 +2；你的算力已经有 6 点以上的话，改为抽 1 张牌。', (s, ev, side, t, id) => { if (s.core[side] >= 6) return draw(s, ev, side, 1); fx(ev, 'core', id, castle(side), [castle(side)]); charge(s, ev, side, 2); }); // 算力快满时不再白攒：帮着把能花算力的牌找出来
   unit('q_helm', '机甲头盔', 'neutral_mechaz0rhelm', 2, 1, [P(calc(1, 'holo')), P(laser(1))]);
   qspell('q_field', '力场矩阵', 2, 'ally', '一个友方单位获得圣盾，算力 +1。', (s, ev, side, t, id) => { fx(ev, 'field', id, castle(side), [t]); shieldUp(s, ev, t); charge(s, ev, side, 1); }, (s, side, t) => !s.board[t].shield);
   const warpTo = (s, side, t) => { for (let d = ROWS - 2; d > depth(side, rowOf(t)); d--) { const x = tile(side ? ROWS - 1 - d : d, colOf(t)); if (!s.board[x]) return x; } return -1; }; // 这一路最靠前的空格（最远到对方家门口前一行）
@@ -536,6 +537,8 @@ export function build(H) {
   unit('q_super', 'Q-01 超级机甲', 'neutral_mechaz0rsuper', 7, 1, [P(['释放：用光你的算力，每 1 点自己 +2 战力；用掉 4 点以上的话还获得圣盾', 5, (s, ev, u, t) => { const n = release(s, ev, u.side); if (!n) return; fx(ev, 'warpin', u.card, t, [t]); buff(s, ev, t, 2 * n); if (n >= 4) shieldUp(s, ev, t); }])]);
   const PROTOCOL = ['q_probe', 'q_patch', 'q_helm', 'q_field', 'q_warp', 'q_wing', 'q_cannon', 'q_sword', 'q_glitch', 'q_chassis', 'q_emp', 'q_super'];
   for (const k of PROTOCOL) cards[k].prize = true;
+  // 给电脑的出牌时机（chess.js 的 aiTurn 读 hold）：Q-01 和电磁脉冲憋够算力再放；算力快满时别再打纯攒算力的补丁
+  cards.q_super.hold = (s, side) => s.core[side] < 4; cards.q_emp.hold = (s, side) => s.core[side] < 2; 
   Object.assign(cards.q_helm, { str: 2 }); Object.assign(cards.q_wing, { str: 2 }); Object.assign(cards.q_sword, { str: 2 }); Object.assign(cards.q_super, { str: 6 }); // 奖励牌的战力手定（同首领牌，不走自动估值），数值由 tools/cup_tune.mjs 对打核对
 
   // ======== 首领牌：闯关模式里每个场地的首领，击败后获得。角色是之前没用过的“将军”和首领图 ========

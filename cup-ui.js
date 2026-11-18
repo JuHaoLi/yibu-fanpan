@@ -46,7 +46,7 @@ export function cupUI({ host, px, decks, card, valid, fight }) {
     slab.append(el('p', 'err', err), go);
     const prize = el('div', 'prize'), seeds = el('div', 'seeds');
     for (const r of C.ROSTER.filter(r => r.tier === 'max')) seeds.append(who({ ...r }));
-    prize.append(el('i', 'chest'), el('b', '', '冠军奖励'), el('p', 'dim', `卫冕冠军 Q1 的纯中立卡组「零号协议」12 张：新机制「算力」。`), el('small', 'dim', '种子选手'), seeds);
+    prize.append(el('i', 'chest'), el('b', '', '冠军奖励'), el('p', 'dim', `卫冕冠军 Q1 的纯中立卡组「零号协议」12 张：新机制「算力」。Q1 作为卫冕冠军，城堡 12 血。`), el('small', 'dim', '种子选手'), seeds);
     box.append(el('div', 'cup-two', '')); box.lastChild.append(slab, prize);
     box.append(el('small', 'credit', '选手头像：角色形象设计 小叶子XIYZ · 美术和制作 喵了个猫了个咪了个猫（meow-ai-arena，MIT）。名字只是致敬，与各家公司无关。')); root.replaceChildren(box);
   }
@@ -106,7 +106,7 @@ export function cupUI({ host, px, decks, card, valid, fight }) {
   function go_(m) { // 出战：对面这一局用哪套、谁先手由 cup.js 定；玩家永远在左边先手（和自由对战一样）
     const you = me(), side = m.a === you.id ? 'a' : 'b', foeSide = side === 'a' ? 'b' : 'a', foe = P(m[foeSide]), fd = C.npcDeck(S, m, foeSide); save();
     const fin = S.stage === 'ko' && S.ko.length === 3;
-    fight({ mine: you.decks[pick], foe: { name: `${foe.name}·${foe.decks[fd].name}`, cards: foe.decks[fd].cards }, rival: foe.name, ai: C.opts(foe), music: fin ? 'boss_final' : foe.key === 'q1' ? 'boss_n4' : foe.tier === 'max' ? 'boss_n1' : null, match: m, side, fd, mi: pick, foeP: foe });
+    fight({ base: [C.hpOf(you), C.hpOf(foe)], mine: you.decks[pick], foe: { name: `${foe.name}·${foe.decks[fd].name}`, cards: foe.decks[fd].cards }, rival: foe.name, ai: C.opts(foe), music: fin ? 'boss_final' : foe.key === 'q1' ? 'boss_n4' : foe.tier === 'max' ? 'boss_n1' : null, match: m, side, fd, mi: pick, foeP: foe });
   }
   async function runOthers() { // 别的场次一场场揭晓：比分先空着，真的打完再翻出来（淘汰赛是整张对阵图跟着刷新）
     if (live) return; live = true; const rows = [...root.querySelectorAll('.list .match')]; const ms = C.current(S);
