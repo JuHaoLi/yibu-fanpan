@@ -1,54 +1,84 @@
-// AI 对手（llm.js）的自检：局面说明、计划解析、计划校验与回退、请求格式、出错回退。不需要真的接口：fetch 用假的。
+// AI 对手（llm.js）的自检：方案合法、打乱顺序后选择映射正确、各种回复的解析、接口出错一律回退不抛。fetch 用假的，不需要真接口。
 // 用法：node tools/llm_check.mjs
-import assert from 'node:assert/strict';
-import { CARDS, DECKS, newGame, apply, legalPlays, aiTurn } from '../chess.js';
+const R = new URL('../', import.meta.url).href;
+const { DECKS, newGame, apply, aiTurn, STRONG } = await import(R + 'chess.js');
 const store = {}; globalThis.localStorage = { getItem: k => store[k] ?? null, setItem: (k, v) => { store[k] = v; } };
-const { cfg, save, enabled, describe, parsePlan, runPlan, llmTurn, ping, PLAYBOOK } = await import('../llm.js');
+const L = await import(R + 'llm.js');
+const { parseChoice, llmTurn, options, order, save, ping } = L;
+let bad = 0; const eq = (name, got, exp) => { const ok = JSON.stringify(got) === JSON.stringify(exp); if (!ok) bad++; console.log(ok ? '  ok ' : 'FAIL ', name, ok ? '' : `得到 ${JSON.stringify(got)} 期望 ${JSON.stringify(exp)}`); };
 
-let seed = 7; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
-const deckOf = f => DECKS.find(d => d.f === f).cards, fresh = (a = 'f1', b = 'f4') => { let s = newGame([deckOf(a), deckOf(b)], rnd); s = apply(s, { type: 'end' }).state; return s; }; // 走一个 end，轮到后手（side 1，AI 的位置）
+console.log('--- parseChoice');
+const P = (t, n = 4) => parseChoice(t, n);
+eq('纯 JSON', P('{"choice":3,"say":"来吧"}'), { k: 2, say: '来吧' });
+eq('思考块', P('<think>方案1 不好，选 2？</think>{"choice":4,"say":"嘿"}'), { k: 3, say: '嘿' });
+eq('思考块+无 JSON 应读块外', P('<think>方案1 方案2</think>我选方案3'), { k: 2, say: '' });
+eq('<thinking> 标签', P('<thinking>我想选 1</thinking>方案3'), { k: 2, say: '' });
+eq('没闭合的思考块（被截断）不该乱认数字', P('<think>先看第 2 路，方案1 风险大'), null);
+eq('代码块', P('```json\n{"choice": 2, "say": "稳一手"}\n```'), { k: 1, say: '稳一手' });
+eq('中文方案3', P('我选方案3，打穿你！'), { k: 2, say: '' });
+eq('中文 方案 三', P('选方案三'), { k: 2, say: '' });
+eq('choice 是字符串', P('{"choice":"2","say":"好"}'), { k: 1, say: '好' });
+eq('choice 写成 "方案2"', P('{"choice":"方案2","say":"好"}'), { k: 1, say: '好' });
+eq('超出范围', P('{"choice":5,"say":"x"}'), null);
+eq('0', P('{"choice":0}'), null);
+eq('空', P(''), null); eq('null', P(null), null); eq('undefined', P(undefined), null);
+eq('全角冒号', P('{"choice"：2，"say"：“好”}'), { k: 1, say: '好' });
+eq('中文引号台词', P('{"choice":1,"say":"“看我的”"}'), { k: 0, say: '看我的' });
+eq('台词里有换行转义', P('{"choice":1,"say":"第一句\\n第二句"}'), { k: 0, say: '第一句 第二句' });
+eq('台词带转义引号', P('{"choice":1,"say":"他说\\"冲\\""}'), { k: 0, say: '他说"冲"' });
+eq('台词真换行（JSON 外）', P('{"choice":1,"say":"上半句\n下半句"}'), { k: 0, say: '上半句' });
+eq('单引号', P("{'choice': 2, 'say': '好'}"), { k: 1, say: '好' });
+eq('台词超长截断', P('{"choice":1,"say":"' + '长'.repeat(60) + '"}').say.length <= 40, true);
+eq('只有说明数字', P('第 2 套方案最好'), { k: 1, say: '' });
 
-// 局面说明：有棋盘、手牌、可打格子；不泄露对方手牌
-{ const s = fresh(); const t = describe(s);
-  assert.match(t, /d0: /); assert.match(t, /d4: /); assert.match(t, /我的手牌/); assert.match(t, /可打：/);
-  for (const id of s.hand[1]) assert.ok(t.includes(id), '自己的手牌应在说明里');
-  const only = s.hand[0].filter(id => !s.hand[1].includes(id)); for (const id of only) assert.ok(!t.includes(id) && !t.includes(CARDS[id].name), '不能泄露对方手牌 ' + id); }
+console.log('--- ask()/llmTurn 异常');
+let seed = 9; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+let s = newGame([DECKS[0].cards, DECKS[3].cards], rnd); for (let k = 0; k < 3; k++) for (const a of aiTurn(s, { ...STRONG, rnd })) s = apply(s, a).state;
+const opts = options(s); console.log('  方案数', opts.length);
+const res = (st, j, txt) => ({ ok: st >= 200 && st < 300, status: st, json: async () => (typeof j === 'function' ? j() : j), text: async () => txt ?? JSON.stringify(j) });
+const calls = []; const stub = f => { calls.length = 0; globalThis.fetch = async (u, o) => { calls.push({ u, b: JSON.parse(o.body) }); return f(calls.length, JSON.parse(o.body)); }; };
+const run = async (name, expBy, extra = () => true) => { let r; try { r = await llmTurn(s, () => {}); } catch (e) { bad++; console.log('FAIL ', name, '抛出', e.message); return; } const ok = r.by === expBy && extra(r); if (!ok) bad++; console.log(ok ? '  ok ' : 'FAIL ', name, r.by, r.why || '', r.say ? '台词:' + r.say : ''); return r; };
+const okOAI = c => ({ choices: [{ message: { content: c }, finish_reason: 'stop' }] });
 
-// 解析：容忍围栏、思考块、前后废话；读不懂给 null
-assert.deepEqual(parsePlan('{"plan":["a@3","end"]}'), ['a@3', 'end']);
-assert.deepEqual(parsePlan('<think>想想 {"plan": ["x"]}</think>\n```json\n{"plan": ["a@3", "swap:b", "end"]}\n```'.replace('{"plan": ["x"]}', '')), ['a@3', 'swap:b', 'end']);
-assert.equal(parsePlan('我觉得应该结束回合'), null); assert.equal(parsePlan('{"plan":"end"}'), null); assert.equal(parsePlan(undefined), null);
+save({ style: 'openai', url: 'https://x.test/v1/', key: 'k', model: 'm1' });
+stub((n, b) => b.thinking ? res(400, { error: 'unknown field thinking' }) : res(200, okOAI('{"choice":2,"say":"重试成功"}')));
+await run('400 后去掉 thinking 重发', 'llm', r => calls.length === 2 && !!calls[0].b.thinking && !calls[1].b.thinking);
+calls.length = 0; await run('记住了：第二回合直接不带 thinking', 'llm', () => calls.length === 1 && !calls[0].b.thinking);
+save({ style: 'openai', url: 'https://y.test/v1', key: 'k', model: 'm2' });
+stub(() => res(400, { error: 'bad model' })); await run('两次都 400', 'fallback', r => calls.length === 2 && /400/.test(r.why));
+stub(() => res(429, { error: 'rate' })); await run('429', 'fallback', r => /429/.test(r.why));
+stub(() => res(500, null, '<html>oops</html>')); await run('500 HTML', 'fallback');
+stub(() => res(200, { choices: [{ message: { content: null } }] })); await run('content null', 'fallback');
+stub(() => res(200, { choices: [] })); await run('choices 空', 'fallback');
+stub(() => res(200, {})); await run('空对象', 'fallback');
+stub(() => res(200, null)); await run('json 是 null', 'fallback');
+stub(() => res(200, () => { throw new SyntaxError('Unexpected token <'); })); await run('200 但不是 JSON', 'fallback');
+stub(() => res(200, { choices: [{ message: { content: [{ type: 'text', text: '{"choice":3}' }] } }] })); await run('content 是分段数组', 'llm');
+stub(() => res(200, { choices: [{ message: { content: '', reasoning_content: '想了很久' }, finish_reason: 'length' }] })); await run('只有思考', 'fallback', r => /思考/.test(r.why));
+stub(() => { throw new TypeError('Failed to fetch'); }); await run('连不上', 'fallback', r => /连不上/.test(r.why));
+stub(() => { const e = new Error('aborted'); e.name = 'AbortError'; throw e; }); await run('超时', 'fallback', r => /秒/.test(r.why));
 
-// 校验与回退：任何计划（含乱写的）走出来的动作都能依次走通，并且以 end 收尾或已分胜负
-const play = (s, acts) => { for (const a of acts) s = apply(s, a).state; return s; };
-for (let g = 0; g < 200; g++) {
-  const s = fresh(['f1', 'f2', 'f3', 'f4', 'f5', 'f6'][g % 6], ['f1', 'f2', 'f3', 'f4', 'f5', 'f6'][(g + 2) % 6]);
-  const ids = [...s.hand[1], 'nope', ...s.hand[0]], toks = Array.from({ length: 1 + Math.floor(rnd() * 5) }, () => { const id = ids[Math.floor(rnd() * ids.length)], k = rnd(); return k < .2 ? 'swap:' + id : k < .5 ? id : `${id}@${Math.floor(rnd() * 24) - 2}`; });
-  if (rnd() < .5) toks.push('end');
-  const { acts } = runPlan(s, toks), end = play(s, acts);
-  assert.ok(end.winner !== null || acts.at(-1).type === 'end', '要么分胜负要么以 end 收尾'); assert.ok(end.winner !== null || end.turn === 0, 'end 之后轮到对方');
-}
-// 一个确定的例子：合法的第一步被保留，坏的一步被报出来
-{ const s = fresh(), p = legalPlays(s)[0], id = s.hand[1][p.i], { acts, bad } = runPlan(s, [`${id}@${p.t}`, 'zzz@1', 'end']);
-  assert.deepEqual(acts[0], p); assert.equal(bad, 'zzz@1'); assert.equal(acts.at(-1).type, 'end'); }
-{ const s = fresh(), { acts, bad } = runPlan(s, ['end']); assert.deepEqual(acts, [{ type: 'end' }]); assert.equal(bad, null); }
+save({ style: 'anthropic', url: 'https://a.test', key: 'k', model: 'claude' });
+stub(() => res(200, { content: [{ type: 'thinking', thinking: '方案1' }, { type: 'text', text: '{"choice":2,"say":"好的"}' }], stop_reason: 'end_turn' }));
+await run('Anthropic 格式（带 thinking 块）', 'llm', r => calls[0].u === 'https://a.test/v1/messages' && !calls[0].b.thinking && r.say === '好的');
+stub(() => res(400, { error: 'x' })); await run('Anthropic 400 不重试', 'fallback', () => calls.length === 1);
+stub(() => res(200, { content: null })); await run('Anthropic content null', 'fallback');
+stub(() => res(200, { type: 'error', error: { message: 'overloaded' } })); await run('Anthropic 200 但 error', 'fallback');
 
-// 请求：两种接口的地址、头、体；回复能读；出错回退到内置电脑
-const calls = []; const stub = fn => { globalThis.fetch = async (url, o) => { calls.push({ url, o, body: JSON.parse(o.body) }); return fn(); }; };
-const ok = j => ({ ok: true, status: 200, json: async () => j, text: async () => '' }), err = st => ({ ok: false, status: st, json: async () => ({}), text: async () => '坏了' });
-const s = fresh(), p0 = legalPlays(s)[0], id0 = s.hand[1][p0.i], good = `{"plan":["${id0}@${p0.t}","end"]}`, notes = [], note = x => notes.push(x);
-save({ on: true, style: 'openai', url: 'https://x.test/v1/', key: 'sk-1', model: 'm1' }); assert.ok(enabled());
-stub(() => ok({ choices: [{ message: { content: good } }] }));
-let acts = await llmTurn(s, note); assert.deepEqual(acts[0], p0); assert.equal(notes.length, 0);
-assert.equal(calls.at(-1).url, 'https://x.test/v1/chat/completions'); assert.equal(calls.at(-1).o.headers.authorization, 'Bearer sk-1'); assert.equal(calls.at(-1).body.messages[0].content, PLAYBOOK); assert.ok(calls.at(-1).body.max_tokens <= 200);
-save({ on: true, style: 'anthropic', url: 'https://a.test', key: 'k2', model: 'claude-haiku-5-5' });
-stub(() => ok({ content: [{ type: 'text', text: good }] }));
-acts = await llmTurn(s, note); assert.deepEqual(acts[0], p0);
-assert.equal(calls.at(-1).url, 'https://a.test/v1/messages'); assert.equal(calls.at(-1).o.headers['x-api-key'], 'k2'); assert.equal(calls.at(-1).o.headers['anthropic-dangerous-direct-browser-access'], 'true'); assert.equal(calls.at(-1).body.system[0].cache_control.type, 'ephemeral');
-stub(() => err(500)); acts = await llmTurn(s, note); assert.deepEqual(acts, aiTurn(s)); assert.match(notes.at(-1), /代打/);
-stub(() => ok({ content: [{ type: 'text', text: '随便聊聊' }] })); acts = await llmTurn(s, note); assert.deepEqual(acts, aiTurn(s)); assert.match(notes.at(-1), /读不懂/);
-globalThis.fetch = async () => { throw new TypeError('Failed to fetch'); }; acts = await llmTurn(s, note); assert.deepEqual(acts, aiTurn(s)); assert.match(notes.at(-1), /连不上/);
-stub(() => ok({ content: [{ type: 'text', text: '{"plan":["end"]}' }] })); const pg = await ping(cfg()); assert.ok(pg.ok && pg.ms >= 0);
-stub(() => err(401)); assert.equal((await ping(cfg())).ok, false);
-assert.ok(!enabled({ on: true, style: 'openai', url: '', model: 'm' }) && !enabled({ on: true, style: 'anthropic', model: 'm' }) && !enabled({ on: false, style: 'anthropic', url: 'u', model: 'm' }));
-console.log('AI 对手自检通过：局面说明、解析、200 局乱写计划的校验回退、两种接口的请求格式、出错回退。提示词约', PLAYBOOK.length, '字，局面说明约', describe(s).length, '字。');
+// ping 也不能抛
+stub(() => res(200, null)); try { const p = await ping({ style: 'openai', url: 'https://z.test', model: 'm' }); console.log('  ok  ping json null →', p.ok, p.msg.slice(0, 40)); } catch (e) { bad++; console.log('FAIL ping 抛出', e.message); }
+// 真实超时：fetch 永不返回，但监听 signal
+// 方案：30 局随机预设，每套都合法、end 等于执行结果、第 1 套 = 困难电脑、按假模型选的第 k 个执行的正是提示词里第 k 行
+console.log('--- options()');
+{ const { CARDS: CC } = await import(R + 'chess.js'); let turns = 0, wrong = 0, pickK = 1, lastPrompt = ''; const J = x => JSON.stringify(x);
+  globalThis.fetch = async (u, o) => { lastPrompt = JSON.parse(o.body).messages.at(-1).content; return res(200, okOAI(`{"choice":${pickK}}`)); };
+  save({ style: 'openai', url: 'https://x.test/v1', key: 'k', model: 'm' });
+  for (let g = 0; g < 30; g++) { let t = newGame([DECKS[g % DECKS.length].cards, DECKS[(g * 5 + 3) % DECKS.length].cards], rnd);
+    for (let n = 0; n < 50 && t.winner === null; n++) { const os = options(t); turns++;
+      if (J(os[0].acts) !== J(aiTurn(t, { ...STRONG }))) wrong++;
+      for (const op of os) { try { let e = t; for (const a of op.acts) e = apply(e, a).state; if (J(e) !== J(op.end)) wrong++; } catch { wrong++; } }
+      let pick = os[0];
+      if (os.length > 1) { pickK = 1 + Math.floor(rnd() * os.length); const got = await llmTurn(t); pick = os[order(t, os.length)[pickK - 1]]; if (J([...got]) !== J(pick.acts) || !lastPrompt.includes(`方案${pickK}：`)) wrong++; }
+      for (const a of pick.acts) t = apply(t, a).state; } }
+  if (wrong) bad++; console.log(wrong ? `FAIL  方案检查 ${wrong} 处不对` : `  ok  ${turns} 个回合的方案全部合法、映射正确`); }
+console.log(bad ? `\n${bad} 项不通过` : '\n全部通过'); process.exit(bad ? 1 : 0);

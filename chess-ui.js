@@ -9,7 +9,7 @@ import { cupUI } from './cup-ui.js';
 import { TIERS, opts as cupOpts } from './cup.js';
 import { LESSON, keepOrder, stepOk, foeTurn } from './tutorial.js';
 import { createRoom, joinRoom } from './room.js';
-import { llmTurn, enabled as llmOn, cfg as llmCfg, save as llmSave, ping as llmPing } from './llm.js';
+import { llmTurn, enabled as llmOn, cfg as llmCfg, save as llmSave, ping as llmPing, last as llmLast } from './llm.js';
 import { sfx, music, unlock, toggleMute, isMuted, eventSound } from './sound.js';
 import { uiFx, ready as fxReady, UI as FXUI } from './ui-pfx.js';
 import * as sound from './sound.js'; // sound.pause / sound.resume：切后台时用（本文件里 pause 这个名字已经是“等一拍”）
@@ -123,11 +123,11 @@ const aiDlg = $('aidlg'); function aiLabel() { $('aibtn').hidden = mode !== 'fre
 const aiRead = () => ({ style: $('aistyle').value, url: $('aiurl').value.trim(), key: $('aikey').value.trim(), model: $('aimodel').value.trim() });
 const aiHolder = () => { const a = $('aistyle').value === 'anthropic'; $('aiurl').placeholder = a ? '例如 https://api.anthropic.com' : '例如 https://api.deepseek.com/v1'; $('aimodel').placeholder = a ? '例如 claude-haiku-5-5' : '例如 deepseek-chat'; };
 const aiSay = (t, bad) => { $('aistat').textContent = t; $('aistat').className = bad ? 'bad' : ''; };
-function aiOpen(msg = '', bad = false) { const c = llmCfg(); $('aistyle').value = c.style; $('aiurl').value = c.url; $('aikey').value = c.key; $('aimodel').value = c.model; aiHolder(); aiSay(msg, bad); aiDlg.showModal(); }
+function aiOpen(msg = '', bad = false) { if (!msg && llmLast.why) { msg = `最近一回合没出招：${llmLast.why}${llmLast.reply ? `。模型回的开头：${llmLast.reply.replace(/\s+/g, ' ').slice(0, 80)}` : ''}`; bad = true; } const c = llmCfg(); $('aistyle').value = c.style; $('aiurl').value = c.url; $('aikey').value = c.key; $('aimodel').value = c.model; aiHolder(); aiSay(msg, bad); aiDlg.showModal(); }
 $('aibtn').onclick = () => aiOpen();
 $('aistyle').onchange = aiHolder; $('aiclose').onclick = () => aiDlg.close();
 $('aisave').onclick = () => { const c = aiRead(); if (!llmOn(c)) return aiSay('要填接口地址和模型名。', true); llmSave(c); aiDlg.close(); };
-$('aitest').onclick = async () => { const b = $('aitest'); b.disabled = true; aiSay('正在测试…'); const r = await llmPing(aiRead()); b.disabled = false; aiSay(r.ok ? `连通了，一次回复 ${r.ms} 毫秒。点保存就能开始。` : r.why, !r.ok); };
+$('aitest').onclick = async () => { const b = $('aitest'); b.disabled = true; aiSay('正在测试…'); const r = await llmPing(aiRead()); b.disabled = false; aiSay(r.msg + (r.ok ? '点保存就能开始。' : ''), !r.ok); };
 
 // ---------- 房间对战 ----------
 // 开房的人拿到 4 位房间号，另一个人输入房间号加入；用的都是开始界面上当前选中的那套卡组。传输见 room.js
@@ -297,10 +297,12 @@ async function act(a) { // 执行一步。先回应：牌立刻离手、能量�
 }
 async function endTurn() {
   if (!S || busy || chain || S.turn !== ME || S.winner !== null) return; const g = game;
-  let early = ai && !lesson ? llmTurn(apply(S, { type: 'end' }).state, x => { if (g === game) log(x); }) : null; // AI：对方回合开头的局面现在就确定了，请求马上发出，趁下面这些演出等回复
+  const nx = ai && !lesson ? apply(S, { type: 'end' }).state : null; // 抽牌种子在局面里，这就是 act 之后的 S
+  let early = nx && nx.winner === null ? llmTurn(nx, x => { if (g === game) log(x); }) : null; // AI：对方回合开头的局面现在就确定了，请求马上发出，趁下面这些演出等回复
   await act({ type: 'end' });                       // 结束回合：电脑的兵先各走一步
   if (net) return foeLoop(g);                       // 联机：等对方一步步走
   while (g === game && S.winner === null && S.turn === FOE) { const list = lesson ? foeTurn(S) : ai ? await (early || llmTurn(S, x => { if (g === game) log(x); })) : aiTurn(S, camp?.cup ? cupOpts(camp.cup.foeP) : camp ? undefined : freeAI()); early = null;
+    if (ai && list.say && g === game) log(`${RIVAL}：「${list.say}」`); // 大模型每回合说一句
     if (ai && list.by) { aiTally[list.by]++; aiTally.why = list.why || aiTally.why; aiWarn = list.by === 'fallback' ? `AI 这回合没能出招（${list.why}），是内置电脑代打的。检查一下「AI 设置」里的接口。` : ''; } // 战报只留四条、手机上还收着，代打的事放到提示行里，下回合 AI 正常出招才消失 /* 自由对战按选的难度；锦标赛按选手的档次；闯关照旧用普通电脑（关卡血量是按它校准的） */ await pause(T.t4);   // 对方“想一下”
     for (const a of list) { if (g !== game || S.winner !== null) break; await act(a); if (a.type !== 'end') await pause(T.t3); } } // 两步之间留一口气
 }
