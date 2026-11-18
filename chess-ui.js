@@ -120,7 +120,14 @@ $('roomjoin').onclick = async () => { const code = $('roomcode').value.trim(), d
 
 // ---------- 组牌界面 ----------
 let B = null, tab = 'f1', kind = 'all', cost = 0, query = ''; // cost：0 不限，否则是费用档的下限（1、3、5、7）
-function build(d) { B = d; const f = deckFaction(d.cards); tab = f === 'n' ? tab : f; kind = 'all'; cost = 0; query = $('bq').value = ''; $('home').hidden = true; $('builder').hidden = false; $('bname').value = d.name; drawBuilder(); }
+function build(d) { B = d; const f = deckFaction(d.cards); tab = f === 'n' ? tab : f; kind = 'all'; cost = 0; query = $('bq').value = ''; $('home').hidden = true; $('builder').hidden = false; $('bname').value = d.name; if (phone.matches) $('bq').placeholder = '按住一张牌看说明；这里搜牌名或说明'; drawBuilder(); }
+const peek = id => { $('peek')?.remove(); if (id) { const p = el('div'); p.id = 'peek'; p.append(mdCard(id)); document.querySelector('#builder .right').append(p); } };
+function holdToRead(b, id) { // 手机上牌池的牌只有名字和数字（说明在牌面上放不下）：按住一张牌，说明浮在右边的卡组上，松手收起，这一下不算“点一下加入”
+  let t = 0; const stop = () => { clearTimeout(t); if (b.dataset.held) peek(null); };
+  b.addEventListener('pointerdown', () => { if (!phone.matches) return; delete b.dataset.held; clearTimeout(t); t = setTimeout(() => { b.dataset.held = '1'; peek(id); }, 350); });
+  for (const k of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(k, stop);
+  b.addEventListener('contextmenu', e => { if (phone.matches) e.preventDefault(); });
+}
 function drawBuilder() {
   const f = deckFaction(B.cards), err = deckError(B.cards, owned());
   $('tabs').replaceChildren(...[...FKEYS, 'n'].map(k => { const b = el('button', 'tab ' + k + (k === tab ? ' on' : ''), FACTIONS[k].name); b.disabled = k !== 'n' && f !== 'n' && k !== f; b.title = b.disabled ? `这副卡组已经带了${FACTIONS[f].name}的牌，一副卡组只能用一个阵营` : ''; b.onclick = () => { tab = k; drawBuilder(); }; return b; }));
@@ -131,7 +138,7 @@ function drawBuilder() {
   const pool = Object.keys(CARDS).filter(k => { const c = CARDS[k]; return !c.token && (q ? (c.faction === 'n' || f === 'n' || c.faction === f) && (c.name + c.text + (c.tribe || '')).includes(q) : c.faction === tab) && (kind === 'all' || kindOf(c) === kind) && (!cost || (c.cost >= cost && (cost === 7 || c.cost <= cost + 1))); }).sort(byCost);
   $('pool').replaceChildren(...pool.map(id => { const b = cardEl(id, 'button'), inDeck = B.cards.includes(id); b.classList.toggle('in', inDeck); b.classList.add('ok'); b.setAttribute('aria-pressed', inDeck);
     if (CARDS[id].boss && !owned().includes(id)) { b.classList.add('locked'); b.disabled = true; b.title = `首领牌：在闯关里击败「${CARDS[id].title} ${CARDS[id].name}」后获得`; return b; } // 没赢到手的首领牌：看得到剪影，拿不了
-    b.disabled = !inDeck && B.cards.length >= DECK; b.onclick = () => { B.cards = inDeck ? B.cards.filter(x => x !== id) : [...B.cards, id]; drawBuilder(); }; return b; }));
+    b.disabled = !inDeck && B.cards.length >= DECK; holdToRead(b, id); b.onclick = () => { if (b.dataset.held) return; B.cards = inDeck ? B.cards.filter(x => x !== id) : [...B.cards, id]; drawBuilder(); }; return b; }));
   if (!pool.length) $('pool').append(el('p', 'lead', '没有符合条件的牌。'));
   $('bcount').innerHTML = '<i class="on"></i>'.repeat(B.cards.length) + '<i></i>'.repeat(Math.max(0, DECK - B.cards.length)) + px(B.cards.length); $('bfaction').textContent = f === 'n' ? '还没选阵营牌' : FACTIONS[f].name; // 12 个卡位：填了几个一眼数得出
   $('bcards').replaceChildren(...[...B.cards].sort(byCost).map(id => { const c = CARDS[id], r = el('button', 'strip ' + factionOf(id), `<i>${px(c.cost)}</i><span>${c.name}</span><small>${c.kind === 'spell' ? `<em>${c.gear ? '装备' : '法术'}</em>` : px(c.str) + (c.kind === 'unit' ? `<u>${'<i></i>'.repeat(c.move)}</u>` : '<em>建筑</em>')}</small>`); r.title = `点一下拿掉。${c.text}`; r.onclick = () => { B.cards = B.cards.filter(x => x !== id); drawBuilder(); }; return r; }));
@@ -202,7 +209,7 @@ async function reveal(e) { // 对方出牌：牌从对方城堡那一侧亮出�
 }
 const feed = [];
 const log = text => { feed.push(text); if (feed.length > 4) feed.shift(); $('log').replaceChildren(...feed.map(t => Object.assign(document.createElement('div'), { textContent: t }))); }; // 最近四条战报
-const tell = text => { const box = $('hint'), st = step(); if (!st || !text) { box.textContent = text; return; } // 教学里提示行是一块告示牌：第几步、这一步的话；纯讲解的步骤带一个“知道了”
+const tell = (text, ask) => { const box = $('hint'), st = step(); box.classList.toggle('ask', !!ask); if (!st || !text) { box.textContent = text; return; } // 教学里提示行是一块告示牌：第几步、这一步的话；纯讲解的步骤带一个“知道了”
   box.replaceChildren(el('small', '', `教学 ${lesson.i + 1} / ${LESSON.steps.length}`), text);
   if (st.do === 'ok' && idle()) { const b = el('button', '', '知道了'); b.onclick = () => { lesson.i++; sync(); }; box.append(b); b.focus({ preventScroll: true }); } };                                       // 现在该做什么
 async function show(events, next, g) { // next：这一步之后的局面（抽牌、回合数从它取）；g：开演时是第几局，中途换了局就停
@@ -368,7 +375,7 @@ function preview(t) { // 预演：这张牌打在这里会怎么走，谁受伤�
   base.forEach((n, side) => { if (n) tags.push({ base: side, text: '-' + n, color: '#f06878' }); });
   board.path(unit ? arrowsOf(ev, S.uid) : []); board.ghost(unit ? id : null, ME, t); board.tags(tags);
 }
-const unpreview = () => { armed = -1; board.path([]); board.tags([]); board.ghost(null); };
+const unpreview = () => { armed = -1; $('hint').classList.remove('ask'); board.path([]); board.tags([]); board.ghost(null); };
 function tapAway(t) { // 触屏上点了别处：先收预演；没有预演可收、点的又不是单位，就把选中的牌放回去
   const had = armed >= 0, u = t >= 0 && S.board[t]; unpreview(); tipAt(t);
   if (sel >= 0 && idle()) { if (had || u) tell(hint()); else pick(sel); }
@@ -377,7 +384,7 @@ board.onTile(t => { tileAt = performance.now(); if (!S) return; // 鼠标有悬�
   const can = idle() && sel >= 0 && targets(S, sel).includes(t);
   if (can && (!touch || armed === t)) return act({ type: 'play', i: sel, t });
   if (!touch) return; if (!can) return tapAway(t);
-  armed = t; preview(t); tipAt(t); const c = CARDS[S.hand[ME][sel]]; tell(`再点一次这一格，${c.kind === 'spell' ? '用' : '打出'}「${c.name}」；点别处取消。`);
+  armed = t; preview(t); tipAt(t); const c = CARDS[S.hand[ME][sel]]; tell(`再点一次这一格，${c.kind === 'spell' ? '用' : '打出'}「${c.name}」；点别处取消。`, true);
 });
 stage.addEventListener('click', e => { if (touch && S && e.target.tagName === 'CANVAS' && performance.now() - tileAt > 300) tapAway(-1); }); // 点在棋盘外的空地上（场景没报格子）
 function tipAt(t) { // 这一格上的单位是什么、身上有什么（连同这一格的暗影）。鼠标悬停时出，手指点一下也出
