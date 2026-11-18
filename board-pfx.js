@@ -41,6 +41,10 @@ export const KIND = {
   summon: { f1: ['arcane/magic-circle-cast', { at: 1.3, s: .6, pal: 'holy' }], f2: ['explosions/smoke-bomb', { at: 1.3, s: .5, rate: 1.6 }], f3: ['explosions/dirt-explosion', { at: .15, s: .45, rate: 1.4 }], f4: ['spawn/spawn-portal', { at: .1, s: .7, rate: 1.6 }], f5: ['spawn/poof', { pal: 'leaf' }], f6: ['ice/snowflake-burst', { at: .1 }], n: 'spawn/poof' },
   shade: ['shadow/shadow-tendrils', { at: .1, s: .6, rate: 1.5 }],
   creep: ['shadow/grasping-hands', { at: .1, s: .55, rate: 1.6 }],
+  // 零号协议（锦标赛奖励牌）的算力机制：科幻一组 scifi/*
+  core: ['scifi/energy-core', { s: .5, life: .7 }], scan: ['scifi/scanner', { s: .6, life: .8 }], holo: ['scifi/hologram', { s: .55, life: .8 }], laser: ['scifi/laser-grid', { s: .55, life: .5 }],
+  field: ['scifi/force-field', { s: .6, life: .8 }], warpout: ['scifi/warp-out', { s: .6 }], tele: ['scifi/teleporter-pad', { s: .6, life: .8 }], warpin: ['scifi/warp-in', { s: .6, life: .9 }],
+  jet: ['scifi/jetpack', { s: .55, life: .7 }], glitch: ['scifi/glitch', { s: .6, life: .6 }], emp: ['scifi/emp-blast', { s: .5 }], tractor: ['scifi/tractor-beam', { s: .55, life: .9 }],
 };
 // 近身对撞的刀光：出手的人是哪个阵营 → [轻、中、重] 三档（按这一下打掉多少战力选）
 export const MELEE = {

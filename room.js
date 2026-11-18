@@ -46,7 +46,7 @@ export async function createRoom(deck, owned) {
       if (conn) { c.on('open', () => { c.send({ t: 'reject', why: '这个房间已经有人了。' }); setTimeout(() => c.close(), 300); }); return; }
       conn = c; const ch = wire(c, peer, true); c.on('close', () => { if (!started) { conn = null; } });
       c.on('data', m => { if (m?.t !== 'hello' || started) return;
-        const bad = !Array.isArray(m.deck) ? '对方的卡组不对。' : deckError(m.deck, m.deck.filter(id => CARDS[id]?.boss)); // 对方带的首领牌没法核实，认他自己的
+        const bad = !Array.isArray(m.deck) ? '对方的卡组不对。' : deckError(m.deck, m.deck.filter(id => CARDS[id]?.boss || CARDS[id]?.prize)); // 对方带的首领牌和锦标赛奖励牌没法核实，认他自己的
         if (bad) { c.send({ t: 'reject', why: bad }); conn = null; return; }
         started = true; const hostSide = Math.random() < .5 ? 0 : 1, seed = Math.floor(Math.random() * 4294967296) >>> 0, decks = hostSide ? [m.deck, deck.cards] : [deck.cards, m.deck];
         c.send({ t: 'start', seed, hostSide, decks, names: [deck.name, String(m.name || '').slice(0, 16)] });

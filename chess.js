@@ -4,7 +4,7 @@
 // 除了开局洗牌，全程没有随机数：同一个局面下，每一步会发生什么都能事先算出来画给玩家看。
 import { build } from './chess-cards.js';
 
-export const COLS = 4, ROWS = 5, HAND = 4, DECK = 12, BASE_HP = 10, N = COLS * ROWS, RAGE = 3, SHADE = 3; // SHADE：一块暗影地格留几个回合
+export const COLS = 4, ROWS = 5, HAND = 4, DECK = 12, BASE_HP = 10, N = COLS * ROWS, RAGE = 3, SHADE = 3, CORE = 8; // SHADE：一块暗影地格留几个回合；CORE：算力最多攒几点
 export const tile = (r, c) => r * COLS + c, rowOf = t => Math.floor(t / COLS), colOf = t => t % COLS;
 const fwd = side => side ? -1 : 1;                         // 0 号玩家的家在第 0 行，往最后一行走；1 号反过来
 export const depth = (side, r) => side ? ROWS - 1 - r : r; // 离自己家几行
@@ -21,12 +21,12 @@ const trait = (u, k) => off(u) ? undefined : CARDS[u.card][k] || (u.gear ? CARDS
 function fire(k, s, ev, u, ...a) { if (off(u)) return; const f = CARDS[u.card][k], g = u.gear && CARDS[u.gear][k]; if (f) f(s, ev, u, ...a); if (g && (k === 'onDeath' || s.board.includes(u))) g(s, ev, u, ...a); }
 
 // ---------- 局面 ----------
-const clone = s => ({ ...s, mana: [...s.mana], base: [...s.base], rage: [...s.rage], creep: [...s.creep], shade: [...s.shade], used: s.used.map(u => [...u]), board: s.board.map(u => u && { ...u }), hand: s.hand.map(h => [...h]), deck: s.deck.map(d => [...d]) });
+const clone = s => ({ ...s, mana: [...s.mana], base: [...s.base], rage: [...s.rage], core: [...s.core], creep: [...s.creep], shade: [...s.shade], used: s.used.map(u => [...u]), board: s.board.map(u => u && { ...u }), hand: s.hand.map(h => [...h]), deck: s.deck.map(d => [...d]) });
 // opts 给闯关用：base 双方城堡血量；setup 开局摆在场上的 [{ side, card, tile, str }]；hand 保证出现在起手里的牌 [[我方], [对方]]；boss 哪一方有首领（它的城堡掉到一半以下时首领发怒）
 export function newGame(decks, rnd, opts = {}) { // decks：两副牌，各 12 个卡牌 id
   const sh = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const hp = opts.base || [BASE_HP, BASE_HP];
-  const s = { turn: 0, n: 1, mana: [3, 4], left: 3, base: [...hp], cap: [...hp], rage: [false, false], boss: opts.boss ?? -1, board: Array(N).fill(null), creep: Array(N).fill(-1), shade: Array(N).fill(0), used: [[], []], seed: opts.ordered ? -1 : Math.floor(rnd() * 4294967296) >>> 0, // seed：抽牌用的随机数种子（局面自己带着，同一个局面走同一步结果一样）；opts.ordered（教学用）时不随机，按牌序从上往下发
+  const s = { turn: 0, n: 1, mana: [3, 4], left: 3, base: [...hp], cap: [...hp], rage: [false, false], core: [0, 0], boss: opts.boss ?? -1, board: Array(N).fill(null), creep: Array(N).fill(-1), shade: Array(N).fill(0), used: [[], []], seed: opts.ordered ? -1 : Math.floor(rnd() * 4294967296) >>> 0, // seed：抽牌用的随机数种子（局面自己带着，同一个局面走同一步结果一样）；opts.ordered（教学用）时不随机，按牌序从上往下发
     hand: [[], []], deck: decks.map(d => sh([...d])), swapped: false, plays: 0, winner: null, uid: 1 }; // plays：这回合已经打出过几张牌（连击用）
   for (const x of opts.setup || []) { const c = CARDS[x.card]; s.board[x.tile] = { id: s.uid++, side: x.side, card: x.card, str: x.str ?? c.str, frozen: false, shield: !!c.shield }; if (c.hatch) s.board[x.tile].timer = c.hatch.turns; }
   for (const p of [0, 1]) for (const k of (opts.hand || [])[p] || []) { const i = s.deck[p].indexOf(k); if (i >= 0) s.deck[p].unshift(s.deck[p].splice(i, 1)[0]); }
@@ -65,6 +65,9 @@ function draw(s, ev, side, n) { let k = 0; while (k < n && s.hand[side].length <
 function freeze(s, ev, t) { const u = s.board[t]; if (isUnit(u) && !u.frozen) { u.frozen = true; ev.push({ t: 'freeze', tile: t, id: u.id }); } }
 function shieldUp(s, ev, t) { const u = s.board[t]; if (u && !u.shield) { u.shield = true; ev.push({ t: 'shield', tile: t, id: u.id, on: true }); } }
 function creep(s, ev, t, side) { if (!inb(t)) return; s.shade[t] = SHADE; if (s.creep[t] !== side) { s.creep[t] = side; ev.push({ t: 'creep', tile: t, side }); } } // 暗影地格：站在上面的敌人每回合掉 1 点
+// 算力（锦标赛奖励牌「零号协议」的机制）：每个玩家一个跨回合保留的计数，“运算”往上加，“释放”一次用光，按用掉的点数放大效果
+function charge(s, ev, side, n) { const k = Math.min(n, CORE - s.core[side]); if (k > 0) { s.core[side] += k; ev.push({ t: 'core', side, n: k, total: s.core[side] }); } }
+function release(s, ev, side) { const n = s.core[side]; if (n > 0) { s.core[side] = 0; ev.push({ t: 'core', side, n: -n, total: 0 }); } return n; }
 function hurt(s, ev, t, n, passed) { // 能力和法术造成的伤害
   const u = s.board[t]; if (!u || n <= 0) return;
   if (u.shield) { u.shield = false; ev.push({ t: 'shield', tile: t, id: u.id, on: false }); return; } // 圣盾：挡下一次伤害
@@ -143,12 +146,13 @@ function advance(s, ev, side) {
     if (x >= 0 && (x !== t || acted(ev, n0)) && trait(s.board[x], 'swift')) { step(s, ev, x); if (s.winner !== null) return; } // 乘风：每个回合走两步。第一步是打了一下、人还在原地（对面倒下后原地又冒出东西，或者对面靠圣盾没倒），第二步照样走
   }
 }
-const H = { COLS, ROWS, N, tile, rowOf, colOf, fwd, depth, inb, adj4, adj8, foes, pals, isUnit, fx, buff, shift, summon, hitBase, mend, freeze, shieldUp, creep, hurt, zap, kill, step, morph, poison, vitalize, mute, convert, draw, HAND, frontDepth, BASE_HP, CARDS };
+const H = { charge, release, CORE, COLS, ROWS, N, tile, rowOf, colOf, fwd, depth, inb, adj4, adj8, foes, pals, isUnit, fx, buff, shift, summon, hitBase, mend, freeze, shieldUp, creep, hurt, zap, kill, step, morph, poison, vitalize, mute, convert, draw, HAND, frontDepth, BASE_HP, CARDS };
 const built = build(H); Object.assign(CARDS, built.cards);
 export const FACTIONS = built.factions;   // { f1: { name, style, key }, ... , n: 中立 }
 export const STARTERS = built.starters;   // 每个阵营一套预设卡组
 export const FKEYS = Object.keys(FACTIONS).filter(f => f !== 'n');
 export const DECKS = built.decks;         // 按打法组好的预设卡组：[{ f, name, plan, cards }]
+export const PROTOCOL = built.protocol;   // 零号协议：锦标赛冠军奖励的 12 张中立牌（Q1 的卡组）
 // 卡组体检：照“制胜手段 / 前线 / 解场 / 费用”几条经验看一副牌缺什么。返回 [{ ok, text }]
 export function deckInsight(ids) {
   const cs = ids.map(k => CARDS[k]), n = f => cs.filter(f).length, T = c => c.text || '';
@@ -164,12 +168,13 @@ export function deckInsight(ids) {
   return out;
 }
 export const factionOf = id => CARDS[id].faction;
-export function deckError(ids, owned) { // 组牌规则：正好 12 张、不重复、只能用一个阵营加中立；首领牌要先赢到手（owned 是已获得的首领牌），一副最多带一张
+export function deckError(ids, owned) { // 组牌规则：正好 12 张、不重复、只能用一个阵营加中立；首领牌和锦标赛奖励牌要先赢到手（owned 是已获得的这两种牌），首领牌一副最多带一张
   if (ids.length !== DECK) return `卡组要正好 ${DECK} 张，现在 ${ids.length} 张。`;
   if (new Set(ids).size !== ids.length) return '同一张牌只能带一张。';
   if (ids.some(k => !CARDS[k] || CARDS[k].token)) return '卡组里有不能带的牌。';
   const bosses = ids.filter(k => CARDS[k].boss); if (bosses.length > 1) return '一副卡组最多带一张首领牌。';
   if (bosses.some(k => !owned || !owned.includes(k))) return `「${CARDS[bosses[0]].name}」要先在闯关里击败它才能用。`;
+  const prize = ids.find(k => CARDS[k].prize && (!owned || !owned.includes(k))); if (prize) return `「${CARDS[prize].name}」要先赢下卡牌联盟锦标赛才能用。`;
   const fs = new Set(ids.map(k => CARDS[k].faction).filter(f => f !== 'n')); if (fs.size > 1) return '一副卡组只能用一个阵营的牌，再加中立牌。';
   return '';
 }
@@ -220,7 +225,7 @@ export function forecast(state, side) { const s = clone(state), ev = []; advance
 // ---------- 电脑 ----------
 export function evaluate(s, me) {
   if (s.winner !== null) return s.winner === me ? 1e6 : -1e6;
-  let v = 6 * (s.base[me] - s.base[1 - me]) + .4 * (frontDepth(s, me) - frontDepth(s, 1 - me));
+  let v = 6 * (s.base[me] - s.base[1 - me]) + .4 * (frontDepth(s, me) - frontDepth(s, 1 - me)) + .9 * (s.core[me] - s.core[1 - me]); // 攒着的算力迟早变成战力或伤害
   s.board.forEach((u, t) => { if (!u) return; const d = depth(u.side, rowOf(t)), unit = isUnit(u), c = CARDS[u.card];
     let w = (u.str + (u.shield ? 2 : 0) + (u.gear ? 1.5 : 0) + (trait(u, 'onTurn') ? 1.5 : 0) + (u.timer !== undefined ? (c.hatch.str ?? 4) * .6 : 0)) * (1 + (unit ? .15 * d : 0)) + (unit && d === ROWS - 1 ? 3 * u.str : 0); // 已经站到对方家门口的，下回合就打城堡
     if (s.creep[t] >= 0 && s.creep[t] !== u.side) w -= .8; if (u.poison) w -= 1.5; if (u.vital) w += 1.5;
@@ -233,16 +238,20 @@ function lethal(s, me, depth) { // 对面城堡快没血时，往下找两三步
   for (const a of legalPlays(s)) { const r = apply(s, a).state; if (r.winner === me) return [a]; if (depth > 1 && r.winner === null) { const rest = lethal(r, me, depth - 1); if (rest) return [a, ...rest]; } }
   return null;
 }
-export function aiTurn(state) {
-  let s = state; const me = s.turn, acts = [], cost = id => CARDS[id].cost;
+// o（锦标赛的电脑选手用）：skill 0–1，1 是满强度、和不传一样；越低越常看走眼（每步的评分加噪声）、越常漏掉斩杀、越常留着能量就结束回合。
+// o.deep：每一步都先替对面把下回合的前进走一遍再评分，看得见对面的兵马上要打到哪；更强也更慢。o.rnd：随机数（默认 Math.random）
+export function aiTurn(state, o = {}) {
+  let s = state; const me = s.turn, acts = [], cost = id => CARDS[id].cost, skill = o.skill ?? 1, rnd = o.rnd || Math.random, slack = 1 - skill;
+  const score = r => o.deep && r.winner === null ? evaluate(apply(r, { type: 'end' }).state, me) : evaluate(r, me);
   const dead = () => { const h = s.hand[me]; let b = -1; h.forEach((id, k) => { if (!CARDS[id].boss && !targets(s, k).length && (b < 0 || cost(id) > cost(h[b]))) b = k; }); /* 首领牌留在手里等能量，不换 */ return b; }; // 现在出不了的牌里最贵的那张
   const swap = () => { const i = dead(); if (s.swapped || i < 0 || !s.deck[me].length) return false; // 手里有出不了的牌就换掉它；换来哪张是随机的，电脑也不偷看
     acts.push({ type: 'swap', i }); s = apply(s, { type: 'swap', i }).state; return true; };
   swap();
-  if (s.base[1 - me] <= 6) { const kill = lethal(s, me, 2); if (kill) return [...acts, ...kill]; }
+  if (s.base[1 - me] <= 6 && rnd() >= slack * .8) { const kill = lethal(s, me, 2); if (kill) return [...acts, ...kill]; }
   for (let k = 0; k < 12 && s.winner === null; k++) {
-    let best = null, bs = null, bv = evaluate(s, me) + .5;
-    for (const a of legalPlays(s)) { const r = apply(s, a).state, made = r.left - (s.left - cost(s.hand[me][a.i])), drew = r.hand[me].length - (s.hand[me].length - 1), v = evaluate(r, me) + 1.2 * made + drew; if (v > bv) { bv = v; best = a; bs = r; } } // made：这张牌额外换来的能量；drew：额外抽到的牌，都算收益
+    if (slack && k && rnd() < slack * .3) break; // 偷懒：能量没花完就收手
+    let best = null, bs = null, bv = score(s) + .5;
+    for (const a of legalPlays(s)) { const r = apply(s, a).state, made = r.left - (s.left - cost(s.hand[me][a.i])), drew = r.hand[me].length - (s.hand[me].length - 1), v = score(r) + 1.2 * made + drew + (slack ? slack * 8 * (rnd() - .5) : 0); if (v > bv) { bv = v; best = a; bs = r; } } // made：这张牌额外换来的能量；drew：额外抽到的牌，都算收益
     if (best) { acts.push(best); s = bs; continue; }
     if (!(s.left > 0 && swap())) break; // 没有更好的出法了：还剩能量的话换一张牌再看
   }

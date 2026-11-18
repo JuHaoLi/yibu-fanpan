@@ -402,3 +402,7 @@ canvas.pfx { position:absolute; pointer-events:none; image-rendering:pixelated; 
 canvas.pfx.cover { inset:0; width:100%; height:100%; object-fit:cover; opacity:.5; } canvas.pfx.under { z-index:-1; }
 #result .slab { position:relative; z-index:1; }
 #picked b { position:relative; } #picked b canvas.pfx { top:50%; transform:translateY(-50%); margin-left:10px; }
+/* 算力（零号协议）：挂在能量下面的一行，只在牌里用得上算力时出现 */
+#mana .core { display:flex; align-items:center; gap:var(--s1); margin-top:var(--s1); color:var(--dim); } #mana .core[hidden] { display:none; }
+#mana .core .lbl { display:inline; } #mana .core .px { --s:3; margin:0; color:var(--mana-hi); }
+#foe .core .px { color:var(--mana-hi); }

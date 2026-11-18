@@ -1995,6 +1995,55 @@ export const MORE_GFX = {
   h: 52,
   scale: 1.1
  },
+ "q_probe": {
+  file: "neutral_z0r",
+  cell: 100,
+  feet: 84,
+  h: 37,
+  scale: 1.55
+ },
+ "q_helm": {
+  file: "neutral_mechaz0rhelm",
+  cell: 80,
+  feet: 64,
+  h: 37,
+  scale: 1.55
+ },
+ "q_wing": {
+  file: "neutral_mechaz0rwing",
+  cell: 80,
+  feet: 63,
+  h: 40,
+  scale: 1.45
+ },
+ "q_cannon": {
+  file: "neutral_mechaz0rcannon",
+  cell: 80,
+  feet: 64,
+  h: 39,
+  scale: 1.5
+ },
+ "q_sword": {
+  file: "neutral_mechaz0rsword",
+  cell: 80,
+  feet: 64,
+  h: 35,
+  scale: 1.6
+ },
+ "q_chassis": {
+  file: "neutral_mechaz0rchassis",
+  cell: 80,
+  feet: 64,
+  h: 42,
+  scale: 1.4
+ },
+ "q_super": {
+  file: "neutral_mechaz0rsuper",
+  cell: 80,
+  feet: 68,
+  h: 50,
+  scale: 1.15
+ },
  "B_f1": {
   file: "f1_scintilla",
   cell: 130,

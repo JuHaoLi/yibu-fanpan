@@ -4,6 +4,7 @@ import { CARDS, FACTIONS, DECKS, FKEYS, DECK, deckInsight, BASE_HP, newGame, app
 import { board, GFX } from './board3d.js';
 import { areaOf, stageOpts, battleMusic, progress, BADGES, badgeName } from './campaign.js';
 import { campaignUI } from './campaign-ui.js';
+import { cupUI } from './cup-ui.js';
 import { LESSON, keepOrder, stepOk, foeTurn } from './tutorial.js';
 import { createRoom, joinRoom } from './room.js';
 import { llmTurn, enabled as llmOn, cfg as llmCfg, save as llmSave, ping as llmPing } from './llm.js';
@@ -38,7 +39,7 @@ function art(id) { // 卡面上的图：角色取待机第一帧，脚贴着画�
   return artCache[id] = c;
 }
 const KIND = { unit: '单位', structure: '建筑', spell: '法术', gear: '装备' };
-const KW = /(连击|奇袭|偷袭|攻城|嘲讽|圣盾|荆棘|乘风|列阵|渗透|中毒|活力|冻住|禁用|献祭|孵化|狂暴|装备)/g, rich = t => t.replace(KW, '<b class="kw">$1</b>'); // 说明里的关键词加粗
+const KW = /(连击|奇袭|偷袭|攻城|嘲讽|圣盾|荆棘|乘风|列阵|渗透|中毒|活力|冻住|禁用|献祭|孵化|狂暴|装备|算力|释放)/g, rich = t => t.replace(KW, '<b class="kw">$1</b>'); // 说明里的关键词加粗
 function cardEl(id, tag = 'div') { // 一张牌。类型看轮廓（样式按 unit / structure / spell / gear 裁），所以右上只写种族或“建筑、法术、装备”；移动力是几个折角，不写数字
   const c = CARDS[id], n = c.text.length, e = el(tag, `kcard ${factionOf(id)} ${c.kind}${c.gear ? ' gear' : ''}${n > 40 ? ' mid' : ''}${n > 48 ? ' long' : ''}`);
   const type = c.boss ? '首领牌 · ' + c.title : c.gear ? KIND.gear : KIND[c.kind] + (c.tribe ? ' · ' + c.tribe : ''), [w, h, s] = artSize(id);
@@ -59,13 +60,13 @@ let customs = saved(), chosen = 0; // chosen：开始界面上选中的是第几
 const allDecks = () => [...DECKS.map(d => ({ ...d, preset: true })), ...customs];
 
 // ---------- 开始界面 ----------
-let mode = 'free'; // 开始界面的两种玩法：自由对战、闯关（闯关那一屏是 campaign-ui.js 画的地图）
+let mode = 'free'; // 开始界面的三种玩法：自由对战、闯关（campaign-ui.js 画的地图）、锦标赛（cup-ui.js）
 function home() {
   $('result').hidden = $('builder').hidden = true; $('home').hidden = false; lesson = null; document.body.classList.remove('lesson');
   const list = allDecks(); chosen = Math.min(chosen, list.length - 1);
-  $('home').classList.toggle('camp', mode === 'camp'); $('roombtn').hidden = $('aibtn').hidden = mode === 'camp'; aiLabel(); music('home');
-  $('modes').replaceChildren(...[['free', '自由对战'], ['camp', '闯关']].map(([m, t]) => { const b = el('button', 'tab n' + (m === mode ? ' on' : ''), t); b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', m === mode); b.onclick = () => { mode = m; home(); }; return b; }));
-  if (mode === 'camp') return campUI.show(); campUI.hide();
+  $('home').classList.toggle('camp', mode !== 'free'); $('home').classList.toggle('cupmode', mode === 'cup'); $('roombtn').hidden = $('aibtn').hidden = mode !== 'free'; aiLabel(); music('home'); // 锦标赛和闯关一样整屏盖住城堡
+  $('modes').replaceChildren(...[['free', '自由对战'], ['camp', '闯关'], ['cup', '锦标赛']].map(([m, t]) => { const b = el('button', 'tab n' + (m === mode ? ' on' : ''), t); b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', m === mode); b.onclick = () => { mode = m; home(); }; return b; }));
+  if (mode === 'camp') { cups.hide(); return campUI.show(); } campUI.hide(); if (mode === 'cup') return cups.show(); cups.hide();
   $('play').textContent = taught() ? '开始对局' : '新手教学'; $('play').disabled = false; // 第一次来：金色主按钮是两分钟的教学，不想学可以点旁边的“跳过教学”
   // 选中的那一套是主角：名字、打法、12 个兵按费用列队
   const d = list[chosen], f = deckFaction(d.cards), at = chosen - DECKS.length;
@@ -91,6 +92,8 @@ const HUE = { f1: 0xb8a878, f2: 0xc03880, f3: 0xc87828, f4: 0x6a48d0, f5: 0x4a90
 const badgeEl = (key, on = !!progress.data.done[key]) => { const b = el('i', `badge ${key}${on ? ' on' : ''}`); b.title = badgeName(key) + (on ? '（已获得）' : '（未获得）'); return b; };
 // 闯关地图在 campaign-ui.js：这里只告诉它卡组从哪来、怎么开打
 const campUI = campaignUI({ host: $('home'), px, decks: allDecks, chosen: () => chosen, choose: i => { chosen = i; }, fight });
+// 锦标赛（cup-ui.js）：报名、抽签、赛程都在它那一屏；每一局开打交给这里，打完在结算里回报比分
+const cups = cupUI({ host: $('home'), px, decks: allDecks, card: mdCard, valid: c => deckError(c, owned()), fight: ctx => start(ctx.mine, ctx.foe, { cup: ctx, music: ctx.music }) });
 function fight(key) { const a = areaOf(key), run = progress.data.runs[key], st = a.stages[run.at]; start(run.deck, { name: `${a.name}·${st.name}`, cards: st.foe }, { ...st, area: key, music: battleMusic(key, run.at) }); } // 打这个场地当前的一关
 $('newdeck').onclick = () => build({ name: `我的卡组 ${customs.length + 1}`, cards: [], at: -1 });
 $('foesel').append(...FKEYS.map(f => { const o = el('option', '', FACTIONS[f].name); o.value = f; return o; }));
@@ -139,7 +142,7 @@ function drawBuilder() {
   const kindOf = c => c.gear ? 'gear' : c.kind, q = query.trim(); // 有搜索词时不分页签：在这副卡组能带的牌里一起找
   const pool = Object.keys(CARDS).filter(k => { const c = CARDS[k]; return !c.token && (q ? (c.faction === 'n' || f === 'n' || c.faction === f) && (c.name + c.text + (c.tribe || '')).includes(q) : c.faction === tab) && (kind === 'all' || kindOf(c) === kind) && (!cost || (c.cost >= cost && (cost === 7 || c.cost <= cost + 1))); }).sort(byCost);
   $('pool').replaceChildren(...pool.map(id => { const b = cardEl(id, 'button'), inDeck = B.cards.includes(id); b.classList.toggle('in', inDeck); b.classList.add('ok'); b.setAttribute('aria-pressed', inDeck);
-    if (CARDS[id].boss && !owned().includes(id)) { b.classList.add('locked'); b.disabled = true; b.title = `首领牌：在闯关里击败「${CARDS[id].title} ${CARDS[id].name}」后获得`; return b; } // 没赢到手的首领牌：看得到剪影，拿不了
+    if ((CARDS[id].boss || CARDS[id].prize) && !owned().includes(id)) { b.classList.add('locked'); b.disabled = true; b.title = CARDS[id].boss ? `首领牌：在闯关里击败「${CARDS[id].title} ${CARDS[id].name}」后获得` : '零号协议：赢下卡牌联盟锦标赛后获得'; return b; } // 没赢到手的首领牌和锦标赛奖励牌：看得到剪影，拿不了
     b.disabled = !inDeck && B.cards.length >= DECK; holdToRead(b, id); b.onclick = () => { if (b.dataset.held) return; B.cards = inDeck ? B.cards.filter(x => x !== id) : [...B.cards, id]; drawBuilder(); }; return b; }));
   if (!pool.length) $('pool').append(el('p', 'lead', '没有符合条件的牌。'));
   $('bcount').innerHTML = '<i class="on"></i>'.repeat(B.cards.length) + '<i></i>'.repeat(Math.max(0, DECK - B.cards.length)) + px(B.cards.length); $('bfaction').textContent = f === 'n' ? '还没选阵营牌' : FACTIONS[f].name; // 12 个卡位：填了几个一眼数得出
@@ -157,7 +160,7 @@ $('bclear').onclick = () => { B.cards = []; drawBuilder(); };
 $('bq').oninput = e => { query = e.target.value; drawBuilder(); };
 $('bfill').onclick = () => { // 随机补满：没选阵营就用当前页签的阵营（在中立页签则随机挑一个），九成从阵营牌里补
   const f = deckFaction(B.cards) !== 'n' ? deckFaction(B.cards) : tab !== 'n' ? tab : FKEYS[Math.floor(Math.random() * FKEYS.length)];
-  const free = g => Object.keys(CARDS).filter(k => !CARDS[k].token && !CARDS[k].boss && CARDS[k].faction === g && !B.cards.includes(k)), pick = a => a[Math.floor(Math.random() * a.length)];
+  const free = g => Object.keys(CARDS).filter(k => !CARDS[k].token && !CARDS[k].boss && !(CARDS[k].prize && !owned().includes(k)) && CARDS[k].faction === g && !B.cards.includes(k)), pick = a => a[Math.floor(Math.random() * a.length)];
   while (B.cards.length < DECK) B.cards.push(pick(free(B.cards.filter(k => CARDS[k].faction === 'n').length < 3 && Math.random() < .3 ? 'n' : f)));
   drawBuilder(); };
 
@@ -236,6 +239,7 @@ async function show(events, next, g) { // next：这一步之后的局面（抽�
       await board.morph(e); if (e.gear) board.gear(e.id, e.gear); if (e.poison) board.status(e.id, 'poison'); if (e.vital) board.status(e.id, 'vital'); if (e.mute) board.status(e.id, 'mute'); break;
     case 'poison': case 'mute': case 'vital': board.status(e.id, e.t); if (nx?.t !== e.t) await pause(T.t1); break;
     case 'gear': board.gear(e.id, e.card); await pause(T.t3); break;
+    case 'core': board.note(e.n > 0 ? `算力 +${e.n}` : `释放 ${-e.n} 点算力`, '#a8fff8', e.side); drawCore(e.side, e.total); await pause(T.t2); break;
     case 'mana': board.note(`+${e.n} 能量`, '#a8fff8', e.side); if (e.side === ME) { V.left += e.n; drawMana(); } await pause(T.t2); break;
     case 'spend': board.note(`花掉 ${e.n} 能量`, '#a8fff8', e.side); if (e.side === ME) { V.left = Math.max(0, V.left - e.n); drawMana(); } await pause(T.t2); break;
     case 'draw': board.note(`抽 ${e.n} 张牌`, '#fff4a0', e.side); if (e.side === ME) { log(`你抽了 ${e.n} 张牌`); V.hand = [...next.hand[ME]]; drawPile(next); renderHand(); } await pause(T.t3); break;
@@ -263,7 +267,7 @@ async function act(a) { // 执行一步。先回应：牌立刻离手、能量�
   else renderHand();
   await show(r.events, r.state, g); if (g !== game) return; S = r.state; busy = false; if (lesson && me) lesson.i++; sync(); // 教学：我这一步做完了，脚本往下走一步
   if (S.winner !== null) { busy = true; renderHand(); await board.ruin(S.winner === ME ? FOE : ME);
-    if (g === game && S.winner === ME && camp && !camp.lesson && progress.data.runs[camp.area]?.at === areaOf(camp.area).stages.length - 1) await board.cheer(camp.area === 'n' ? BADGES.map(k => HUE[k]) : [HUE[camp.area], 0xfff4a0]); // 这一场打完整个场地就通关了：先放焰火
+    if (g === game && S.winner === ME && camp && !camp.lesson && !camp.cup && progress.data.runs[camp.area]?.at === areaOf(camp.area).stages.length - 1) await board.cheer(camp.area === 'n' ? BADGES.map(k => HUE[k]) : [HUE[camp.area], 0xfff4a0]); // 这一场打完整个场地就通关了：先放焰火
     if (g === game) finish(); } // 被攻破的城堡先塌下去，再出结算
 }
 async function endTurn() {
@@ -271,7 +275,7 @@ async function endTurn() {
   let early = ai && !lesson ? llmTurn(apply(S, { type: 'end' }).state, x => { if (g === game) log(x); }) : null; // AI：对方回合开头的局面现在就确定了，请求马上发出，趁下面这些演出等回复
   await act({ type: 'end' });                       // 结束回合：电脑的兵先各走一步
   if (net) return foeLoop(g);                       // 联机：等对方一步步走
-  while (g === game && S.winner === null && S.turn === FOE) { const list = lesson ? foeTurn(S) : ai ? await (early || llmTurn(S, x => { if (g === game) log(x); })) : aiTurn(S); early = null; await pause(T.t4);   // 对方“想一下”
+  while (g === game && S.winner === null && S.turn === FOE) { const list = lesson ? foeTurn(S) : ai ? await (early || llmTurn(S, x => { if (g === game) log(x); })) : aiTurn(S, camp?.cup?.ai); early = null; await pause(T.t4);   // 对方“想一下”
     for (const a of list) { if (g !== game || S.winner !== null) break; await act(a); if (a.type !== 'end') await pause(T.t3); } } // 两步之间留一口气
 }
 
@@ -336,6 +340,12 @@ function drawMana(cost = 0) { // 能量：十二颗水晶常驻，只换类名�
     g.className = (!shown ? 'none' : on ? 'on' : 'off') + (shown && !on && k < V.left + lack ? ' lack' : '') + (on && cost && !lack && k >= V.left - cost ? ' cost' : '');
     if (flip) { g.style.animationDelay = Math.abs(on ? k - was : was - 1 - k) * 40 + 'ms'; g.classList.add(on ? 'gain' : 'pop'); } }); // 花掉从右往左一颗颗碎，回满从左往右一颗颗亮
 }
+// 算力（零号协议的机制）：哪一方的牌里用得上算力才显示。我方挂在能量下面，对方写在右上角那一行
+const usesCore = (s, p) => s.core[p] > 0 || [...s.deck[p], ...s.hand[p], ...s.used[p]].some(id => /算力/.test(CARDS[id].text));
+function drawCore(side, n) {
+  if (side === ME) { let c = $('mana').querySelector('.core'); if (!c) { c = el('span', 'core'); $('mana').append(c); } c.hidden = !usesCore(S, ME) && !n; if (+c.dataset.n !== n) { c.dataset.n = n; c.innerHTML = `<span class="lbl">算力</span>${px(n)}`; restart(c, 'tick'); } }
+  else { const f = $('foe').querySelector('.core'); if (f) f.innerHTML = px(n, 2); }
+}
 function drawPile(s = S) { // 牌库堆：背面朝上，只写还剩几张——补牌和换牌都从里面随机来一张，抽到什么不预告
   const n = s.deck[ME].length; if (pileEl.dataset.n === String(n) && pileEl.children.length) return; pileEl.dataset.n = n; pileEl.className = ''; pileEl.title = `牌库还有 ${n} 张：补牌和换牌都从里面随机来一张`;
   pileEl.replaceChildren(el('small', '', '牌库'), el('i', 'back'), el('b', '', `${n} 张`));
@@ -347,7 +357,7 @@ function syncBoard() { // 棋盘上跟着局面走的东西：前线、城堡血
 }
 function sync() {
   V = { hand: [...S.hand[ME]], left: S.turn === ME ? S.left : S.mana[ME], max: S.mana[ME] }; drawMana(sel >= 0 ? CARDS[V.hand[sel]].cost : 0);
-  $('foe').innerHTML = `${RIVAL}<span class="who"> · ${theirs.name}</span>　能量 ${px(S.mana[FOE], 2)}　手牌 ${px(S.hand[FOE].length, 2)}`;
+  $('foe').innerHTML = `${RIVAL}<span class="who"> · ${theirs.name}</span>　能量 ${px(S.mana[FOE], 2)}　手牌 ${px(S.hand[FOE].length, 2)}` + (usesCore(S, FOE) ? `　算力 <span class="core">${px(S.core[FOE], 2)}</span>` : ''); drawCore(ME, S.core[ME]);
   $('deckn').textContent = `你的卡组：${mine.name}`;
   drawPile(); syncBoard(); renderHand();
   tell(S.winner !== null ? '' : lesson ? line() : S.turn !== ME ? `${RIVAL}在行动… 按住${touch ? '画面' : '空格'}可以加速。` : busy ? '' : sel < 0 ? `轮到你：点一张手牌${touch ? '' : '（或按 1–4）'}，再点亮起的格子。流动的箭头是对面下回合要做的事。` : hint());
@@ -458,9 +468,9 @@ addEventListener('blur', () => board.speed(1));
 async function curtain(fn) { // 过场：两扇城门合上 → 门后换界面（载入也在这时做，至少关满半秒）→ 城门打开。界面之间不再一帧硬切
   gateEl.className = 'shut'; await nap(T.t3 + .05); try { await Promise.all([fn(), nap(T.t4)]); } finally { gateEl.className = ''; } await nap(T.t2);
 }
-const leave = () => curtain(() => { game++; busy = true; if (net) { net.close(); net = null; } seat(0, '电脑'); clearTimeout(flagT); flagEl.className = revealEl.className = ''; pileEl.replaceChildren(); board.clear(); for (const p of [0, 1]) board.setBase(p, BASE_HP); home(); }).then(() => campUI.arrive()); // 回开始界面：这一局没演完的步骤作废。闯关里刚打赢的那一步，等城门开了才在地图上演
+const leave = () => { if (camp?.cup && S && S.winner === null && !camp.cup.counted) { camp.cup.counted = true; cups.result(camp.cup, false, S, ME); } /* 锦标赛里中途放弃：这一局算输 */ return curtain(() => { game++; busy = true; if (net) { net.close(); net = null; } seat(0, '电脑'); clearTimeout(flagT); flagEl.className = revealEl.className = ''; pileEl.replaceChildren(); board.clear(); for (const p of [0, 1]) board.setBase(p, BASE_HP); home(); }).then(() => campUI.arrive()); }; // 回开始界面：这一局没演完的步骤作废。闯关里刚打赢的那一步，等城门开了才在地图上演
 async function start(d, foe, stage = null, link = null) { // stage：闯关里的这一关（带城堡血量、开局摆的东西）；自由对战是 null；link：联机房间（room.js），有的话座位、牌序都听它的
-  const g = ++game; mine = d; theirs = foe; busy = true; camp = stage; net = link; ai = !stage && !link && llmOn(); seat(link ? link.me : 0, link ? '对手' : ai ? 'AI' : '电脑');
+  const g = ++game; mine = d; theirs = foe; busy = true; camp = stage; net = link; ai = !stage && !link && llmOn(); seat(link ? link.me : 0, link ? '对手' : ai ? 'AI' : stage?.cup ? stage.cup.rival : '电脑');
   const bar = gateEl.querySelector('.bricks'), need = [...new Set([...mine.cards, ...theirs.cards, ...(stage?.setup || []).map(x => x.card), ...Object.keys(CARDS).filter(k => CARDS[k].token)])]; let n = 0;
   try { await curtain(async () => { $('home').hidden = $('result').hidden = true; feed.length = 0; log(`你用「${mine.name}」，${RIVAL}用「${theirs.name}」。`); tell(''); bricks(bar, 0);
     await Promise.all(need.map(t => board.preload([t]).then(() => bricks(bar, ++n / need.length)))); if (g !== game) return; // 一种角色一种角色地载，城门上的砖跟着亮
@@ -476,6 +486,11 @@ function finish() { // 结算：底色淡入、胜负盖章、统计随后；按
   $('summary').textContent = `${mine.name} 对 ${theirs.name}，打了 ${Math.ceil(S.n / 2)} 个回合\n你的城堡 ${Math.max(0, S.base[ME])} / ${S.cap[ME]}　　${RIVAL}的城堡 ${Math.max(0, S.base[FOE])} / ${S.cap[FOE]}`;
   const rw = $('reward'); rw.replaceChildren(); $('again').textContent = '再来一局'; $('again').hidden = false; $('tohome').textContent = '回城'; after = net ? rematch : null; // 联机的再来一局：两边都点了才开（房主换先后手）
   if (camp?.lesson) { if (won) { taught(true); $('verdict').textContent = '学会了'; $('summary').textContent = LESSON.done; $('again').textContent = '去闯关'; after = () => { mode = 'camp'; leave(); }; $('tohome').textContent = '自由对战'; } else after = teach; } // 教学打完：主按钮带去闯关
+  else if (camp?.cup) { // 锦标赛：这一局的胜负记进比赛；对面的头像换表情（它赢了得意、输了伤心）
+    const c = camp.cup, r = c.counted ? null : cups.result(c, won, S, ME); c.counted = true;
+    $('summary').textContent = !r ? '' : r.bo === 1 ? (won ? '赢下这一场。' : '输掉这一场。') : `比分 ${r.my} : ${r.their}` + (r.done ? (r.won ? '，拿下这场比赛。' : '，输掉这场比赛。') : '，三局两胜，接着打下一局。');
+    const face = cups.face(c.foeP, won ? 'sad' : 'smug', 100); face.classList.add('foeface'); rw.append(face);
+    $('again').textContent = '回赛程'; after = leave; $('tohome').hidden = true; }
   else if (camp) { // 闯关：结算只留胜负和到手的首领牌。赢了回地图（节点翻面、徽章进槽、棋子往前走，都在地图上演），输了原地重打
     $('summary').textContent = '';
     if (won) { const key = camp.area, before = structuredClone(progress.data), res = progress.win(key); campUI.won(before, key); $('verdict').textContent = res.cleared ? '场地通关' : '过关';
@@ -495,7 +510,7 @@ function finish() { // 结算：底色淡入、胜负盖章、统计随后；按
 let camp = null, after = null; // camp：正在打的闯关关卡；after：结算后主按钮要做的事（下一关、重打、回地图）
 $('again').onclick = () => { $('tohome').hidden = false; (after || (() => start(mine, theirs)))(); }; $('tohome').onclick = () => { $('tohome').hidden = false; leave(); };
 // 自动测试用：地址带 ?timer 时把对局状态露出来，可以直接摆一个局面再演一步
-if (new URLSearchParams(location.search).has('timer')) window.__t = { CARDS, board, state: () => S, view: () => V, lesson: () => lesson && lesson.i, teach, act, start, pick, endTurn, map: campUI.state, go: campUI.go, fight: campUI.battle, async setup(fn) { board.clear(); fn(S); await board.preload(S.board.filter(Boolean).map(u => u.card)); for (const [t, u] of S.board.entries()) if (u) { await board.add({ ...u, tile: t }); if (u.gear) board.gear(u.id, u.gear); } sel = -1; busy = false; sync(); } };
+if (new URLSearchParams(location.search).has('timer')) window.__t = { CARDS, board, state: () => S, view: () => V, lesson: () => lesson && lesson.i, teach, act, start, pick, endTurn, map: campUI.state, go: campUI.go, fight: campUI.battle, cup: cups.state, async setup(fn) { board.clear(); fn(S); await board.preload(S.board.filter(Boolean).map(u => u.card)); for (const [t, u] of S.board.entries()) if (u) { await board.add({ ...u, tile: t }); if (u.gear) board.gear(u.id, u.gear); } sel = -1; busy = false; sync(); } };
 // 声音：浏览器要等玩家第一次点按之后才允许出声；按钮统一一个点击声；静音开关记在浏览器里
 let heard = false; const wake = () => { heard = true; unlock(); }; addEventListener('pointerdown', wake, { once: true }); addEventListener('keydown', wake, { once: true });
 document.addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.disabled || b.classList.contains('kcard')) return; sfx('ui_click');

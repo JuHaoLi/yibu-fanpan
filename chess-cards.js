@@ -5,7 +5,7 @@
 import { TUNE } from './chess-tune.js';
 
 export function build(H) {
-  const { COLS, ROWS, tile, rowOf, colOf, fwd, depth, inb, adj4, adj8, foes, pals, isUnit, fx, buff, shift, summon, hitBase, mend, freeze, shieldUp, creep, hurt, zap, kill, step, morph, poison, vitalize, mute, convert, draw, hitBase: _hb, BASE_HP } = H;
+  const { charge, release, CORE, COLS, ROWS, tile, rowOf, colOf, fwd, depth, inb, adj4, adj8, foes, pals, isUnit, fx, buff, shift, summon, hitBase, mend, freeze, shieldUp, creep, hurt, zap, kill, step, morph, poison, vitalize, mute, convert, draw, hitBase: _hb, BASE_HP } = H;
   const cards = {}; let F = 'n'; // 正在登记哪个阵营
   const units = (s, side) => s.board.map((u, t) => u && u.side === side && isUnit(u) ? t : -1).filter(t => t >= 0);
   const enemies = (s, side) => s.board.map((u, t) => u && u.side !== side ? t : -1).filter(t => t >= 0);
@@ -516,6 +516,29 @@ export function build(H) {
   spell('potion', '血瓶', 2, 'none', '你的城堡 +3 血，不超过开局的血量。', (s, ev, side, t, id) => { fx(ev, 'heal', id, castle(side), [castle(side)]); mend(s, ev, side, 3); }, (s, side) => s.base[side] < s.cap[side]);
   spell('n_scroll', '蓄能卷轴', 1, 'none', '获得 2 点能量。', (s, ev, side) => { s.left += 2; ev.push({ t: 'mana', side, n: 2 }); });
 
+  // ======== 零号协议：卡牌联盟锦标赛冠军 Q1 的中立卡组，赢下锦标赛才拿得到（prize）。机制是「算力」 ========
+  // 算力是每个玩家自己攒着、跨回合不清零的点数（最多 CORE 点）：很多牌“算力 +1”，少数牌“释放”——一次用光，按用掉多少放大效果。
+  // 特效全用 pixelfx 的科幻一组（scifi/*，在 board-pfx.js 的 KIND 里按 fx 种类对上）
+  const calc = (n, k = 'core') => [`算力 +${n}`, .9 * n, (s, ev, u, t) => { fx(ev, k, u.card, t, [t]); charge(s, ev, u.side, n); }];
+  const laser = n => [`对本路前方第一个敌人造成 ${n} 点伤害`, .9 * n, (s, ev, u, t) => { const x = ahead(s, u.side, t); if (x >= 0) zap(s, ev, u.card, t, [x], n, 'laser'); }];
+  const qspell = (id, nm, cost, target, text, cast, can) => spell(id, nm, cost, target, text, cast, can);
+  unit('q_probe', '探针', 'neutral_z0r', 1, 0, [P(calc(1, 'scan'))]);
+  qspell('q_patch', '补丁程序', 1, 'none', '算力 +2。', (s, ev, side, t, id) => { fx(ev, 'core', id, castle(side), [castle(side)]); charge(s, ev, side, 2); }, (s, side) => s.core[side] < CORE);
+  unit('q_helm', '机甲头盔', 'neutral_mechaz0rhelm', 2, 1, [P(calc(1, 'holo')), P(laser(1))]);
+  qspell('q_field', '力场矩阵', 2, 'ally', '一个友方单位获得圣盾，算力 +1。', (s, ev, side, t, id) => { fx(ev, 'field', id, castle(side), [t]); shieldUp(s, ev, t); charge(s, ev, side, 1); }, (s, side, t) => !s.board[t].shield);
+  const warpTo = (s, side, t) => { for (let d = ROWS - 2; d > depth(side, rowOf(t)); d--) { const x = tile(side ? ROWS - 1 - d : d, colOf(t)); if (!s.board[x]) return x; } return -1; }; // 这一路最靠前的空格（最远到对方家门口前一行）
+  qspell('q_warp', '跃迁信标', 2, 'ally', '把一个友方单位传送到它这一路最靠前的空格（最远到对方家门口的前一行），算力 +1。', (s, ev, side, t, id) => { const x = warpTo(s, side, t); fx(ev, 'warpout', id, t, [t]); shift(s, ev, t, x, 'push'); fx(ev, 'tele', id, x, [x]); charge(s, ev, side, 1); }, (s, side, t) => warpTo(s, side, t) >= 0);
+  unit('q_wing', '机甲飞翼', 'neutral_mechaz0rwing', 3, 2, [P(calc(1, 'jet'))]);
+  struct('q_cannon', '机甲炮台', 'neutral_mechaz0rcannon', 4, [T(laser(1)), T(calc(1))]);
+  unit('q_sword', '机甲光刃', 'neutral_mechaz0rsword', 3, 1, [A([`先对目标造成等同你算力的伤害（最多 4 点，不用掉算力）`, 2, (s, ev, u, from, to) => { const n = Math.min(4, s.core[u.side]); if (n && s.board[to]) zap(s, ev, u.card, from, [to], n, 'laser'); }])]);
+  qspell('q_glitch', '故障注入', 3, 'foe', '禁用一个敌方单位或建筑的能力（装备也掉了）；释放：用光你的算力，每 1 点对它造成 1 点伤害。', (s, ev, side, t, id) => { fx(ev, 'glitch', id, castle(side), [t]); mute(s, ev, t); const n = release(s, ev, side); if (n) hurt(s, ev, t, n); });
+  unit('q_chassis', '机甲底座', 'neutral_mechaz0rchassis', 4, 0, [TAUNT, D(calc(2, 'tractor'))]);
+  qspell('q_emp', '电磁脉冲', 5, 'none', '所有敌方单位各受 1 点伤害；释放：用光你的算力，每 2 点再多 1 点。', (s, ev, side, t, id) => { const n = 1 + Math.floor(release(s, ev, side) / 2); zap(s, ev, id, castle(side), enemies(s, side).filter(x => isUnit(s.board[x])), n, 'emp'); }, (s, side) => enemies(s, side).some(x => isUnit(s.board[x])));
+  unit('q_super', 'Q-01 超级机甲', 'neutral_mechaz0rsuper', 7, 1, [P(['释放：用光你的算力，每 1 点自己 +2 战力；用掉 4 点以上的话还获得圣盾', 5, (s, ev, u, t) => { const n = release(s, ev, u.side); if (!n) return; fx(ev, 'warpin', u.card, t, [t]); buff(s, ev, t, 2 * n); if (n >= 4) shieldUp(s, ev, t); }])]);
+  const PROTOCOL = ['q_probe', 'q_patch', 'q_helm', 'q_field', 'q_warp', 'q_wing', 'q_cannon', 'q_sword', 'q_glitch', 'q_chassis', 'q_emp', 'q_super'];
+  for (const k of PROTOCOL) cards[k].prize = true;
+  Object.assign(cards.q_helm, { str: 2 }); Object.assign(cards.q_wing, { str: 2 }); Object.assign(cards.q_sword, { str: 2 }); Object.assign(cards.q_super, { str: 6 }); // 奖励牌的战力手定（同首领牌，不走自动估值），数值由 tools/cup_tune.mjs 对打核对
+
   // ======== 首领牌：闯关模式里每个场地的首领，击败后获得。角色是之前没用过的“将军”和首领图 ========
   F = 'f1'; bossUnit('B_f1', '三环圣者', '奥瑞安', 'f1_scintilla', 7, 1, 9, [SHIELD, P(E.wardAll()), T(E.heal(1))]);
   F = 'f2'; bossUnit('B_f2', '千刃', '胧', 'f2_altgeneral', 6, 2, 6, [AMBUSH, P(E.tempest(2))]);
@@ -578,5 +601,5 @@ export function build(H) {
     { f: 'f6', name: '冰封控制', plan: '控制：把对面冻在原地（能力也失效），再用专打冻结目标的牌清场。', cards: ['f6_wolfraven', 'f6_icy', 'fox', 'f6_bur', 'f6s_shard', 'north', 'f6_kindredhunter', 'chill', 'dryad', 'f6_ghostseraphim', 'f6_tundraguardian', 'drake'] },
     { f: 'f6', name: '渗透与龙', plan: '突进：把兵放进对方半场拿渗透加成，龙语者给一群龙加战力，两步冲城。', cards: ['f6_sleetdasher', 'f6_bur', 'fox', 'n_dragonling', 'f6_snowman', 'icewall', 'f6s_mark', 'f6_icehornet', 'n_dragonspeaker', 'f6_snowwyvern', 'f6_crystalbeetle', 'f6_whitewyvern'] },
   ];
-  return { cards, factions, starters, decks };
+  return { cards, factions, starters, decks, protocol: PROTOCOL };
 }

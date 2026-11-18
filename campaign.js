@@ -64,7 +64,7 @@ export const BADGES = AREAS.filter(a => a.key !== 'n').map(a => a.key), badgeNam
 export const progress = {
   data: { runs: {}, done: {}, owned: [] },
   load() { try { const d = JSON.parse(localStorage.getItem(KEY)); if (d && typeof d === 'object') { const runs = d.runs && typeof d.runs === 'object' ? d.runs : {}; if (d.run) runs[d.run.area] = { deck: d.run.deck, at: d.run.at }; // 旧存档只记一个进行中的场地
-      this.data = { runs: Object.fromEntries(Object.entries(runs).filter(([k, r]) => areaOf(k) && r && r.deck && Array.isArray(r.deck.cards) && r.at >= 0 && r.at < areaOf(k).stages.length)), done: d.done || {}, owned: (d.owned || []).filter(k => CARDS[k] && CARDS[k].boss) }; } } catch { /* 读不了就从头来 */ } return this.data; },
+      this.data = { runs: Object.fromEntries(Object.entries(runs).filter(([k, r]) => areaOf(k) && r && r.deck && Array.isArray(r.deck.cards) && r.at >= 0 && r.at < areaOf(k).stages.length)), done: d.done || {}, owned: (d.owned || []).filter(k => CARDS[k] && (CARDS[k].boss || CARDS[k].prize)) }; /* 赢到手的首领牌和锦标赛奖励牌 */ } } catch { /* 读不了就从头来 */ } return this.data; },
   save() { try { localStorage.setItem(KEY, JSON.stringify(this.data)); } catch { /* 存不了就只在这次打开期间有效 */ } },
   badges() { return BADGES.filter(k => this.data.done[k]).length; },                                                // 已经拿到几枚徽章
   open(key) { return key !== 'n' || this.badges() === BADGES.length; },                                          // 无主之地：集齐六枚徽章才能进；进去之后四个小首领一个个打过，才轮到最终首领

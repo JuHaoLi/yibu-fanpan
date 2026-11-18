@@ -846,6 +846,22 @@ def spiked():  # 荆棘甲：一面圆盾，外圈一圈尖刺
     g = blank(); disc(g, 7.5, 7.5, 4.6, '2'); disc(g, 7.5, 7.5, 3.1, '1'); disc(g, 7.5, 7.5, 1.3, '4')
     for x0, y0, x1, y1 in [(7, 1, 7, 2), (8, 1, 8, 2), (7, 13, 7, 14), (8, 13, 8, 14), (1, 7, 2, 7), (1, 8, 2, 8), (13, 7, 14, 7), (13, 8, 14, 8), (3, 3, 3, 3), (12, 3, 12, 3), (3, 12, 3, 12), (12, 12, 12, 12), (2, 2, 2, 2), (13, 2, 13, 2), (2, 13, 2, 13), (13, 13, 13, 13)]: line(g, x0, y0, x1, y1, '5')
     return g
+M['chipm'] = '''........
+....5..5
+....5..5
+..222222
+.5211111
+..213333
+.5213444
+..213444
+.5213444
+..213444
+.5213333
+..211111
+..222222
+....5..5
+....5..5
+........'''
 GEN = {'sun': sun, 'snow': snow, 'rings': rings, 'moon': moon, 'spiked': spiked}
 
 # ---------- 每张牌用哪个模板、哪两组色；flip 是上下翻转 ----------
@@ -865,6 +881,7 @@ ICONS = {
     'n_turn': ('cycle', 'green', 'red'), 'n_vigor': ('drop', 'green', 'holy'), 'g_sword': ('sword', 'steel', 'wood'), 'g_spear': ('spear', 'steel', 'wood'), 'g_shield': ('shield', 'steel', 'mana'),
     'g_thorn': ('spiked', 'steel', 'green'), 'g_ring': ('ringm', 'gold', 'red'), 'g_bomb': ('bomb', 'dark', 'fire'), 'g_bow': ('bow', 'wood', 'paper'), 'g_banner': ('banner', 'red', 'wood'),
     'sword': ('sword', 'gold', 'steel'), 'gem': ('gem', 'ice', 'ice'), 'potion': ('potion', 'paper', 'red'), 'n_scroll': ('scroll', 'paper', 'mana'),
+    'q_patch': ('chipm', 'steel', 'mana'), 'q_field': ('shield', 'mana', 'ice'), 'q_warp': ('rings', 'mana', 'purple'), 'q_glitch': ('eye', 'mana', 'pink'), 'q_emp': ('bolt', 'mana', 'ice'),  # 零号协议（锦标赛奖励）：科技感统一用能量青
 }
 
 def render(tpl, a, b, *opt):
