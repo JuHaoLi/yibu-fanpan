@@ -572,6 +572,7 @@ const later = (delay, fn) => tween(delay, () => {}).then(fn);
 // 像素特效（board-pfx.js）。px() 播得出来返回句柄，播不出来（模块还没取回、开了减少动效）返回 null，调用的地方接着用下面这些老特效
 const fxp = createPfx(THREE, fxLayer, 1 / 44), floor = v => new THREE.Vector3(v.x, .07, v.z), pickEl = (t, e) => (t && !Array.isArray(t) && typeof t === 'object' && ('n' in t || 'f1' in t) ? t[e] || t.n : t);
 function px(r, pts, dir = 1, extra) { if (calm || !r) return null; const id = typeof r === 'string' ? r : r[0], o = typeof r === 'string' ? {} : r[1]; if (!fxp.ready(r)) { warm([id]); return null; }
+  if (o.after) { later(o.after, () => px([id, { ...o, after: 0 }], pts, dir, extra)); return true; } // after：等前一段特效播完再进场
   return fxp.play(r, [].concat(pts).map(v => { const q = v.clone(); q.x += dir * (o.fwd || 0) * LX; return q; }), { flip: dir < 0, ...extra }); }
 const strike = v => { const d = v.clone().project(camera); return d; }; // 一个位置在屏幕上的方位（给飞行的特效定朝向）
 function fly(shot, a, b, dur = .26, arc = .5) { // 一发飞过去的像素特效：朝飞的方向摆正，到了就收。播不出来返回 null
@@ -768,7 +769,7 @@ export const board = {
       case 'beam': { const far = ts.reduce((a, b) => a.distanceTo(from) > b.distanceTo(from) ? a : b), a = from.clone().setY(.5); if (e.from.base !== undefined) a.z = far.z * .5; // 从城堡放的：起点往目标那一路靠一靠
         if (beamTo(R, a, far)) { later(.07, () => { if (!px(pickEl(KIND.beamHit, e.el), fl, d0)) ts.forEach(b => burst(b, color, hot)); }); return later(.12, () => {}); } break; }
       case 'slash': if (px(R, fl.map(v => v.setX(v.x - d0 * 1.35)), d0)) return later(.1, () => {}); break;
-      default: if (px(R, fl, d0)) return later({ swords: .62, storm: .2 + ts.length * .05, frost: .16, venom: .14, gust: .22, bless: .2, heal: .2, summon: .18, shade: .14, creep: .14, thorn: .1 }[e.k] || .14, () => {});
+      default: if (px(R, fl, d0)) return later({ swords: 1.25, storm: .2 + ts.length * .05, frost: .16, venom: .14, gust: .22, bless: .2, heal: .2, summon: .18, shade: .14, creep: .14, thorn: .1 }[e.k] || .14, () => {});
     }
     switch (e.k) {
       case 'bolt': return Promise.all(ts.map(b => bolt(from, b, color, hot)));

@@ -599,7 +599,7 @@ export function build(H) {
   F = 'f5'; bossUnit('B_f5', '蛮荒之主', '格鲁姆', 'f5_tier2general', 8, 1, 11, [T(E.grow(2)), A(K.cleave(3)), R(E.advance())], 1);
   F = 'f6'; bossUnit('B_f6', '霜冕', '伊蕾娜', 'f6_altgeneral', 7, 1, 8, [P(E.chillEvery()), A(K.shatterKill())], 1);
   F = 'n';
-  bossUnit('B_n1', '影刃宗师', '李俊昊', 'boss_shinkagezendo', 4, 1, 7, [flag('duel', true, '万剑归宗：和比自己强的单位对撞时（他打别人或别人打他都算），同归于尽', 0)], 1); // 2026-11-19 重做：去掉每回合全场 1 点伤害，费用 7 → 5（首领关里 4）
+  bossUnit('B_n1', '影刃宗师', '李俊昊', 'boss_shinkagezendo', 4, 1, 7, [flag('duel', true, '万剑归宗：和比自己强的单位对撞时（他打别人或别人打他都算），同归于尽', 0)], 2); // 2026-11-19 重做：去掉每回合全场 1 点伤害，费用 7 → 5（首领关里 4）；同日再加到 6
   bossUnit('B_n2', '六臂默者', '王嘉伟', 'boss_dissonance', 7, 0, 12, [TAUNT, P(E.silenceEvery())], 1);
   bossUnit('B_n3', '霜暴巨兽', '戈尔', 'boss_borealjuggernaut', 8, 1, 14, [SIEGE(4)], 1);
   bossUnit('B_n4', '赤翼龙使', '潘腾之进击的巨屌', 'boss_skurge', 7, 2, 7, [P(E.spawn('tk_whelp', 1, 'sides')), P(E.kin('龙', 2))], 3); // 2026-11-19 热补丁：玩家手里 +1 费（9 → 10），两侧召唤的雏龙 4 → 1 战力
