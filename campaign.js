@@ -41,7 +41,7 @@ export const AREAS = [
   area('f6', '永冻隘口', '冰雪里的隘口。他们把你冻在原地，再把兵放进你的半场。', '冰封控制', '渗透与龙',
     ['初雪', '渗透者', '冰墙阵', '引力井', '霜冕 伊蕾娜',
      '被冻住的兵下回合不走，能力也失效。', '对面喜欢把兵放进你的半场，守住前线。', '对面开局就有两堵冰墙和一座引力井。', '对面开局有引力井和冰棘。', '首领出场冻住你所有的兵，被冻住的她一刀一个。'],
-    [put('icewall', 1, 1, 4), put('icewall', 1, 2, 4), put('f6_gravitywell', 0, 1)], [put('f6_gravitywell', 0, 1), put('f6_blazingspines', 0, 2)], 'B_f6', 'drake'),
+    [put('icewall', 1, 1, 4), put('icewall', 1, 2, 4), put('f6_gravitywell', 0, 1)], [put('f6_gravitywell', 0, 1), put('f6_blazingspines', 0, 2)], 'B_f6', 'f6_whitewyvern'), // 换出去的那张必须在「渗透与龙」里：以前写的是 drake（在另一套「冰封控制」里），首领牌就再也进不了对手卡组
   { key: 'n', name: '无主之地', intro: '不属于任何阵营的强者。四个小首领，最后是糖果暴君。', boss: 'B_final', stages: [
     { name: '影刃宗师 李俊昊', intro: '他在场时，你所有的兵每回合挨一刀，掉 1 点。', foe: ['neutral_dex', 'neutral_jaxi', 'n_arrow', 'neutral_sai', 'n_widow', 'neutral_silverbeak', 'maul', 'n_grenadier', 'neutral_bloodletter', 'gem', 'n_herbalist', 'B_n1'], base: [10, 12], boss: 'B_n1', music: 'boss_n1' },
     { name: '六臂默者 王嘉伟', intro: '它一出场，你所有兵的能力都失效。对面是一队魔像。', foe: ['neutral_golemstone', 'neutral_moltengolem', 'n_golemsmith', 'warden', 'n_golemrune', 'neutral_giantcrab', 'n_ironclad', 'neutral_golemsteel', 'n_diamond', 'g_shield', 'potion', 'B_n2'], base: [10, 12], boss: 'B_n2', music: 'boss_n2' },
@@ -63,15 +63,17 @@ const KEY = 'yibu-fanpan.campaign.v1';
 export const BADGES = AREAS.filter(a => a.key !== 'n').map(a => a.key), badgeName = key => areaOf(key).name.slice(0, 2) + '徽章';
 export const progress = {
   data: { runs: {}, done: {}, owned: [] },
-  load() { try { const d = JSON.parse(localStorage.getItem(KEY)); if (d && typeof d === 'object') { const runs = d.runs && typeof d.runs === 'object' ? d.runs : {}; if (d.run) runs[d.run.area] = { deck: d.run.deck, at: d.run.at }; // 旧存档只记一个进行中的场地
-      this.data = { runs: Object.fromEntries(Object.entries(runs).filter(([k, r]) => areaOf(k) && r && r.deck && Array.isArray(r.deck.cards) && r.at >= 0 && r.at < areaOf(k).stages.length)), done: d.done || {}, owned: (d.owned || []).filter(k => CARDS[k] && (CARDS[k].boss || CARDS[k].prize)) }; /* 赢到手的首领牌和锦标赛奖励牌 */ } } catch { /* 读不了就从头来 */ } return this.data; },
+  load() { try { const d = JSON.parse(localStorage.getItem(KEY)); if (d && typeof d === 'object') { const runs = d.runs && typeof d.runs === 'object' && !Array.isArray(d.runs) ? d.runs : {}; if (d.run && typeof d.run === 'object') runs[d.run.area] = { deck: d.run.deck, at: d.run.at }; // 旧存档只记一个进行中的场地
+      const done = {}; for (const [k, v] of Object.entries(d.done && typeof d.done === 'object' && !Array.isArray(d.done) ? d.done : {})) if (v && areaOf(k)) done[k] = true; // 只认本作里有的场地：存档里要是存着数组或别的东西，徽章会在下一次保存时被悄悄丢掉（JSON 不存数组上的自定义属性）
+      this.data = { runs: Object.fromEntries(Object.entries(runs).filter(([k, r]) => areaOf(k) && r && r.deck && Array.isArray(r.deck.cards) && Number.isInteger(r.at) && r.at >= 0 && r.at < areaOf(k).stages.length)), done, owned: (Array.isArray(d.owned) ? d.owned : []).filter(k => typeof k === 'string' && CARDS[k] && (CARDS[k].boss || CARDS[k].prize)) }; /* 赢到手的首领牌和锦标赛奖励牌 */ } } catch { /* 读不了就从头来 */ } return this.data; },
   save() { try { localStorage.setItem(KEY, JSON.stringify(this.data)); } catch { /* 存不了就只在这次打开期间有效 */ } },
   badges() { return BADGES.filter(k => this.data.done[k]).length; },                                                // 已经拿到几枚徽章
   open(key) { return key !== 'n' || this.badges() === BADGES.length; },                                          // 无主之地：集齐六枚徽章才能进；进去之后四个小首领一个个打过，才轮到最终首领
   enter(key, d) { this.data.runs[key] = { deck: { name: d.name, cards: [...d.cards] }, at: 0 }; this.save(); },     // 进场地：这个场地的卡组从这一刻起锁定
   quit(key) { delete this.data.runs[key]; this.save(); },                                                           // 退出场地：这个场地的进度清零（别的场地不受影响）
   win(key) { // 打赢这个场地当前的一关：往下走一关；打赢的是首领就拿到首领牌，场地通关。返回 { card: 新到手的首领牌或 null, cleared: 场地是否通关, badge: 这次是不是新拿到一枚徽章 }
-    const r = this.data.runs[key], a = areaOf(key), s = a.stages[r.at], card = s.boss && !this.data.owned.includes(s.boss) ? s.boss : null;
+    const r = this.data.runs[key], a = areaOf(key), s = r && a && a.stages[r.at]; if (!s) return { card: null, cleared: false, badge: false }; // 没有这一场（比如存档里这条进度已经没了）：当作没打赢，不把界面弄炸
+    const card = s.boss && !this.data.owned.includes(s.boss) ? s.boss : null;
     if (card) this.data.owned.push(card);
     const cleared = r.at === a.stages.length - 1, badge = cleared && key !== 'n' && !this.data.done[key]; if (cleared) { this.data.done[key] = true; delete this.data.runs[key]; } else r.at++;
     this.save(); return { card, cleared, badge };
