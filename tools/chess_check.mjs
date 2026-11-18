@@ -143,7 +143,7 @@ const at = (r, t) => r.state.board[t];
   assert.deepEqual(s.base, [12, 8]); assert.equal(s.board[tile(ROWS - 1, 1)].card, 'colossus', '开局摆在场上的东西');
   s = newGame([deck('f1'), [...deck('f4').slice(1), 'B_f4']], rnd, { hand: [[], ['B_f4']], boss: 1 }); assert.ok(s.hand[1].includes('B_f4'), '首领牌保证在对面起手里');
   // 首领牌加过费（cost = lair + 1 或 2）：首领关里首领一方打自己的首领按原费用 lair，扣的也是 lair；别的对局里谁打都按 cost
-  for (const k of Object.keys(CARDS).filter(k => CARDS[k].boss)) assert.ok([1, 2].includes(CARDS[k].cost - CARDS[k].lair), `${k} 的加费应是 1 或 2`);
+  for (const k of Object.keys(CARDS).filter(k => CARDS[k].boss)) assert.ok([1, 2, 3].includes(CARDS[k].cost - CARDS[k].lair), `${k} 的加费应是 1–3`); // 潘腾之进击的巨屌 2026-11-19 热补丁加到 3
   { const c = CARDS.B_f4, idx = g => g.hand[1].indexOf('B_f4'); let g = newGame([deck('f1'), [...deck('f4').slice(1), 'B_f4']], rnd, { hand: [[], ['B_f4']], boss: 1 }); g.turn = 1; g.left = c.lair;
     assert.ok(targets(g, idx(g)).length, '首领关：首领一方能量够原费用就能打出首领'); assert.equal(apply(g, { type: 'play', i: idx(g), t: targets(g, idx(g))[0] }).state.left, 0, '扣的是原费用');
     g = newGame([deck('f1'), [...deck('f4').slice(1), 'B_f4']], rnd, { hand: [[], ['B_f4']] }); g.turn = 1; g.left = c.cost - 1; assert.equal(targets(g, idx(g)).length, 0, '普通对局：差 1 点能量打不出首领牌'); g.left = c.cost; assert.ok(targets(g, idx(g)).length); }

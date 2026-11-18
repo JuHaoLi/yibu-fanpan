@@ -602,7 +602,7 @@ export function build(H) {
   bossUnit('B_n1', '影刃宗师', '李俊昊', 'boss_shinkagezendo', 6, 1, 7, [T(E.scorch(1))], 1);
   bossUnit('B_n2', '六臂默者', '王嘉伟', 'boss_dissonance', 7, 0, 12, [TAUNT, P(E.silenceEvery())], 1);
   bossUnit('B_n3', '霜暴巨兽', '戈尔', 'boss_borealjuggernaut', 8, 1, 14, [SIEGE(4)], 1);
-  bossUnit('B_n4', '赤翼龙使', '潘腾之进击的巨屌', 'boss_skurge', 7, 2, 7, [P(E.spawn('tk_whelp', 4, 'sides')), P(E.kin('龙', 2))], 2);
+  bossUnit('B_n4', '赤翼龙使', '潘腾之进击的巨屌', 'boss_skurge', 7, 2, 7, [P(E.spawn('tk_whelp', 1, 'sides')), P(E.kin('龙', 2))], 3); // 2026-11-19 热补丁：玩家手里 +1 费（9 → 10），两侧召唤的雏龙 4 → 1 战力
   bossUnit('B_final', '糖果暴君', '团团', 'boss_candypanda', 8, 1, 12, [P(E.enthrall(2)), T(E.spawn('tk_panda', 3, 'behind'))], 2);
 
   // 种族：只是一个标签，本身没有效果；有的牌会给同族加成
