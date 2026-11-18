@@ -115,7 +115,7 @@ export function build(H) {
   const R = e => ({ on: 'onAfter', pre: '打完还活着的话，', e, k: .8 });
   const O = e => ({ on: 'onAllyDeath', pre: '每有一个友方单位倒下，', e });
   const S = e => ({ on: 'onSpell', pre: '你每施放一张法术，', e, k: .8 });
-  const EVERY = (n, e) => ({ on: 'onSpell', pre: `你每施放 ${n} 张法术，`, e: [e[0], e[1], (s, ev, u, t) => { u.spells = (u.spells || 0) + 1; if (u.spells % n === 0) e[2](s, ev, u, t); }], k: .8 / n }); // 攒够 n 张才生效一次；数的是它在场期间你放的法术，记在它自己身上（u.spells）
+  const EVERY = (n, e) => ({ on: 'onSpell', pre: `你每施放 ${n} 张法术，`, e: [e[0], e[1], (s, ev, u, t) => { u.spells = (u.spells || 0) + 1; ev.push({ t: 'orbs', id: u.id, n: u.spells % n }); if (u.spells % n === 0) e[2](s, ev, u, t); }], k: .8 / n }); // 攒够 n 张才生效一次；数的是它在场期间你放的法术，记在它自己身上（u.spells）；每数一张报一次 orbs，画面在它背后亮一颗红光球
   const flag = (key, val, text, cost) => ({ flag: [key, val], text, cost });
   const GUARD = flag('guard', true, '身后一格的友军被能力或法术打中时，替他挡一半', .5), TAUNT = flag('taunt', true, '嘲讽：正前方或左右挨着它的敌人必须先打它，也不能从它身边进城门', .8), FIXED = flag('fixed', true, '冲锋时只沿自己这一路往前，不拐去打旁边的敌人', 0),
     SHIELD = flag('shield', true, '圣盾：挡下受到的第一次伤害', 2), THORNS = n => flag('thorns', n, `荆棘：攻击它的敌人先受 ${n} 点伤害`, 1.1 * n);

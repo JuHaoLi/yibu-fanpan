@@ -589,6 +589,7 @@ function beamTo(R, a, b) { // 一道光束：起点对在 a，朝 b 摆正，拉
 let blow = null; // 最近一次出手：谁（哪张牌、哪一方）打向哪一格里的谁。hurt() 靠它决定刀光用哪个阵营的
 const drop = o => { fxLayer.remove(o); if (o.isMesh) o.geometry.dispose(); };
 let quake = 0;
+const orbM = new THREE.SpriteMaterial({ map: softT, color: 0xff3828, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }); orbM.userData.keep = true; // 所有红光球共用一份材质，不跟着棋子销毁
 function spark(color, size, opacity = 1, map = softT) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, color, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, transparent: true, opacity })); s.scale.setScalar(size); s.renderOrder = 8; fxLayer.add(s); return s; }
 function wave(p, color, reach = .75, dur = .32) { // 贴着地面扩开的一圈
   const m = new THREE.Mesh(new THREE.RingGeometry(.84, 1, 36), new THREE.MeshBasicMaterial({ color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); m.rotation.x = -Math.PI / 2; m.position.set(p.x, .1, p.z); fxLayer.add(m);
@@ -797,6 +798,9 @@ export const board = {
     retag(u); },
   pfx: (r, tile, dir = 1, extra) => px(r, floor(typeof tile === 'number' ? spot(tile) : tile), dir, extra), pfxN: () => fxp.count(), // 自动测试和调特效用：在某一格直接放一个
   say(id, text, color = '#fff4a0') { const u = units.get(id); if (u) pop(u, text, color); }, // 在一个单位头上冒一行字（嘲讽把人拽过去的时候用）
+  orbs(id, n) { // 背后的小红光球：一颗代表攒了一张法术（四风法师）。从下往上排在背后，比人靠后一点，被人挡住一部分
+    const u = units.get(id); if (!u) return; u.orbs ||= []; while (u.orbs.length > n) u.grp.remove(u.orbs.pop());
+    while (u.orbs.length < n) { const i = u.orbs.length, s = new THREE.Sprite(orbM); s.position.set((u.side ? 1 : -1) * (.3 + .05 * (i % 2)), .2 + .2 * i, -.06); s.renderOrder = 6; u.grp.add(s); u.orbs.push(s); tween(TIME.t3, k => s.scale.setScalar(.2 * (1 + .9 * Math.sin(k * Math.PI)))); } },
   gear(id, card) { // 装备：在战力牌子的另一侧挂一个小图标
     const u = units.get(id); if (!u) return; if (u.gearS) u.grp.remove(u.gearS);
     const tex = new THREE.TextureLoader().load(`assets/icons/${card}.png`); tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false; tex.colorSpace = THREE.SRGBColorSpace;
