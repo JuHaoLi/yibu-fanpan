@@ -65,7 +65,7 @@ function draw(s, ev, side, n) { let k = 0; while (k < n && s.hand[side].length <
 function freeze(s, ev, t) { const u = s.board[t]; if (isUnit(u) && !u.frozen) { u.frozen = true; ev.push({ t: 'freeze', tile: t, id: u.id }); } }
 function shieldUp(s, ev, t) { const u = s.board[t]; if (u && !u.shield) { u.shield = true; ev.push({ t: 'shield', tile: t, id: u.id, on: true }); } }
 function creep(s, ev, t, side) { if (!inb(t)) return; s.shade[t] = SHADE; if (s.creep[t] !== side) { s.creep[t] = side; ev.push({ t: 'creep', tile: t, side }); } } // 暗影地格：站在上面的敌人每回合掉 1 点
-// 算力（锦标赛奖励牌「零号协议」的机制）：每个玩家一个跨回合保留的计数，“运算”往上加，“释放”一次用光，按用掉的点数放大效果
+// 算力（机核和零号协议的机制）：每个玩家一个跨回合保留的计数（每次结束回合 −1，见 apply 的结束回合），“运算”往上加，“释放”一次用光，按用掉的点数放大效果
 function charge(s, ev, side, n) { const k = Math.min(n, CORE - s.core[side]); if (k > 0) { s.core[side] += k; ev.push({ t: 'core', side, n: k, total: s.core[side] }); } }
 function release(s, ev, side) { const n = s.core[side]; if (n > 0) { s.core[side] = 0; ev.push({ t: 'core', side, n: -n, total: 0 }); } return n; }
 function hurt(s, ev, t, n, passed) { // 能力和法术造成的伤害
@@ -177,7 +177,7 @@ export function deckInsight(ids) {
     { ok: high <= 4, text: `4 费以上 ${high} 张` + (high <= 4 ? '' : '。超过 4 张，开局容易一回合什么都出不了') },
     { ok: low >= 3, text: `1–2 费 ${low} 张` + (low >= 3 ? '' : '。低费牌太少，一回合很难连出几张') },
     { ok: nonUnit <= 5, text: `法术和装备 ${nonUnit} 张` + (nonUnit <= 5 ? '' : '。太多，开局可能没有能上场的兵') }];
-  for (const tb of ['龙', '魔像', '骑士']) { const need = n(c => T(c).includes('其他' + tb) || T(c).includes('其他的' + tb)), have = n(c => c.tribe === tb); if (need) out.push({ ok: have >= 4, text: `${tb}联动牌 ${need} 张，${tb} ${have} 个` + (have >= 4 ? '' : '。同族太少，联动牌拿不到多少加成') }); }
+  for (const tb of ['龙', '魔像', '骑士', '机械']) { const need = n(c => T(c).includes('其他' + tb) || T(c).includes('其他的' + tb)), have = n(c => c.tribe === tb); if (need) out.push({ ok: have >= 4, text: `${tb}联动牌 ${need} 张，${tb} ${have} 个` + (have >= 4 ? '' : '。同族太少，联动牌拿不到多少加成') }); }
   return out;
 }
 export const factionOf = id => CARDS[id].faction;
@@ -225,6 +225,7 @@ export function apply(state, a) { // 返回新局面和这一步依次发生的�
     if (s.swapped) throw new Error('这回合已经换过牌了');
     const out = s.hand[side].splice(a.i, 1)[0]; s.hand[side].push(take(s, side)); s.used[side].push(out); s.swapped = true; ev.push({ t: 'swap', side }); // 换牌：从剩下的牌库里随机来一张，换掉的那张这回合不会再抽到
   } else {
+    if (s.core[side] > 0) { s.core[side]--; ev.push({ t: 'core', side, n: -1, total: s.core[side], heat: true }); } // 过热：每次结束回合，自己的算力 −1（2026-11-19，防止一直囤算力再一次拍 Q-01）
     while (s.hand[side].length < HAND && s.deck[side].length + s.used[side].length) s.hand[side].push(take(s, side)); s.deck[side].push(...s.used[side].splice(0)); // 补满手牌，然后把这回合用掉的牌洗回牌库
     if (!(side === 1 && s.n === 8)) s.mana[side]++; // 后手前四个回合多 1 点能量作为补偿，第四个回合结束时不再涨，之后两边一样
     s.turn = 1 - side; s.n++; s.left = s.mana[s.turn]; s.swapped = false; s.plays = 0;

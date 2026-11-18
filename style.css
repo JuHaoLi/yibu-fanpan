@@ -20,6 +20,7 @@
 }
 .f1 { --fd:#2e2a1c; --fc:#b8a878; --fl:#f0e4c0; } .f2 { --fd:#2e1024; --fc:#c03880; --fl:#ff90c0; } .f3 { --fd:#30200c; --fc:#c87828; --fl:#ffc070; }
 .f4 { --fd:#1c1438; --fc:#6a48d0; --fl:#b8a0ff; } .f5 { --fd:#122810; --fc:#4a9040; --fl:#a0e080; } .f6 { --fd:#101e38; --fc:#5088d8; --fl:#a8d0ff; }
+.f7 { --fd:#14262a; --fc:#7aa0a0; --fl:#c8ece4; }
 .n  { --fd:#1a2030; --fc:#6c7c9c; --fl:#c0c8dc; }
 
 * { box-sizing:border-box; }

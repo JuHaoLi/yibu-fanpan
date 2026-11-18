@@ -881,7 +881,7 @@ ICONS = {
     'n_turn': ('cycle', 'green', 'red'), 'n_vigor': ('drop', 'green', 'holy'), 'g_sword': ('sword', 'steel', 'wood'), 'g_spear': ('spear', 'steel', 'wood'), 'g_shield': ('shield', 'steel', 'mana'),
     'g_thorn': ('spiked', 'steel', 'green'), 'g_ring': ('ringm', 'gold', 'red'), 'g_bomb': ('bomb', 'dark', 'fire'), 'g_bow': ('bow', 'wood', 'paper'), 'g_banner': ('banner', 'red', 'wood'),
     'sword': ('sword', 'gold', 'steel'), 'gem': ('gem', 'ice', 'ice'), 'potion': ('potion', 'paper', 'red'), 'n_scroll': ('scroll', 'paper', 'mana'),
-    'q_patch': ('chipm', 'steel', 'mana'), 'q_field': ('shield', 'mana', 'ice'), 'q_warp': ('rings', 'mana', 'purple'), 'q_glitch': ('eye', 'mana', 'pink'), 'q_emp': ('bolt', 'mana', 'ice'),  # 零号协议（锦标赛奖励）：科技感统一用能量青
+    'q_patch': ('chipm', 'steel', 'mana'), 'q_field': ('shield', 'mana', 'ice'), 'q_warp': ('rings', 'mana', 'purple'), 'q_glitch': ('eye', 'mana', 'pink'), 'q_emp': ('bolt', 'mana', 'ice'), 'r_overclock': ('chipm', 'steel', 'fire'), 'r_reboot': ('rings', 'steel', 'mana'), 'r_arc': ('bolt', 'mana', 'fire'),  # 零号协议（锦标赛奖励）：科技感统一用能量青
 }
 
 def render(tpl, a, b, *opt):

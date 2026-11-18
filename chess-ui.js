@@ -95,7 +95,7 @@ function home() {
 }
 const showFlag = () => $('decklist').querySelector('.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); // 小屏上旗排成一行横着滚：选中的那面要在视野里
 // 徽章：通关一个阵营场地得一枚（盾形小牌，阵营色；没拿到的是暗色空槽）。地图上嵌在城门里；这里只有打通全部场地的结算演出用
-const HUE = { f1: 0xb8a878, f2: 0xc03880, f3: 0xc87828, f4: 0x6a48d0, f5: 0x4a9040, f6: 0x5088d8 }; // 六个阵营的颜色（和 style.css 的 --fc 一致），通关焰火用
+const HUE = { f1: 0xb8a878, f2: 0xc03880, f3: 0xc87828, f4: 0x6a48d0, f5: 0x4a9040, f6: 0x5088d8, f7: 0x7aa0a0 }; // 七个阵营的颜色（和 style.css 的 --fc 一致），通关焰火用
 const badgeEl = (key, on = !!progress.data.done[key]) => { const b = el('i', `badge ${key}${on ? ' on' : ''}`); b.title = badgeName(key) + (on ? '（已获得）' : '（未获得）'); return b; };
 // 闯关地图在 campaign-ui.js：这里只告诉它卡组从哪来、怎么开打
 const campUI = campaignUI({ host: $('home'), px, decks: allDecks, chosen: () => chosen, choose: i => { chosen = i; }, fight });
@@ -261,7 +261,7 @@ async function show(events, next, g) { // next：这一步之后的局面（抽�
     case 'poison': case 'mute': case 'vital': board.status(e.id, e.t); if (nx?.t !== e.t) await pause(T.t1); break;
     case 'gear': board.gear(e.id, e.card); await pause(T.t3); break;
     case 'orbs': board.orbs(e.id, e.n); await pause(T.t2); break; // 四风法师背后的红光球：攒了几张法术
-    case 'core': board.note(e.n > 0 ? `算力 +${e.n}` : `释放 ${-e.n} 点算力`, '#a8fff8', e.side); drawCore(e.side, e.total); await pause(T.t2); break;
+    case 'core': board.note(e.n > 0 ? `算力 +${e.n}` : e.heat ? '过热：算力 −1' : `释放 ${-e.n} 点算力`, '#a8fff8', e.side); drawCore(e.side, e.total); await pause(T.t2); break;
     case 'mana': board.note(`+${e.n} 能量`, '#a8fff8', e.side); if (e.side === ME) { V.left += e.n; drawMana(); } await pause(T.t2); break;
     case 'spend': board.note(`花掉 ${e.n} 能量`, '#a8fff8', e.side); if (e.side === ME) { V.left = Math.max(0, V.left - e.n); drawMana(); } await pause(T.t2); break;
     case 'draw': board.note(`抽 ${e.n} 张牌`, '#fff4a0', e.side); if (e.side === ME) { log(`你抽了 ${e.n} 张牌`); V.hand = [...next.hand[ME]]; drawPile(next); renderHand(); } await pause(T.t3); break;

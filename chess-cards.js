@@ -527,8 +527,9 @@ export function build(H) {
   spell('potion', '血瓶', 2, 'none', '你的城堡 +3 血，不超过开局的血量。', (s, ev, side, t, id) => { fx(ev, 'heal', id, castle(side), [castle(side)]); mend(s, ev, side, 3); }, (s, side) => s.base[side] < s.cap[side]);
   spell('n_scroll', '蓄能卷轴', 1, 'none', '获得 2 点能量。', (s, ev, side) => { s.left += 2; ev.push({ t: 'mana', side, n: 2 }); });
 
-  // ======== 零号协议：卡牌联盟锦标赛冠军 Q1 的中立卡组，赢下锦标赛才拿得到（prize）。机制是「算力」 ========
-  // 算力是每个玩家自己攒着、跨回合不清零的点数（最多 CORE 点）：很多牌“算力 +1”，少数牌“释放”——一次用光，按用掉多少放大效果。
+  // ======== 零号协议：卡牌联盟锦标赛冠军 Q1 的卡组，赢下锦标赛才拿得到（prize）。机制是「算力」。2026-11-19 起归第 7 阵营机核（原来是中立） ========
+  F = 'f7';
+  // 算力是每个玩家自己攒着、跨回合保留的点数（最多 CORE 点；每次结束回合 −1，叫过热，2026-11-19 加，同时 Q-01 从 7 费改 8 费）：很多牌“算力 +1”，少数牌“释放”——一次用光，按用掉多少放大效果。
   // 特效全用 pixelfx 的科幻一组（scifi/*，在 board-pfx.js 的 KIND 里按 fx 种类对上）
   const calc = (n, k = 'core') => [`算力 +${n}`, .9 * n, (s, ev, u, t) => { fx(ev, k, u.card, t, [t]); charge(s, ev, u.side, n); }];
   const laser = n => [`对本路前方第一个敌人造成 ${n} 点伤害`, .9 * n, (s, ev, u, t) => { const x = ahead(s, u.side, t); if (x >= 0) zap(s, ev, u.card, t, [x], n, 'laser'); }];
@@ -545,12 +546,50 @@ export function build(H) {
   qspell('q_glitch', '故障注入', 3, 'foe', '禁用一个敌方单位或建筑的能力（装备也掉了）；释放：用光你的算力，每 1 点对它造成 1 点伤害。', (s, ev, side, t, id) => { fx(ev, 'glitch', id, castle(side), [t]); mute(s, ev, t); const n = release(s, ev, side); if (n) hurt(s, ev, t, n); });
   unit('q_chassis', '机甲底座', 'neutral_mechaz0rchassis', 4, 0, [TAUNT, D(calc(2, 'tractor'))]);
   qspell('q_emp', '电磁脉冲', 5, 'none', '所有敌方单位各受 1 点伤害；释放：用光你的算力，每 2 点再多 1 点。', (s, ev, side, t, id) => { const n = 1 + Math.floor(release(s, ev, side) / 2); zap(s, ev, id, castle(side), enemies(s, side).filter(x => isUnit(s.board[x])), n, 'emp'); }, (s, side) => enemies(s, side).some(x => isUnit(s.board[x])));
-  unit('q_super', 'Q-01 超级机甲', 'neutral_mechaz0rsuper', 7, 1, [P(['释放：用光你的算力，每 1 点自己 +2 战力；用掉 4 点以上的话还获得圣盾', 5, (s, ev, u, t) => { const n = release(s, ev, u.side); if (!n) return; fx(ev, 'warpin', u.card, t, [t]); buff(s, ev, t, 2 * n); if (n >= 4) shieldUp(s, ev, t); }])]);
+  unit('q_super', 'Q-01 超级机甲', 'neutral_mechaz0rsuper', 8, 1, [P(['释放：用光你的算力，每 1 点自己 +2 战力；用掉 4 点以上的话还获得圣盾', 5, (s, ev, u, t) => { const n = release(s, ev, u.side); if (!n) return; fx(ev, 'warpin', u.card, t, [t]); buff(s, ev, t, 2 * n); if (n >= 4) shieldUp(s, ev, t); }])]);
   const PROTOCOL = ['q_probe', 'q_patch', 'q_helm', 'q_field', 'q_warp', 'q_wing', 'q_cannon', 'q_sword', 'q_glitch', 'q_chassis', 'q_emp', 'q_super'];
   for (const k of PROTOCOL) cards[k].prize = true;
   // 给电脑的出牌时机（chess.js 的 aiTurn 读 hold）：Q-01 和电磁脉冲憋够算力再放；算力快满时别再打纯攒算力的补丁
   cards.q_super.hold = (s, side) => s.core[side] < 4; cards.q_emp.hold = (s, side) => s.core[side] < 2; 
-  Object.assign(cards.q_helm, { str: 2 }); Object.assign(cards.q_wing, { str: 2 }); Object.assign(cards.q_sword, { str: 2 }); Object.assign(cards.q_super, { str: 6 }); // 奖励牌的战力手定（同首领牌，不走自动估值），数值由 tools/cup_tune.mjs 对打核对
+  Object.assign(cards.q_helm, { str: 2 }); Object.assign(cards.q_wing, { str: 2 });
+  Object.assign(cards.q_sword, { str: 2 }); Object.assign(cards.q_super, { str: 6 }); // 奖励牌的战力手定（同首领牌，不走自动估值），数值由 tools/cup_tune.mjs 对打核对
+
+  // ======== 机核（第 7 阵营，机械种族）：算力 · 回收 · 组装。零号协议也算机核的牌 ========
+  const rcalc = (n, k = 'core') => [`算力 +${n}`, .5 * n, calc(n, k)[2]]; // 算力单独不值 .9：没有释放牌时攒了也白攒
+  token('tk_bit', '零件机', 'boss_decepticle');
+  unit('r_drone', '巡检无人机', 'neutral_ion', 1, 1, [D(rcalc(1))]);
+  unit('r_rivet', '铆钉工兵', 'neutral_mercmelee4', 2, 1, [P(rcalc(1))]);
+  unit('r_trinket', '机仆', 'f3_palacetrinketeer', 2, 0, [P(laser(1)), D(rcalc(1))]);
+  unit('r_helm', '拼装头盔', 'boss_decepticlehelm', 2, 1, [P(E.pack('机械', 1))]);
+  unit('r_buddy', '金刚伙伴', 'f1_invincibuddy', 3, 0, [TAUNT, D(rcalc(2))]);
+  unit('r_silver', '银甲机兵', 'neutral_silvermech', 3, 1, [SHIELD]);
+  unit('r_tracer', '影迹猎手', 'neutral_silhouettetracer', 3, 2, [A(K.flank(2))]);
+  unit('r_sword', '拼装光刃', 'boss_decepticlesword', 3, 1, [A(K.cleave(1))]);
+  unit('r_scientist', '机械博士', 'neutral_thescientist', 3, 0, [P(E.draw(1)), P(rcalc(1))]);
+  unit('r_replica', '复制体', 'neutral_replicator', 3, 1, [D(E.spawn('tk_bit', 2, 'here'))]);
+  unit('r_protector', '守护原型机', 'boss_protector', 4, 0, [TAUNT, T(rcalc(1))]);
+  unit('r_tank', '炮击坦克', 'f5_tank', 4, 0, [T(laser(2))]);
+  unit('r_emp', '脉冲机兵', 'neutral_emp', 4, 1, [P(['释放：用光你的算力，相邻的敌人各受 1 点伤害，每用掉 2 点再多 1 点', 2.5, (s, ev, u, t) => { const n = 1 + Math.floor(release(s, ev, u.side) / 2); zap(s, ev, u.card, t, foes(s, u.side, adj4(t)), n, 'emp'); }])]);
+  unit('r_collective', '集群意识', 'neutral_thecollective', 4, 1, [P(E.kin('机械', 1))]);
+  unit('r_wings', '拼装飞翼', 'boss_decepticlewings', 4, 2, [P(rcalc(1, 'jet'))]);
+  unit('r_caliber', '卡利伯-O', 'f1_caliber-o', 5, 1, [P(['释放：用光你的算力，每 1 点自己 +1 战力', 3, (s, ev, u, t) => { const n = release(s, ev, u.side); if (n && s.board[t] === u) buff(s, ev, t, n); }])]);
+  unit('r_sunsteel', '阳钢卫士', 'neutral_sunsteeldefender', 5, 0, [TAUNT, SHIELD]);
+  unit('r_upgrade', '升级龙', 'f5_upgradizon', 5, 1, [T(rcalc(1)), A(K.rage(1))]);
+  unit('r_greatprot', '巨像守卫', 'neutral_thegreatprotector', 6, 0, [TAUNT, T(E.aid(1))]);
+  unit('r_nightwatch', '夜巡要塞', 'neutral_nightwatcher', 7, 1, [P(E.ring(2))]);
+  unit('r_prime', '拼装者·主机', 'boss_decepticleprime', 7, 1, [P(E.pack('机械', 2))]);
+  struct('r_pylon', '算力塔', 'neutral_buildminion', 3, [T(rcalc(1))]);
+  struct('r_repair', '维修站', 'neutral_buildcommon', 3, [T(E.aid(1))]);
+  struct('r_forge', '机械熔炉', 'f6_buildlegendary', 5, [T(E.spawn('tk_bit', 2, 'front'))]);
+  spell('r_overclock', '超频', 2, 'ally', '一个友方单位 +2 战力；它是机械的话，算力再 +1。', (s, ev, side, t, id) => { const mech = cards[s.board[t].card].tribe === '机械'; bless(s, ev, id, castle(side), [t], 2); if (mech) charge(s, ev, side, 1); });
+  spell('r_reboot', '系统重启', 3, 'none', '你的机械各 +1 战力，算力 +1。', (s, ev, side, t, id) => { const ts = units(s, side).filter(x => cards[s.board[x].card].tribe === '机械'); if (ts.length) bless(s, ev, id, castle(side), ts, 1); charge(s, ev, side, 1); });
+  spell('r_arc', '电弧', 3, 'foe', '对一个敌方单位或建筑造成 2 点伤害；释放：用光你的算力，每 1 点再多 1 点。', (s, ev, side, t, id) => { const n = 2 + release(s, ev, side); zap(s, ev, id, castle(side), [t], n, 'laser'); });
+  cards.r_arc.hold = (s, side) => s.core[side] < 2; cards.r_caliber.hold = (s, side) => s.core[side] < 3; cards.r_emp.hold = (s, side) => s.core[side] < 2;
+  unit('r_metaltooth', '铁齿机兵', 'neutral_metaltooth', 2, 1, [A(K.rage(1)), D(rcalc(1))]);
+  unit('r_alterrexx', '黑白枪机兵', 'neutral_alterrexx', 3, 0, [P(laser(2)), D(rcalc(1))]);
+  unit('r_zodiac', '黄道机兵', 'f3_zodiac02', 4, 1, [SHIELD, P(E.pack('机械', 1))]);
+  struct('r_signal', '双灯信号塔', 'neutral_buildepic', 4, [T(E.kin('机械', 1))]);
+  const ROBOTS = Object.keys(cards).filter(k => cards[k].faction === 'f7' && cards[k].kind !== 'spell');
 
   // ======== 首领牌：闯关模式里每个场地的首领，击败后获得。角色是之前没用过的“将军”和首领图 ========
   F = 'f1'; bossUnit('B_f1', '三环圣者', '奥瑞安', 'f1_scintilla', 7, 1, 9, [SHIELD, P(E.wardAll()), T(E.heal(1))], 2);
@@ -568,6 +607,7 @@ export function build(H) {
 
   // 种族：只是一个标签，本身没有效果；有的牌会给同族加成
   const TRIBE = {
+    机械: [...ROBOTS, 'q_probe', 'q_helm', 'q_wing', 'q_cannon', 'q_sword', 'q_chassis', 'q_super'],
     龙: ['B_n4', 'tk_whelp', 'f6_motherofdrakes', 'drake', 'f6_snowwyvern', 'f6_whitewyvern', 'f2_firewyrm', 'f5_pteryx', 'f5_rex', 'f5_oxalaia', 'bronto', 'n_dragonling'],
     魔像: ['neutral_golemstone', 'neutral_golemsteel', 'neutral_moltengolem', 'f3_zodiac', 'n_paragon', 'juggernaut', 'n_golemrune', 'n_diamond'],
     骑士: ['squire', 'tk_knight', 'f1_kingsguard', 'lancer', 'brome', 'f1_sunstonetemplar', 'f1_silvermanevanguard', 'f1_radiantdragoon', 'warden', 'neutral_bastion', 'n_ironclad', 'n_chaosknight', 'neutral_astralcrusader', 'n_bannerman', 'n_knightlord'],
@@ -588,9 +628,11 @@ export function build(H) {
     f4: { name: '深渊', key: '影灵 · 倒下时 · 暗影 · 献祭', style: '成群的影灵。很多牌倒下时才生效；暗影地格会让站在上面的敌人每回合掉血，留 3 个回合。' },
     f5: { name: '巨兽', key: '成长 · 孵化 · 荆棘 · 狂暴', style: '大块头。有的每回合变强，有的要先孵蛋，有的谁碰谁受伤。' },
     f6: { name: '霜原', key: '冻结 · 渗透 · 冰墙', style: '把对面的兵冻在原地（被冻住的下回合不前进，能力也暂时失效），用冰墙挡路，再把兵放进对方半场拿加成。' },
+    f7: { name: '机核', key: '算力 · 回收 · 组装', style: '机器人。机械出场或倒下时攒算力（跨回合保留，最多 8 点，但每次结束回合会过热掉 1 点），几张大牌一次把算力放光；机械越多，组装类的牌越强。锦标赛冠军奖励「零号协议」也是机核的牌。' },
     n: { name: '中立', key: '', style: '哪个阵营的卡组都能带。这里还有装备牌：贴在一个友方单位身上，直到它倒下；一个单位只带一件，新的会换掉旧的。部分单位有种族（龙、魔像、骑士），有的牌会给同族加成。' },
   };
   const starters = { // 每个阵营一套预设卡组
+    f7: ['r_drone', 'r_rivet', 'r_trinket', 'r_scientist', 'r_buddy', 'r_pylon', 'r_protector', 'r_emp', 'r_arc', 'r_caliber', 'r_tank', 'r_overclock'],
     f1: ['squire', 'f1_silvermanevanguard', 'f1_warblade', 'lion', 'ballista', 'brome', 'f1_sunbreakguardian', 'f1_grandmasterzir', 'colossus', 'holy', 'f1s_shield', 'warden'],
     f2: ['f2_melee', 'f2_katara', 'f2_ace', 'f2_support', 'f2_lanternfox', 'f2_sparrowhawk', 'f2_kindling', 'f2_onyxjaguar', 'f2_demononi', 'f2_grandmasterzendo', 'f2s_shuriken', 'f2s_clone'],
     f3: ['f3_pax', 'f3_rae', 'f3_dunecaster', 'f3_orbweaver', 'f3_windshriek', 'f3_obelyskredsand', 'f3_obelyskgoldenflame', 'f3_falcius', 'f3_sakkak', 'f3_dreamshaper', 'f3s_tailwind', 'f3s_sandstorm'],
@@ -613,6 +655,8 @@ export function build(H) {
     { f: 'f5', name: '荆棘反击', plan: '防守反击：荆棘和嘲讽让对面撞得头破血流，再用霸王龙横扫收尾。', cards: ['f5_firebreather', 'f5_catalystquillbeast', 'f5_unstableflump', 'f5_silitharyoung', 'g_thorn', 'f5_mandrake', 'f5_ragebinder', 'f5s_devour', 'n_ironclad', 'f5s_slam', 'f5_ankylos', 'f5_rex'] },
     { f: 'f6', name: '冰封控制', plan: '控制：把对面冻在原地（能力也失效），再用专打冻结目标的牌清场。', cards: ['f6_wolfraven', 'f6_icy', 'fox', 'f6_bur', 'f6s_shard', 'north', 'f6_kindredhunter', 'chill', 'dryad', 'f6_ghostseraphim', 'f6_tundraguardian', 'drake'] },
     { f: 'f6', name: '渗透与龙', plan: '突进：把兵放进对方半场拿渗透加成，龙语者给一群龙加战力，两步冲城。', cards: ['f6_sleetdasher', 'f6_bur', 'fox', 'n_dragonling', 'f6_snowman', 'icewall', 'f6s_mark', 'f6_icehornet', 'n_dragonspeaker', 'f6_snowwyvern', 'f6_crystalbeetle', 'f6_whitewyvern'] },
+    { f: 'f7', name: '组装推进', plan: '机械铺场：便宜的机械一路往前推，集群意识和主机按机械数量放大。', cards: ['r_drone', 'r_rivet', 'r_helm', 'r_trinket', 'r_silver', 'r_tracer', 'r_sword', 'r_collective', 'r_wings', 'r_overclock', 'r_prime', 'r_reboot'] },
+    { f: 'f7', name: '算力过载', plan: '先攒后放：嘲讽机体和算力塔挡线攒算力，电弧、脉冲和卡利伯一次放光。', cards: ['r_drone', 'r_rivet', 'r_trinket', 'r_scientist', 'r_buddy', 'r_pylon', 'r_protector', 'r_emp', 'r_arc', 'r_caliber', 'r_tank', 'r_overclock'] },
   ];
   return { cards, factions, starters, decks, protocol: PROTOCOL };
 }

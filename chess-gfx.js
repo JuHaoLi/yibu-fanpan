@@ -2037,6 +2037,209 @@ export const MORE_GFX = {
   h: 50,
   scale: 1.15
  },
+ "tk_bit": {
+  file: "boss_decepticle",
+  cell: 100,
+  feet: 84,
+  h: 37,
+  scale: 1.55
+ },
+ "r_drone": {
+  file: "neutral_ion",
+  cell: 100,
+  feet: 86,
+  h: 30,
+  scale: 1.6
+ },
+ "r_rivet": {
+  file: "neutral_mercmelee4",
+  cell: 80,
+  feet: 64,
+  h: 23,
+  scale: 1.6
+ },
+ "r_trinket": {
+  file: "f3_palacetrinketeer",
+  cell: 80,
+  feet: 64,
+  h: 35,
+  scale: 1.6
+ },
+ "r_helm": {
+  file: "boss_decepticlehelm",
+  cell: 80,
+  feet: 64,
+  h: 37,
+  scale: 1.55
+ },
+ "r_buddy": {
+  file: "f1_invincibuddy",
+  cell: 100,
+  feet: 84,
+  h: 48,
+  scale: 1.2
+ },
+ "r_silver": {
+  file: "neutral_silvermech",
+  cell: 100,
+  feet: 84,
+  h: 49,
+  scale: 1.2
+ },
+ "r_tracer": {
+  file: "neutral_silhouettetracer",
+  cell: 80,
+  feet: 64,
+  h: 35,
+  scale: 1.6
+ },
+ "r_sword": {
+  file: "boss_decepticlesword",
+  cell: 80,
+  feet: 64,
+  h: 35,
+  scale: 1.6
+ },
+ "r_scientist": {
+  file: "neutral_thescientist",
+  cell: 110,
+  feet: 94,
+  h: 70,
+  scale: 1.0
+ },
+ "r_replica": {
+  file: "neutral_replicator",
+  cell: 130,
+  feet: 114,
+  h: 52,
+  scale: 1.1
+ },
+ "r_protector": {
+  file: "boss_protector",
+  cell: 80,
+  feet: 64,
+  h: 46,
+  scale: 1.25
+ },
+ "r_tank": {
+  file: "f5_tank",
+  cell: 80,
+  feet: 64,
+  h: 58,
+  scale: 1.0
+ },
+ "r_emp": {
+  file: "neutral_emp",
+  cell: 100,
+  feet: 84,
+  h: 60,
+  scale: 1.0
+ },
+ "r_collective": {
+  file: "neutral_thecollective",
+  cell: 120,
+  feet: 104,
+  h: 50,
+  scale: 1.15
+ },
+ "r_wings": {
+  file: "boss_decepticlewings",
+  cell: 80,
+  feet: 63,
+  h: 40,
+  scale: 1.45
+ },
+ "r_caliber": {
+  file: "f1_caliber-o",
+  cell: 120,
+  feet: 94,
+  h: 75,
+  scale: 1.0
+ },
+ "r_sunsteel": {
+  file: "neutral_sunsteeldefender",
+  cell: 120,
+  feet: 109,
+  h: 50,
+  scale: 1.15
+ },
+ "r_upgrade": {
+  file: "f5_upgradizon",
+  cell: 140,
+  feet: 124,
+  h: 60,
+  scale: 1.0
+ },
+ "r_greatprot": {
+  file: "neutral_thegreatprotector",
+  cell: 130,
+  feet: 116,
+  h: 52,
+  scale: 1.1
+ },
+ "r_nightwatch": {
+  file: "neutral_nightwatcher",
+  cell: 120,
+  feet: 104,
+  h: 76,
+  scale: 1.0
+ },
+ "r_prime": {
+  file: "boss_decepticleprime",
+  cell: 130,
+  feet: 115,
+  h: 56,
+  scale: 1.05
+ },
+ "r_pylon": {
+  file: "neutral_buildminion",
+  cell: 100,
+  feet: 85,
+  h: 51,
+  scale: 1.15
+ },
+ "r_repair": {
+  file: "neutral_buildcommon",
+  cell: 100,
+  feet: 84,
+  h: 37,
+  scale: 1.55
+ },
+ "r_forge": {
+  file: "f6_buildlegendary",
+  cell: 130,
+  feet: 114,
+  h: 66,
+  scale: 1.0
+ },
+ "r_metaltooth": {
+  file: "neutral_metaltooth",
+  cell: 100,
+  feet: 84,
+  h: 37,
+  scale: 1.55
+ },
+ "r_alterrexx": {
+  file: "neutral_alterrexx",
+  cell: 130,
+  feet: 115,
+  h: 56,
+  scale: 1.05
+ },
+ "r_zodiac": {
+  file: "f3_zodiac02",
+  cell: 100,
+  feet: 84,
+  h: 46,
+  scale: 1.25
+ },
+ "r_signal": {
+  file: "neutral_buildepic",
+  cell: 100,
+  feet: 89,
+  h: 56,
+  scale: 1.05
+ },
  "B_f1": {
   file: "f1_scintilla",
   cell: 130,

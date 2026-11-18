@@ -1,7 +1,7 @@
 // 卡牌联盟锦标赛：16 人瑞士轮 + 八强淘汰赛。纯逻辑和存档，不碰画面（画面在 cup-ui.js）。
 // 赛制：瑞士轮每轮同战绩的人互相配对、不重复交手，赢满 3 场出线、输满 3 场淘汰（最多 5 轮）；前两轮单局定胜负（BO1），从第 3 轮起三局两胜（BO3）。
 // 八个出线的人按战绩排种子打淘汰赛（1-8、4-5、2-7、3-6），全部 BO3。每人报名时带两套卡组，每一局开打前各自从两套里挑一套。
-// 除了玩家，其余 15 人都是电脑：Q1（卫冕冠军，纯中立的「零号协议」）、10 位以 AI 命名的选手、4 个路人。电脑之间的对局是真的按规则打完的（chess.js），不是掷骰子。
+// 除了玩家，其余 15 人都是电脑：Q1（卫冕冠军，机核阵营的「零号协议」）、10 位以 AI 命名的选手、4 个路人。电脑之间的对局是真的按规则打完的（chess.js），不是掷骰子。
 import { CARDS, DECKS, PROTOCOL, STRONG, newGame, apply, aiTurn, upgrade } from './chess.js';
 
 export const WIN = 3, LOSE = 3, SWISS = 5, KO_NAMES = ['八强赛', '半决赛', '决赛'];
@@ -11,8 +11,8 @@ const pre = name => { const d = DECKS.find(x => x.name === name); return { name,
 // 游戏里网络权重载入后，max 会被换成大师电脑（chess-ui.js 的 loadMaster，搜索 + 价值网络，对满强度约 64%）；node 里的自检照旧用满强度
 export const TIERS = { max: STRONG, ai: { deep: true, beam: 4 } };
 export const ROSTER = [
-  { key: 'q1', name: 'Q1', tag: '卫冕冠军', tier: 'max', hp: 12, decks: [{ name: '零号协议', f: 'n', cards: [...PROTOCOL] },
-    { name: '零号协议·超频', f: 'n', cards: ['q_probe', 'q_helm', 'q_field', 'q_wing', 'q_cannon', 'q_sword', 'q_glitch', 'q_chassis', 'n_soulstealer', 'gem', 'q_emp', 'q_super'] }] },
+  { key: 'q1', name: 'Q1', tag: '卫冕冠军', tier: 'max', hp: 12, decks: [{ name: '零号协议', f: 'f7', cards: [...PROTOCOL] },
+    { name: '零号协议·超频', f: 'f7', cards: ['q_probe', 'q_helm', 'q_field', 'q_wing', 'q_cannon', 'q_sword', 'q_glitch', 'q_chassis', 'n_soulstealer', 'gem', 'q_emp', 'q_super'] }] },
   { key: 'claude', name: '克劳德', face: 'claude', tier: 'max', decks: [pre('方尖碑'), pre('荆棘反击')] },
   { key: 'gptsol', name: 'GPT嗖', face: 'gptsol', tier: 'max', decks: [pre('荆棘反击'), pre('方尖碑')] },
   { key: 'deepseek', name: '深度求索', face: 'deepseek', tier: 'ai', decks: [pre('冰封控制'), pre('渗透与龙')] },

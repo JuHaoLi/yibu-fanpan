@@ -46,7 +46,7 @@ export function cupUI({ host, px, decks, card, valid, fight }) {
     slab.append(el('p', 'err', err), go);
     const prize = el('div', 'prize'), seeds = el('div', 'seeds');
     for (const r of C.ROSTER.filter(r => r.tier === 'max')) seeds.append(who({ ...r }));
-    prize.append(el('i', 'chest'), el('b', '', '冠军奖励'), el('p', 'dim', `卫冕冠军 Q1 的纯中立卡组「零号协议」12 张：新机制「算力」。Q1 作为卫冕冠军，城堡 12 血。`), el('small', 'dim', '种子选手'), seeds);
+    prize.append(el('i', 'chest'), el('b', '', '冠军奖励'), el('p', 'dim', `卫冕冠军 Q1 的机核卡组「零号协议」12 张：新机制「算力」。Q1 作为卫冕冠军，城堡 12 血。`), el('small', 'dim', '种子选手'), seeds);
     box.append(el('div', 'cup-two', '')); box.lastChild.append(slab, prize);
     box.append(el('small', 'credit', '选手头像：角色形象设计 小叶子XIYZ · 美术和制作 喵了个猫了个咪了个猫（meow-ai-arena，MIT）。名字只是致敬，与各家公司无关。')); root.replaceChildren(box);
   }
@@ -136,7 +136,7 @@ export function cupUI({ host, px, decks, card, valid, fight }) {
     const ch = box.querySelector('.chest'), at = ch?.getBoundingClientRect(), b0 = box.getBoundingClientRect(); ch?.classList.add('open');
     if (at) { uiFx(FXUI.chest, at.left - b0.left + at.width / 2, at.bottom - b0.top, { into: box }); uiFx(FXUI.confetti, b0.width / 2, b0.height, { into: box }); } // 特效库的开箱动画垫在宝箱位置，再撒一把彩纸
     if (!calm()) await nap(900);
-    box.querySelector('.podium').after(cardsRow()); live = false; const slab = box.querySelector('.slab.act'); slab.replaceChildren(el('span', 'dim', '零号协议 12 张已经放进你的牌池（中立页签），组牌时就能用。'));
+    box.querySelector('.podium').after(cardsRow()); live = false; const slab = box.querySelector('.slab.act'); slab.replaceChildren(el('span', 'dim', '零号协议 12 张已经放进你的牌池（机核页签），组牌时就能用。'));
     const again = el('button', 'primary', '再报名一届'); again.onclick = () => { S = null; C.save(null); draw(); }; slab.append(again);
   }
 
