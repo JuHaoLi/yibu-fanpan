@@ -3,7 +3,7 @@
 // 特效模块按需载入；还没载到就返回 null，board3d.js 那边会退回原来用光点拼的老特效，所以这里出任何问题都不会卡住对局。
 // 表里的名字改了就跑 node tools/chess_check.mjs：它会核对每个名字在 vendor/pixelfx/fx 里都有文件。
 
-// 一条配方：'特效名'，或 ['特效名', { s 放大倍数, at 从第几秒播起（跳过前摇）, rate 播放速度, pal 换一套颜色, lift 抬高几格（原点在画布中间的特效本来就会自动抬到半身高）, life 播几秒后收掉（循环的特效必须给）, fwd 沿出手方向挪几格, still 不跟着出手方向翻面 }]
+// 一条配方：'特效名'，或 ['特效名', { s 放大倍数, at 从第几秒播起（跳过前摇）, rate 播放速度, pal 换一套颜色, lift 抬高几格（原点在画布中间的特效本来就会自动抬到半身高）, life 播几秒后收掉（循环的特效必须给）, fwd 沿出手方向挪几格, still 不跟着出手方向翻面, c 把画布里的哪一点对到位置上（不写就是特效自己的原点） }]
 const PAL = { f1: 'holy', f2: 'blood', f3: 'gold', f4: 'arcane', f5: 'poison', f6: 'ice' }; // 阵营 → 特效库自带的色带名；中立用特效本来的颜色
 const el = (id, o = {}) => Object.fromEntries(['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'n'].map(k => [k, [id, PAL[k] ? { pal: PAL[k], ...o } : o]])); // 同一个特效，六个阵营各染一套色
 
@@ -19,8 +19,9 @@ export const KIND = {
     n: { shot: 'fire/fireball', hit: ['arcane/mana-burst', { at: .2, s: .6, pal: 'fire' }] },
   },
   drain: { shot: ['projectiles/plasma-shot', { pal: 'blood', s: .7 }], hit: ['pickups/collect-burst', { pal: 'blood', s: .8, lift: .3 }], src: ['impacts/hit-spark', { pal: 'blood' }] }, // 吸血：从被吸的人身上飞回来
-  storm: { f1: ['holy/smite', { at: .5 }], f2: ['arcane/star-fall', { at: .35, pal: 'blood', s: .7 }], f3: ['lightning/lightning-strike', { at: .5, pal: 'volt' }], f4: ['shadow/dark-explosion', { at: .5, s: .5 }], f5: ['nature/spore-burst', { at: .8, s: .8 }], f6: ['ice/icicle-fall', { at: .85 }], n: ['lightning/lightning-strike', { at: .5 }] },
-  beam: { ...el('arcane/arcane-beam'), f3: ['fire/flamethrower', { pal: 'gold' }], f6: 'ice/frost-breath' },
+  storm: { f1: ['holy/smite', { at: .5 }], f2: ['arcane/star-fall', { at: .35, pal: 'blood', s: .7 }], f3: ['arcane/star-fall', { at: .35, pal: 'gold', s: .7 }], f4: ['nature/poison-cloud', { life: 1, s: .5 }], f5: ['nature/spore-burst', { at: .8, s: .8 }], f6: ['ice/icicle-fall', { at: .85 }], n: ['lightning/lightning-strike', { at: .5 }] },
+  beam: { ...el('arcane/arcane-beam', { c: [26, 60], len: 205, life: .45 }), f2: ['fire/flamethrower', { c: [30, 60], len: 137, life: .45 }], f5: ['water/water-jet', { pal: 'poison', c: [14, 33], len: 165, life: .45 }], f6: ['ice/frost-breath', { c: [12, 50], len: 136, life: .45 }] }, // 一道扫过去的光束：c 是光束在画布里的起点，len 是它画了多长（像素），棋盘那边按这两个数把它对准、拉到够长
+  beamHit: { ...el('impacts/hit-spark'), f6: ['ice/snowflake-burst', { at: .1, s: .7 }], n: 'lightning/zap-hit' },
   nova: { // 以出手的人为中心炸开一圈
     f1: { src: ['arcane/mana-burst', { at: .2, pal: 'holy' }], hit: ['impacts/hit-spark', { pal: 'holy' }] },
     f2: { src: ['fire/fire-ring', { at: .3, pal: 'blood', rate: 1.6 }], hit: 'impacts/hit-spark' },
@@ -140,7 +141,7 @@ export function createPfx(THREE, layer, PXW) {
     const sim = pts.length ? makeSim(recipe, extra) : null; if (!sim) return null; const { w, h, ox, oy, o } = sim, flip = !!o.flip && !o.still;
     const tex = new THREE.CanvasTexture(sim.cv); tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false; tex.colorSpace = THREE.SRGBColorSpace; if (flip) { tex.repeat.x = -1; tex.offset.x = 1; }
     const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: !!o.depth, depthWrite: false }), k = (o.s || 1) * PXW; // depth：场地上常驻的东西要被前面的人和城堡挡住；打出来的特效不被挡
-    const sprites = pts.map(pt => { const s = new THREE.Sprite(mat); s.center.set(flip ? 1 - ox / w : ox / w, 1 - oy / h); s.scale.set(w * k, h * k, 1); s.position.copy(pt); s.position.y += (o.lift || 0) + (o.raw || oy / h > .72 ? 0 : .45); /* 原点在画布中间的（火花、爆点、飞行物）是打在身上的，自动抬到半身高；原点在画布底边的是贴地的 */ if (!o.depth) s.renderOrder = 9; layer.add(s); return s; });
+    const sprites = pts.map(pt => { const s = new THREE.Sprite(mat); const cx = o.c ? o.c[0] : ox, cy = o.c ? o.c[1] : oy; s.center.set(flip ? 1 - cx / w : cx / w, 1 - cy / h); s.scale.set(w * k, h * k, 1); s.position.copy(pt); s.position.y += (o.lift || 0) + (o.raw || o.c || oy / h > .72 ? 0 : .45); /* 原点在画布中间的（火花、爆点、飞行物）是打在身上的，自动抬到半身高；原点在画布底边的是贴地的 */ if (!o.depth) s.renderOrder = 9; layer.add(s); return s; });
     const p = { sprites, mat, tex, stop: sim.stop, kill: () => kill(p), step(dt) { if (!sim.step(dt)) kill(p); else if (sim.dirty) { sim.dirty = false; tex.needsUpdate = true; } } };
     live.add(p); try { p.step(0); } catch { kill(p); return null; } return p;
   }

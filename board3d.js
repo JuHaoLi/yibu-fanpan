@@ -582,6 +582,10 @@ function fly(shot, a, b, dur = .26, arc = .5) { // 一发飞过去的像素特�
 const scenery = createPfx(THREE, scene, 1 / 44); let sceneryKey = '';
 function ambient() { const key = themeKey + (low ? '-' : '+'); if (key === sceneryKey) return; sceneryKey = key; scenery.clear(); const list = AMBIENT[themeKey]; if (calm || low || !list) return;
   warm(list.map(a => (typeof a[0] === 'string' ? a[0] : a[0][0]))).then(() => { if (key !== sceneryKey) return; scenery.clear(); list.forEach(([r, fx, y, z, k = 1], i) => scenery.play(r, [new THREE.Vector3(fx * (HALF + 2.2), y + .07, z)], { depth: true, every: 2, raw: true, seed: i + 1, s: k * (typeof r === 'string' ? 1 : r[1].s || 1) })); }); }
+function beamTo(R, a, b) { // 一道光束：起点对在 a，朝 b 摆正，拉到刚好够到 b（都按屏幕上的方位算，所以横着扫一路、竖着扫一排都对得上）。播不出来返回 null
+  const dir = Math.sign(b.x - a.x) || 1, h = px(R, [a], dir); if (!h) return null; const sp = h.sprites[0], o = R[1], pa = strike(a), pb = strike(b), pr = strike(a.clone().add(new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion))), asp = renderer.domElement.clientWidth / Math.max(1, renderer.domElement.clientHeight);
+  const want = Math.hypot((pb.x - pa.x) * asp, pb.y - pa.y) / (Math.hypot((pr.x - pa.x) * asp, pr.y - pa.y) || 1) + .35, has = o.len * (o.s || 1) / 44; // want：a 到 b 在这个远近上相当于几格宽（多伸出一点）；has：光束本来画了几格长
+  h.mat.rotation = Math.atan2(pb.y - pa.y, (pb.x - pa.x) * asp) - (dir < 0 ? Math.PI : 0); sp.scale.x *= Math.max(.5, want / has); return h; }
 let blow = null; // 最近一次出手：谁（哪张牌、哪一方）打向哪一格里的谁。hurt() 靠它决定刀光用哪个阵营的
 const drop = o => { fxLayer.remove(o); if (o.isMesh) o.geometry.dispose(); };
 let quake = 0;
@@ -759,8 +763,9 @@ export const board = {
     if (R && !calm) switch (e.k) {
       case 'bolt': { const fs = ts.map(b => fly(R.shot, from, b)); if (fs.every(Boolean)) return Promise.all(fs.map((f, i) => f.then(() => { if (!px(R.hit, fl[i], dirTo(ts[i]))) burst(ts[i], color, hot); }))); break; }
       case 'drain': { const fs = ts.map(b => fly(R.shot, b, from, .3)); if (fs.every(Boolean)) { px(R.src, fl, -d0); return Promise.all(fs).then(() => { px(R.hit, floor(from), d0); }); } break; }
-      case 'nova': if (px(R.src, floor(from), d0)) { later(.1, () => { if (!px(R.hit, fl, d0)) ts.forEach(b => burst(b, color, hot)); }); return later(.16, () => {}); } break;
-      case 'beam': if (px(R, floor(from), d0)) { ts.forEach(b => later(.07, () => burst(b, color, hot))); return later(.12, () => {}); } break;
+      case 'nova': if (px(R.src, e.from.base !== undefined ? fl[0] : floor(from), d0)) { /* 从城堡放的范围法术：圈炸在第一个目标脚下，不炸在城堡上 */ later(.1, () => { if (!px(R.hit, fl, d0)) ts.forEach(b => burst(b, color, hot)); }); return later(.16, () => {}); } break;
+      case 'beam': { const far = ts.reduce((a, b) => a.distanceTo(from) > b.distanceTo(from) ? a : b), a = from.clone().setY(.5); if (e.from.base !== undefined) a.z = far.z * .5; // 从城堡放的：起点往目标那一路靠一靠
+        if (beamTo(R, a, far)) { later(.07, () => { if (!px(pickEl(KIND.beamHit, e.el), fl, d0)) ts.forEach(b => burst(b, color, hot)); }); return later(.12, () => {}); } break; }
       case 'slash': if (px(R, fl.map(v => v.setX(v.x - d0 * 1.35)), d0)) return later(.1, () => {}); break;
       default: if (px(R, fl, d0)) return later({ storm: .2 + ts.length * .05, frost: .16, venom: .14, gust: .22, bless: .2, heal: .2, summon: .18, shade: .14, creep: .14, thorn: .1 }[e.k] || .14, () => {});
     }
