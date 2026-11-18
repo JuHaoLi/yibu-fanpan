@@ -12,6 +12,7 @@
 | `vendor/pixelfx/` | pixelfx 像素特效库（两百多个用代码画的特效：刀光、爆炸、法术、天气、小动物……对局里现算现播），用法见 `board-pfx.js`、`ui-pfx.js` | MIT | 是 | `vendor/pixelfx/LICENSE`（Copyright 2026 Patch、Hugo Duprez）和 `vendor/pixelfx/NOTICE.md`；来自 patch-gg/pixelfx 的网页版源码，取自它的 Godot 移植仓库 winkidney/pixelfx-godot 的 `src/`，只拿了 `core` 和 `fx`（没拿它的字体，字体不在 MIT 范围内） | 保留许可文件和声明即可 |
 | `vendor/peerjs.min.js` | PeerJS 1.5.4（联机房间用，WebRTC 点对点） | MIT | 是 | `vendor/peerjs.LICENSE`。运行时会连 PeerJS 的公共中转（0.peerjs.com）和 STUN/TURN，所以离线包里要么关掉房间功能，要么换成自己的中转 | 保留许可文件即可 |
 | `assets/avatars` | 锦标赛里十位以 AI 命名的选手头像（每人四种表情，48×48 像素画） | MIT | 是（商标另议，见右栏） | 由 `tools/pixel_avatars.py` 从 meow-ai-arena（github.com/chen-006/meow-ai-arena）的表情立绘像素化，`assets/avatars/LICENSE` 是 MIT 全文，`NOTICE.md` 写了出处。立绘里有几位带着原公司标志（OpenAI、xAI、Kimi、小米等的发饰），像素化后仍认得出；名字是“克劳德”“GPT嗖”这类致敬名。上架前要再评估商标风险 | 要：角色形象设计：小叶子XIYZ；美术和制作：喵了个猫了个咪了个猫；附仓库链接 |
+| `assets/ai` | 自由对战"大师"难度的局面价值网络权重 | 自制 | 是 | 电脑自我对打训练出来的数字，`tools/lab/`（`gen.mjs` 出数据、`train.mjs` 训练） | — |
 | 场景、界面、一部分特效 | 全部用代码画 | 自制 | 是 | `board3d.js`、`style.css`、`motion.css`（像素特效用的是上面的 pixelfx） | — |
 | 卡牌名字、说明、数值、关卡 | 自己写的 | 自制 | 是 | `chess-cards.js`、`campaign.js`。规则框架参考了 Stormbound 的公开玩法，没有用它的名字、文字、图 | — |
 

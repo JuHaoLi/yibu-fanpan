@@ -5,7 +5,7 @@
 import hashlib, re, shutil, sys, zipfile
 from pathlib import Path
 ROOT, OUT, NAME = Path('.'), Path('dist'), 'yibu-fanpan'
-DIRS = ['assets/units', 'assets/icons', 'assets/ui', 'assets/audio', 'assets/avatars', 'vendor']           # 整个目录带上的素材
+DIRS = ['assets/units', 'assets/icons', 'assets/ui', 'assets/audio', 'assets/avatars', 'assets/ai', 'vendor']           # 整个目录带上的素材
 SKIP = re.compile(r'(^|/)(\.DS_Store|CREDITS\.md|.*\.map)$')
 html = (ROOT / 'board.html').read_text(encoding='utf-8')
 html = re.sub(r'<a\b[^>]*href="(?:index|duel)\.html"[^>]*>.*?</a>', '', html, flags=re.S)  # 旧的解谜页和对战页不进包，入口链接去掉
