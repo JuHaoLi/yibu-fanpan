@@ -76,6 +76,11 @@ const at = (r, t) => r.state.board[t];
   s = blank(); s.hand[0][0] = 'f2_support'; s.left = 9; let ts = legalPlays(s).filter(a => a.i === 0).map(a => a.t); assert.ok(ts.includes(tile(ROWS - 2, 3)) && !ts.includes(tile(ROWS - 1, 3)), '奇袭：不受前线限制，但进不了对方家门口那一行');
   s = blank(); put(s, tile(1, 0), 0); put(s, tile(1, 2), 1, V, 9, { frozen: true }); const k0 = CARDS.f2_katara.str; r = play(s, 'f2_katara', tile(1, 1)); const side = r.state.board.find(u => u && u.card === 'f2_katara'); assert.ok(r.events.some(e => e.t === 'attack' && e.to === tile(1, 2)), '走一步后从侧面打'); assert.equal(at(r, tile(1, 2)).str, 9 - 2 - k0, '偷袭：侧面先多 2 点'); assert.ok(!side);
   s = blank(); put(s, tile(1, 0), 0, 'f2_xho', 2); put(s, tile(3, 3), 1, V, 9); r = play(s, 'gem', tile(3, 3)); assert.equal(at(r, tile(1, 0)).str, 3, '咒印：每施放一张法术 +1');
+  // 四风法师：在场期间每放满 4 张法术，打对方城堡 4 次、每次 1 点；前 3 张不动，第 8 张再来一轮；战力手定为 4
+  assert.equal(CARDS.f2_mage4winds.str, 4); assert.equal(CARDS.f2_mage4winds.cost, 4);
+  s = blank(); put(s, tile(1, 0), 0, 'f2_mage4winds', 4); 
+  for (let k = 1; k <= 8; k++) { put(s, tile(3, 3), 1, V, 9); r = play(s, 'gem', tile(3, 3)); s = r.state; const hits = r.events.filter(e => e.t === 'base' && e.side === 1);
+    assert.equal(hits.length, k % 4 ? 0 : 4, `四风法师：第 ${k} 张法术`); assert.ok(hits.every(e => e.n === 1)); assert.equal(s.base[1], BASE_HP - 4 * Math.floor(k / 4)); }
   s = blank(); put(s, tile(1, 1), 0, V, 8); r = play(s, 'f2s_clone', tile(1, 1)); assert.equal(at(r, tile(0, 1))?.card, V, '影分身放在身后'); assert.equal(at(r, tile(0, 1)).str, 5, '分身战力最多 5');
   s = blank(); put(s, tile(2, 2), 1, 'kolossus', 12); r = play(s, 'f2s_seal', tile(2, 2)); assert.equal(at(r, tile(2, 2)).card, 'tk_paper'); assert.equal(at(r, tile(2, 2)).str, 1, '纸鹤封印：变成 1 战力的纸鹤');
   s = blank(); put(s, tile(2, 0), 1, V, 5); put(s, tile(2, 3), 1, V, 5); put(s, tile(3, 0), 1, V, 5); r = play(s, 'f2s_fire', tile(2, 0)); assert.equal(at(r, tile(2, 3)).str, 2, '火遁打一整横排'); assert.equal(at(r, tile(3, 0)).str, 5); }
@@ -134,6 +139,11 @@ const at = (r, t) => r.state.board[t];
   s = newGame([deck('f1'), deck('f4')], rnd, { base: [12, 8], setup: [{ side: 1, card: 'colossus', tile: tile(ROWS - 1, 1), str: 5 }], boss: 1, hand: [[], ['B_f4']] });
   assert.deepEqual(s.base, [12, 8]); assert.equal(s.board[tile(ROWS - 1, 1)].card, 'colossus', '开局摆在场上的东西');
   s = newGame([deck('f1'), [...deck('f4').slice(1), 'B_f4']], rnd, { hand: [[], ['B_f4']], boss: 1 }); assert.ok(s.hand[1].includes('B_f4'), '首领牌保证在对面起手里');
+  // 首领牌加过费（cost = lair + 1 或 2）：首领关里首领一方打自己的首领按原费用 lair，扣的也是 lair；别的对局里谁打都按 cost
+  for (const k of Object.keys(CARDS).filter(k => CARDS[k].boss)) assert.ok([1, 2].includes(CARDS[k].cost - CARDS[k].lair), `${k} 的加费应是 1 或 2`);
+  { const c = CARDS.B_f4, idx = g => g.hand[1].indexOf('B_f4'); let g = newGame([deck('f1'), [...deck('f4').slice(1), 'B_f4']], rnd, { hand: [[], ['B_f4']], boss: 1 }); g.turn = 1; g.left = c.lair;
+    assert.ok(targets(g, idx(g)).length, '首领关：首领一方能量够原费用就能打出首领'); assert.equal(apply(g, { type: 'play', i: idx(g), t: targets(g, idx(g))[0] }).state.left, 0, '扣的是原费用');
+    g = newGame([deck('f1'), [...deck('f4').slice(1), 'B_f4']], rnd, { hand: [[], ['B_f4']] }); g.turn = 1; g.left = c.cost - 1; assert.equal(targets(g, idx(g)).length, 0, '普通对局：差 1 点能量打不出首领牌'); g.left = c.cost; assert.ok(targets(g, idx(g)).length); }
   s = newGame([deck('f1'), deck('f4')], rnd, { base: [10, 10], boss: 1 }); put(s, tile(3, 1), 1, 'B_f4', 8); put(s, tile(ROWS - 1, 0), 0, V, 5); r = endAs(s, 0); assert.ok(r.state.rage[1], '首领一方的城堡掉到一半：发怒'); assert.equal(at(r, tile(3, 1)).str, 11, '发怒 +3'); assert.ok(at(r, tile(3, 1)).shield);
   s = blank(); put(s, tile(3, 1), 1, 'B_f4', 8); put(s, tile(2, 3), 1, V, 1); s.turn = 0; r = play(s, 'gem', tile(2, 3)); assert.equal(at(r, tile(3, 1)).str, 10, '厄古：友军倒下 +2');
   s = blank(); put(s, tile(1, 0), 0, V, 3); put(s, tile(1, 3), 0, V, 3); r = play(s, 'B_f1', tile(0, 1)); assert.ok(at(r, tile(1, 0)).shield && at(r, tile(1, 3)).shield, '奥瑞安：全队圣盾');
@@ -204,6 +214,12 @@ const never = ids.filter(k => !played.has(k)), tokens = Object.keys(CARDS).filte
     const old = { name: '旧', cards: STARTERS.f1.map((c, i) => (i ? c : 'neutral_dex')) }; globalThis.localStorage = { getItem: () => JSON.stringify({ runs: { f1: { deck: old, at: 2 }, f2: { deck: { name: '坏', cards: ['没有这张牌'] }, at: 1 } }, done: {}, owned: [] }), setItem() {} };
     progress.load(); assert.ok(progress.data.runs.f1.deck.cards.includes('neutral_jaxi') && !progress.data.runs.f1.deck.cards.includes('neutral_dex'), '锁定卡组里的旧牌换成接班的'); assert.equal(deckError(progress.data.runs.f1.deck.cards), ''); assert.ok(!progress.data.runs.f2, '带着不认识的牌的进度不读');
     assert.deepEqual(upgrade(['neutral_dex', 'neutral_jaxi']), ['neutral_dex', 'neutral_jaxi'], '接班的牌已经在卡组里就不换（免得重复）'); delete globalThis.localStorage; }
+  // 卡组代码：48 个字符，转回来还是那 12 张；没有两张牌撞同一个散列（撞了就给新牌换个 id）；删掉的牌的旧代码换成接班的；乱写的认不出来
+  { const { DECKS, RETIRED, deckCode, fromCode, codeTable } = await import('../chess.js');
+    assert.deepEqual([...codeTable().values()].filter(v => v.length > 1), [], '两张牌的卡组代码撞了');
+    for (const d of DECKS) { const c = deckCode(d.cards); assert.match(c, /^[\w-]{48}$/); assert.deepEqual(fromCode(` ${c}\n`).sort(), [...d.cards].sort(), `${d.name} 的卡组代码转不回来`); assert.equal(deckCode([...d.cards].reverse()), c, '同一副牌顺序不同，代码一样'); }
+    const withOld = STARTERS.f1.map((c, i) => (i ? c : Object.keys(RETIRED)[0])); assert.ok(fromCode(deckCode(withOld)).includes(Object.values(RETIRED)[0]), '旧代码里删掉的牌换成接班的');
+    for (const bad of ['', 'abc', 'A'.repeat(48), deckCode(DECKS[0].cards).slice(1), '<script>'.repeat(6)]) assert.equal(fromCode(bad), null, `不该认出来：${bad}`); }
   // 每个首领关的对手卡组里必须真的有那张首领牌，开局也得在对面手里（永冻隘口以前换错了牌，首领一直不出现）
   for (const a of AREAS) { const boss = a.stages.find(s => s.boss); if (!boss) continue;
     assert.ok(boss.foe.includes(boss.boss), `${a.name}：首领牌 ${boss.boss} 不在对手卡组里`);

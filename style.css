@@ -234,6 +234,8 @@ body.chess header { position:absolute; z-index:6; top:var(--s3); left:max(var(--
 #filters { gap:var(--s2) var(--s4); } #kinds, #costs { gap:0; flex-wrap:nowrap; } #costs::before { content:'费用'; margin-right:var(--s2); color:var(--night-4); font:var(--f12); }
 #bq { flex:1 1 208px; min-width:160px; height:24px; padding:0; border:0; border-bottom:2px solid var(--night-3); background:none; color:var(--paper); font:var(--f14); }
 #bq:focus { outline:none; border-bottom-color:var(--paper); } #bq::placeholder { color:var(--night-4); }
+#bcoderow { flex-wrap:nowrap; } #bcode { flex:1 1 0; min-width:0; height:24px; padding:0; border:0; border-bottom:2px solid var(--night-3); background:none; color:var(--dim); font:var(--f12); text-overflow:ellipsis; }   /* 卡组代码：平时只是一行小字，点进去全选，方便整串换掉 */
+#bcode:focus { outline:none; border-bottom-color:var(--paper); color:var(--paper); } #bcode::placeholder { color:var(--night-4); }
 #pool { display:grid; grid-template-columns:repeat(auto-fill, 144px); gap:var(--s4) var(--s3); justify-content:space-between; padding:var(--s4) 0 var(--s3); }
 #pool > p { grid-column:1 / -1; }
 .right { position:sticky; top:0; max-height:calc(100vh - 56px); max-height:calc(100dvh - 56px); display:flex; flex-direction:column; gap:var(--s2); }

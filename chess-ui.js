@@ -1,6 +1,6 @@
 // 下棋的界面：开始界面（选卡组、选对手）→ 组牌界面 → 对局（出牌、换牌、结束回合、电脑回合）→ 结算。
 // 规则和卡牌在 chess.js / chess-cards.js；画面、动画和特效在 board3d.js；这里把它们接起来。你永远在左边、先手。
-import { upgrade, CARDS, FACTIONS, DECKS, FKEYS, DECK, deckInsight, BASE_HP, newGame, apply, targets as legal, forecast, aiTurn, STRONG, frontDepth, factionOf, deckError } from './chess.js';
+import { deckCode, fromCode, upgrade, CARDS, FACTIONS, DECKS, FKEYS, DECK, deckInsight, BASE_HP, newGame, apply, targets as legal, forecast, aiTurn, STRONG, frontDepth, factionOf, deckError } from './chess.js';
 import { board, GFX } from './board3d.js';
 import { areaOf, stageOpts, battleMusic, progress, BADGES, badgeName } from './campaign.js';
 import { campaignUI } from './campaign-ui.js';
@@ -59,6 +59,9 @@ const saved = () => { try { return (JSON.parse(localStorage.getItem(KEY)) || [])
 const store = list => { try { localStorage.setItem(KEY, JSON.stringify(list)); } catch { /* 存不了就只在这次打开期间有效 */ } };
 let customs = saved(), chosen = 0; // chosen：开始界面上选中的是第几套（先排预设，再排自组）
 const allDecks = () => [...DECKS.map(d => ({ ...d, preset: true })), ...customs];
+// 把一串字放进剪贴板，按钮上回一句成没成。不是 https 的页面没有 navigator.clipboard：退回到老办法
+const copy = async (text, b) => { let ok = true; try { await navigator.clipboard.writeText(text); } catch { const t = el('textarea'); t.value = text; document.body.append(t); t.select(); ok = document.execCommand('copy'); t.remove(); }
+  if (!b.dataset.was) { b.dataset.was = b.textContent; b.textContent = ok ? '已复制' : '复制失败'; setTimeout(() => { b.textContent = b.dataset.was; delete b.dataset.was; }, 1500); } return ok; };
 
 // ---------- 开始界面 ----------
 let mode = 'free'; // 开始界面的三种玩法：自由对战、闯关（campaign-ui.js 画的地图）、锦标赛（cup-ui.js）
@@ -80,7 +83,7 @@ function home() {
   $('editdeck').textContent = d.preset ? '改编' : '编辑'; $('editdeck').title = d.preset ? '照着这套预设另存一套自己的，再改' : '改这套自组卡组'; $('editdeck').onclick = edit;
   $('homehint').replaceChildren(
     ...(d.preset ? [] : [op('删除', e => { const b = e.currentTarget; if (b.dataset.sure) { customs.splice(at, 1); store(customs); return home(); } b.dataset.sure = 1; b.textContent = '再点确认'; setTimeout(() => { delete b.dataset.sure; b.textContent = '删除'; }, 2000); }, 'danger')])); // 危险操作两秒内点两下才生效，不弹浏览器的确认框
-  $('homehint').append(taught() ? op('教学', teach) : op('跳过教学', () => { taught(true); home(); }));
+  $('homehint').append(Object.assign(op('复制代码', e => copy(deckCode(d.cards), e.currentTarget)), { title: '复制这副卡组的代码，发给别人；对方在「新卡组」里粘贴' }), taught() ? op('教学', teach) : op('跳过教学', () => { taught(true); home(); }));
   // 其余的卡组只是一面旗：每个阵营一组，自组的另成一组
   const flag = (x, i) => { const b = el('button', 'flag ' + deckFaction(x.cards) + (i === chosen ? ' on' : ''), x.name); b.setAttribute('aria-pressed', i === chosen); b.title = i === chosen ? '再点一次进入编辑' : x.plan || ''; b.onclick = () => { if (i === chosen) return x.preset && customs.length >= SLOTS ? 0 : edit(); chosen = i; home(); }; return b; };
   const grp = (cls, name, items) => { const g = el('div', 'grp ' + cls, `<em>${name}</em>`); g.append(...items); return g; };
@@ -154,8 +157,13 @@ function drawBuilder() {
   const ins = B.cards.length >= 6 ? deckInsight(B.cards) : null, bad = ins ? ins.filter(x => !x.ok) : []; // 体检只列有问题的几条；全过就一行，省得把卡条挤出屏幕
   $('binsight').replaceChildren(...(!ins ? [el('li', '', '选到 6 张以后，这里会帮你看这副牌缺什么。')] : bad.length ? bad.map(x => el('li', 'warn', x.text)) : [el('li', 'ok', '体检全过：制胜手段、前线、解场、费用都够。')])); $('binsight').title = ins ? ins.map(x => (x.ok ? '✓ ' : '！') + x.text).join('\n') : '';
   $('berr').textContent = B.cards.length < DECK ? `再选 ${DECK - B.cards.length} 张。` : err; $('bsave').disabled = !!err;
+  const full = B.cards.length === DECK; $('bcopy').disabled = !full; if (document.activeElement !== $('bcode')) $('bcode').value = full ? deckCode(B.cards) : ''; // 卡组代码：选满 12 张才有
 }
 $('bname').oninput = e => { B.name = e.target.value; };
+$('bcopy').onclick = e => copy(deckCode(B.cards), e.currentTarget).then(ok => ok || $('bcode').focus()); // 浏览器不让写剪贴板：把代码框选中，自己按复制
+$('bcode').onfocus = e => e.target.select();
+$('bcode').oninput = e => { const v = e.target.value.trim(), ids = fromCode(v); // 粘贴进来一串认得出的代码：整副牌换成它（能不能存还是组牌规则说了算，比如没赢到手的首领牌）
+  if (ids) { B.cards = ids; const f = deckFaction(ids); if (f !== 'n') tab = f; e.target.blur(); drawBuilder(); } else if (v) $('berr').textContent = '这串卡组代码认不出来：要完整的 48 个字符。'; else drawBuilder(); };
 $('bsave').onclick = () => { const d = { name: (B.name || '').trim() || '我的卡组', cards: [...B.cards] }; if (deckError(d.cards, owned())) return; if (B.at >= 0) customs[B.at] = d; else if (customs.length < SLOTS) customs.push(d); else return; store(customs); chosen = DECKS.length + (B.at >= 0 ? B.at : customs.length - 1); home(); };
 $('bcancel').onclick = home;
 $('bclear').onclick = () => { B.cards = []; drawBuilder(); };
@@ -403,7 +411,7 @@ board.onTile(t => { tileAt = performance.now(); if (!S) return; // 鼠标有悬�
 stage.addEventListener('click', e => { if (touch && S && e.target.tagName === 'CANVAS' && performance.now() - tileAt > 300) tapAway(-1); }); // 点在棋盘外的空地上（场景没报格子）
 function tipAt(t) { // 这一格上的单位是什么、身上有什么（连同这一格的暗影）。鼠标悬停时出，手指点一下也出
   const tip = $('tip'), u = t >= 0 && S ? S.board[t] : null, dark = t >= 0 && S && S.creep[t] >= 0 ? `<br>这一格有${WHO[S.creep[t]]}的暗影：站在上面的敌人每回合 −1，还剩 ${S.shade[t]} 个回合` : '';
-  if (u || dark) { const c = u && CARDS[u.card]; tip.innerHTML = (u ? `<b>${c.name}</b>${c.tribe ? `〔${c.tribe}〕` : ''}（${WHO[u.side]}）战力 ${u.str}${u.shield ? ' · 有圣盾' : ''}${u.frozen ? ' · 冻住了（不前进，能力暂时失效）' : ''}${u.poison ? ' · 中毒（每回合 −1）' : ''}${u.vital ? ' · 活力（每回合 +1）' : ''}${u.mute ? ' · 能力被禁用' : ''}${u.timer !== undefined ? ` · 还要 ${u.timer} 个回合孵出` : ''}<br>${u.mute || u.frozen ? `<s>${c.text}</s>` : rich(c.text)}${u.gear ? `<br><b>${CARDS[u.gear].name}</b>：${CARDS[u.gear].text.replace(/^装备：一个友方单位.*?获得「/, '').replace(/」。$/, '')}` : ''}` : '空格子') + dark; tip.style.display = 'block'; const r = stage.getBoundingClientRect(), p = board.screen(t), x = p.x - r.left, y = p.y - r.top; // 锚在格子上而不是跟着鼠标跑；正在看预演时放到格子下方，不盖住被瞄准的单位和头上的结果标记
+  if (u || dark) { const c = u && CARDS[u.card]; tip.innerHTML = (u ? `<b>${c.name}</b>${c.tribe ? `〔${c.tribe}〕` : ''}（${WHO[u.side]}）战力 ${u.str}${u.shield ? ' · 有圣盾' : ''}${u.spells ? ` · 已攒 ${u.spells % 4} / 4 张法术` : ''}${u.frozen ? ' · 冻住了（不前进，能力暂时失效）' : ''}${u.poison ? ' · 中毒（每回合 −1）' : ''}${u.vital ? ' · 活力（每回合 +1）' : ''}${u.mute ? ' · 能力被禁用' : ''}${u.timer !== undefined ? ` · 还要 ${u.timer} 个回合孵出` : ''}<br>${u.mute || u.frozen ? `<s>${c.text}</s>` : rich(c.text)}${u.gear ? `<br><b>${CARDS[u.gear].name}</b>：${CARDS[u.gear].text.replace(/^装备：一个友方单位.*?获得「/, '').replace(/」。$/, '')}` : ''}` : '空格子') + dark; tip.style.display = 'block'; const r = stage.getBoundingClientRect(), p = board.screen(t), x = p.x - r.left, y = p.y - r.top; // 锚在格子上而不是跟着鼠标跑；正在看预演时放到格子下方，不盖住被瞄准的单位和头上的结果标记
     const zl = zoomEl.offsetWidth ? zoomEl.getBoundingClientRect().right - r.left + 8 : 0; // 小屏左边可能正摆着放大的牌：说明让到它右边
     tip.style.left = Math.min(r.width - 256, Math.max(zl, x < r.width / 2 ? x + 48 : x - 288)) + 'px'; tip.style.top = Math.max(0, Math.min(handTop() - r.top - tip.offsetHeight, sel >= 0 || y < 152 ? y + 40 : y - 104)) + 'px'; } // 舞台矮的时候：上面放不下（会盖住顶上那排字）就放到格子下方；再往下是手牌，不许压进去
   else tip.style.display = 'none';

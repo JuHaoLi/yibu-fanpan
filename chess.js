@@ -154,6 +154,17 @@ export const FKEYS = Object.keys(FACTIONS).filter(f => f !== 'n');
 export const RETIRED = { neutral_dex: 'neutral_jaxi' }; // 删掉的牌 → 接班的牌。玩家存档里的卡组（自组的、闯关里锁定的）可能还带着旧牌：读进来时换掉，不然卡组作废、闯关开打直接报错
 export const upgrade = cards => (Array.isArray(cards) ? cards.map(c => (RETIRED[c] && !cards.includes(RETIRED[c]) ? RETIRED[c] : c)) : cards);
 export const DECKS = built.decks;         // 按打法组好的预设卡组：[{ f, name, plan, cards }]
+// 卡组代码：给别人抄卡组用的一串 48 个字符。每张牌取 id 的 24 位散列（3 个字节），12 张排好序拼起来再转成字母数字。
+// 用 id 的散列而不是牌表里的序号：以后增删牌，旧代码照样认得。两张牌撞了同一个散列的话自检会拦住（那就给新牌换个 id）。
+const h24 = id => { let h = 2166136261; for (const ch of id) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return (h ^ h >>> 24) & 0xffffff; };
+export const codeTable = () => { const m = new Map(); for (const k of [...Object.keys(CARDS).filter(k => !CARDS[k].token), ...Object.keys(RETIRED)]) m.set(h24(k), [...(m.get(h24(k)) || []), k]); return m; }; // 散列 → 牌（自检用它查撞码）
+export const deckCode = ids => btoa(String.fromCharCode(...ids.map(h24).sort((a, b) => a - b).flatMap(h => [h >> 16, h >> 8 & 255, h & 255]))).replace(/\+/g, '-').replace(/\//g, '_');
+export function fromCode(str) { // 认不出来返回 null；认出来的只保证每张牌都存在，合不合组牌规则由 deckError 管
+  str = String(str).replace(/\s/g, ''); if (!/^[\w-]{48}$/.test(str)) return null;
+  const b = atob(str.replace(/-/g, '+').replace(/_/g, '/')), t = codeTable(), ids = [];
+  for (let i = 0; i < b.length; i += 3) { const k = t.get(b.charCodeAt(i) << 16 | b.charCodeAt(i + 1) << 8 | b.charCodeAt(i + 2)); if (!k) return null; ids.push(k[0]); }
+  return upgrade(ids);
+}
 export const PROTOCOL = built.protocol;   // 零号协议：锦标赛冠军奖励的 12 张中立牌（Q1 的卡组）
 // 卡组体检：照“制胜手段 / 前线 / 解场 / 费用”几条经验看一副牌缺什么。返回 [{ ok, text }]
 export function deckInsight(ids) {
@@ -183,8 +194,9 @@ export function deckError(ids, owned) { // 组牌规则：正好 12 张、不重
 
 // ---------- 行动 ----------
 // {type:'play', i, t}：打出第 i 张手牌到格子 t（无目标法术 t 传 -1）；{type:'swap', i}：换掉一张牌，每回合一次；{type:'end'}：结束回合
+const costOf = (s, side, c) => (c.boss && s.boss === side ? c.lair : c.cost); // 首领关里首领一方打自己的首领牌按原费用（lair）；玩家带着首领牌是加过费的 cost
 export function targets(s, i) { // 这张手牌现在能打到哪些格子
-  const side = s.turn, c = CARDS[s.hand[side][i]]; if (!c || c.cost > s.left || s.winner !== null) return [];
+  const side = s.turn, c = CARDS[s.hand[side][i]]; if (!c || costOf(s, side, c) > s.left || s.winner !== null) return [];
   const all = s.board.map((u, t) => t);
   if (c.kind !== 'spell') return all.filter(t => !s.board[t] && depth(side, rowOf(t)) <= (c.anywhere ? ROWS - 2 : frontDepth(s, side))); // 奇袭的单位不受前线限制
   if (c.target === 'none') return !c.can || c.can(s, side) ? [-1] : [];
@@ -197,7 +209,7 @@ export function apply(state, a) { // 返回新局面和这一步依次发生的�
   if (a.type === 'play') {
     const id = s.hand[side][a.i], c = CARDS[id];
     if (!targets(s, a.i).includes(a.t)) throw new Error('这张牌不能这样打');
-    s.left -= c.cost; s.hand[side].splice(a.i, 1); s.used[side].push(id); // 打出的牌先放在一边，回合结束才洗回牌库
+    s.left -= costOf(s, side, c); s.hand[side].splice(a.i, 1); s.used[side].push(id); // 打出的牌先放在一边，回合结束才洗回牌库
     ev.push({ t: 'play', side, card: id, tile: a.t });
     if (c.kind === 'spell') { c.cast(s, ev, side, a.t); // 法术放完，场上在意“你施放了法术”的单位依次响应
       for (const k of s.board.filter(u => u && u.side === side).map(u => u.id)) { const x = s.board.findIndex(u => u && u.id === k); if (x >= 0 && s.winner === null) fire('onSpell', s, ev, s.board[x], x); }

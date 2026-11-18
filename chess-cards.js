@@ -41,6 +41,7 @@ export function build(H) {
     infiltrate: n => [`渗透：放在对方半场时，自己 +${n} 战力`, .45 * n, (s, ev, u, t) => { if (deep(u.side, t)) buff(s, ev, t, n); }],
     heal: n => [`你的城堡 +${n} 血`, .6 * n, (s, ev, u, t) => { if (s.base[u.side] < s.cap[u.side]) fx(ev, 'heal', u.card, t, [{ base: u.side }]); mend(s, ev, u.side, n); }],
     burn: n => [`对方城堡受 ${n} 点伤害`, 1.7 * n, (s, ev, u, t) => { fx(ev, 'bolt', u.card, t, [{ base: 1 - u.side }]); hitBase(s, ev, 1 - u.side, n); }],
+    barrage: n => [`对方城堡受 ${n} 次 1 点伤害`, 1.7 * n, (s, ev, u, t) => { for (let i = 0; i < n && s.winner === null; i++) { fx(ev, 'bolt', u.card, t, [{ base: 1 - u.side }]); hitBase(s, ev, 1 - u.side, 1); } }],
     chill: () => ['冻住相邻的敌方单位', 2, (s, ev, u, t) => chillAll(s, ev, u.card, t, foes(s, u.side, adj4(t)))],
     chillFront: () => ['冻住本路前方第一个敌方单位', 1.2, (s, ev, u, t) => { const x = ahead(s, u.side, t, true); if (x >= 0) chillAll(s, ev, u.card, t, [x]); }],
     chillLane: () => ['冻住本路所有敌方单位', 2.4, (s, ev, u, t) => chillAll(s, ev, u.card, t, lane(s, u.side, colOf(t)))],
@@ -114,6 +115,7 @@ export function build(H) {
   const R = e => ({ on: 'onAfter', pre: '打完还活着的话，', e, k: .8 });
   const O = e => ({ on: 'onAllyDeath', pre: '每有一个友方单位倒下，', e });
   const S = e => ({ on: 'onSpell', pre: '你每施放一张法术，', e, k: .8 });
+  const EVERY = (n, e) => ({ on: 'onSpell', pre: `你每施放 ${n} 张法术，`, e: [e[0], e[1], (s, ev, u, t) => { u.spells = (u.spells || 0) + 1; if (u.spells % n === 0) e[2](s, ev, u, t); }], k: .8 / n }); // 攒够 n 张才生效一次；数的是它在场期间你放的法术，记在它自己身上（u.spells）
   const flag = (key, val, text, cost) => ({ flag: [key, val], text, cost });
   const GUARD = flag('guard', true, '身后一格的友军被能力或法术打中时，替他挡一半', .5), TAUNT = flag('taunt', true, '嘲讽：正前方或左右挨着它的敌人必须先打它，也不能从它身边进城门', .8), FIXED = flag('fixed', true, '冲锋时只沿自己这一路往前，不拐去打旁边的敌人', 0),
     SHIELD = flag('shield', true, '圣盾：挡下受到的第一次伤害', 2), THORNS = n => flag('thorns', n, `荆棘：攻击它的敌人先受 ${n} 点伤害`, 1.1 * n);
@@ -140,7 +142,9 @@ export function build(H) {
   function struct(id, nm, sp, cost, abil = []) { const c = { name: nm, kind: 'structure', cost, move: 0, sp }; put(id, c, cost + 2 - compile(c, abil)); }
   function egg(id, nm, sp, cost, str, card, turns, hatchStr) { cards[id] = { name: nm, kind: 'structure', cost, move: 0, sp, str, faction: F, hatch: { card, turns, str: hatchStr }, texts: [() => `孵化：${turns} 个回合后变成一只 ${hatchStr} 战力的${name(card)}`] }; }
   // 首领牌：闯关里击败首领才能拿到，战力手填（明显比同费的牌高），不参与自动调数值；title 是它的称号
-  function bossUnit(id, title, nm, sp, cost, move, str, abil) { const c = { name: nm, title, kind: 'unit', cost, move, sp, str, boss: true, faction: F }; compile(c, abil); cards[id] = c; }
+  // 费用在 2026-11-18 整体加了 1–2 点：把首领塞进同阵营预设对打 12 套预设，原费用下带上它胜率多 11–50 个点；加 1 点后还多 15 个点以上的加 2 点（奥瑞安、胧、厄古、龙使、团团），其余加 1 点
+  // up 是加的点数，只算在玩家手里：首领在自己那一关还按原来的费用出场（lair，见 chess.js 的 costOf），闯关难度不跟着变
+  function bossUnit(id, title, nm, sp, cost, move, str, abil, up) { const c = { name: nm, title, kind: 'unit', cost: cost + up, lair: cost, move, sp, str, boss: true, faction: F }; compile(c, abil); cards[id] = c; }
   function token(id, nm, sp, abil = []) { const c = { name: nm, kind: 'unit', cost: 0, move: 0, sp, token: true, str: 1, faction: F }; compile(c, abil); cards[id] = c; }
   function spell(id, nm, cost, target, text, cast, can) { cards[id] = { name: nm, kind: 'spell', cost, target, text, can, faction: F, cast: (s, ev, side, t) => cast(s, ev, side, t, id) }; }
   const castle = side => ({ base: side }); // 法术从自己的城堡放出去
@@ -366,7 +370,7 @@ export function build(H) {
   unit('f2_deathphantom', '无常', 'f2_deathphantom', 3, 1, [AMBUSH, D(E.nova(1))]);
   unit('f2_pandabear', '熊猫武僧', 'f2_pandabear', 3, 1, [D(E.spawn('tk_panda', 2, 'here'))]);
   unit('f2_kindling', '炎环舞者', 'f2_kindling', 4, 0, [P(E.nova(1)), C(E.nova(1))]);
-  unit('f2_mage4winds', '四风法师', 'f2_mage4winds', 4, 0, [S(E.burn(1))]);
+  unit('f2_mage4winds', '四风法师', 'f2_mage4winds', 4, 0, [EVERY(4, E.barrage(4))]); cards.f2_mage4winds.str = 4; // 战力手定为 4（不走自动估值）
   unit('f2_onnabugeisha', '女武者', 'f2_onnabugeisha', 4, 1, [A(K.flank(3))]);
   unit('f2_onyxjaguar', '玄豹', 'f2_onyxjaguar', 4, 2, [AMBUSH]);
   unit('f2_flareslinger', '火铳手', 'f2_flareslinger', 4, 0, [P(E.shot(4))]);
@@ -542,18 +546,18 @@ export function build(H) {
   Object.assign(cards.q_helm, { str: 2 }); Object.assign(cards.q_wing, { str: 2 }); Object.assign(cards.q_sword, { str: 2 }); Object.assign(cards.q_super, { str: 6 }); // 奖励牌的战力手定（同首领牌，不走自动估值），数值由 tools/cup_tune.mjs 对打核对
 
   // ======== 首领牌：闯关模式里每个场地的首领，击败后获得。角色是之前没用过的“将军”和首领图 ========
-  F = 'f1'; bossUnit('B_f1', '三环圣者', '奥瑞安', 'f1_scintilla', 7, 1, 9, [SHIELD, P(E.wardAll()), T(E.heal(1))]);
-  F = 'f2'; bossUnit('B_f2', '千刃', '胧', 'f2_altgeneral', 6, 2, 6, [AMBUSH, P(E.tempest(2))]);
-  F = 'f3'; bossUnit('B_f3', '砂之王', '赫鲁', 'f3_altgeneraltier2', 7, 1, 8, [P(E.rouseAll()), P(E.build(2))]);
-  F = 'f4'; bossUnit('B_f4', '噬魂巨怪', '厄古', 'f4_abomination', 7, 1, 8, [P(E.spawn('wraith', 2, 'sides')), O(E.grow(2)), D(E.burn(3))]);
-  F = 'f5'; bossUnit('B_f5', '蛮荒之主', '格鲁姆', 'f5_tier2general', 8, 1, 11, [T(E.grow(2)), A(K.cleave(3)), R(E.advance())]);
-  F = 'f6'; bossUnit('B_f6', '霜冕', '伊蕾娜', 'f6_altgeneral', 7, 1, 8, [P(E.chillEvery()), A(K.shatterKill())]);
+  F = 'f1'; bossUnit('B_f1', '三环圣者', '奥瑞安', 'f1_scintilla', 7, 1, 9, [SHIELD, P(E.wardAll()), T(E.heal(1))], 2);
+  F = 'f2'; bossUnit('B_f2', '千刃', '胧', 'f2_altgeneral', 6, 2, 6, [AMBUSH, P(E.tempest(2))], 2);
+  F = 'f3'; bossUnit('B_f3', '砂之王', '赫鲁', 'f3_altgeneraltier2', 7, 1, 8, [P(E.rouseAll()), P(E.build(2))], 1);
+  F = 'f4'; bossUnit('B_f4', '噬魂巨怪', '厄古', 'f4_abomination', 7, 1, 8, [P(E.spawn('wraith', 2, 'sides')), O(E.grow(2)), D(E.burn(3))], 2);
+  F = 'f5'; bossUnit('B_f5', '蛮荒之主', '格鲁姆', 'f5_tier2general', 8, 1, 11, [T(E.grow(2)), A(K.cleave(3)), R(E.advance())], 1);
+  F = 'f6'; bossUnit('B_f6', '霜冕', '伊蕾娜', 'f6_altgeneral', 7, 1, 8, [P(E.chillEvery()), A(K.shatterKill())], 1);
   F = 'n';
-  bossUnit('B_n1', '影刃宗师', '李俊昊', 'boss_shinkagezendo', 6, 1, 7, [T(E.scorch(1))]);
-  bossUnit('B_n2', '六臂默者', '王嘉伟', 'boss_dissonance', 7, 0, 12, [TAUNT, P(E.silenceEvery())]);
-  bossUnit('B_n3', '霜暴巨兽', '戈尔', 'boss_borealjuggernaut', 8, 1, 14, [SIEGE(4)]);
-  bossUnit('B_n4', '赤翼龙使', '潘腾之进击的巨屌', 'boss_skurge', 7, 2, 7, [P(E.spawn('tk_whelp', 4, 'sides')), P(E.kin('龙', 2))]);
-  bossUnit('B_final', '糖果暴君', '团团', 'boss_candypanda', 8, 1, 12, [P(E.enthrall(2)), T(E.spawn('tk_panda', 3, 'behind'))]);
+  bossUnit('B_n1', '影刃宗师', '李俊昊', 'boss_shinkagezendo', 6, 1, 7, [T(E.scorch(1))], 1);
+  bossUnit('B_n2', '六臂默者', '王嘉伟', 'boss_dissonance', 7, 0, 12, [TAUNT, P(E.silenceEvery())], 1);
+  bossUnit('B_n3', '霜暴巨兽', '戈尔', 'boss_borealjuggernaut', 8, 1, 14, [SIEGE(4)], 1);
+  bossUnit('B_n4', '赤翼龙使', '潘腾之进击的巨屌', 'boss_skurge', 7, 2, 7, [P(E.spawn('tk_whelp', 4, 'sides')), P(E.kin('龙', 2))], 2);
+  bossUnit('B_final', '糖果暴君', '团团', 'boss_candypanda', 8, 1, 12, [P(E.enthrall(2)), T(E.spawn('tk_panda', 3, 'behind'))], 2);
 
   // 种族：只是一个标签，本身没有效果；有的牌会给同族加成
   const TRIBE = {
