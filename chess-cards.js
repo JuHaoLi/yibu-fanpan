@@ -79,7 +79,7 @@ export function build(H) {
     byStruct: n => [`挨着友方建筑放的话，自己 +${n} 战力`, .5 * n, (s, ev, u, t) => { if (pals(s, u.side, adj4(t)).some(x => !isUnit(s.board[x]))) buff(s, ev, t, n); }],
     rouse: () => ['相邻的友方建筑立刻再生效一次', 1.6, (s, ev, u, t) => { for (const x of pals(s, u.side, adj4(t)).filter(x => !isUnit(s.board[x]))) { const w = s.board[x], f = w && w.side === u.side && !w.mute && cards[w.card].onTurn; if (f) { fx(ev, 'bless', u.card, t, [x]); f(s, ev, w, x); } } }],
     drain: n => [`从相邻的敌方单位身上各吸走 ${n} 点战力`, 2 * n, (s, ev, u, t) => { const ts = foes(s, u.side, adj4(t)).filter(x => isUnit(s.board[x])); if (!ts.length) return; const got = ts.reduce((a, x) => a + Math.min(n, s.board[x].str), 0); fx(ev, 'drain', u.card, ts[0], [t]); ts.forEach(x => hurt(s, ev, x, n)); if (s.board[t] === u) buff(s, ev, t, got); }],
-    cullAdj: n => [`消灭相邻战力不超过 ${n} 的敌方单位`, .7 * n + .4, (s, ev, u, t) => { const ts = foes(s, u.side, adj4(t)).filter(x => isUnit(s.board[x]) && s.board[x].str <= n); if (ts.length) { fx(ev, 'slash', u.card, t, ts); ts.forEach(x => kill(s, ev, x)); } }],
+    cullAdj: n => [`消灭相邻战力不超过 ${n} 的敌方单位`, .7 * n + .4, (s, ev, u, t) => { const ts = foes(s, u.side, adj4(t)).filter(x => isUnit(s.board[x]) && s.board[x].str <= n); if (ts.length) { fx(ev, 'slash', u.card, t, ts); ts.forEach(x => s.board[x] && kill(s, ev, x)); } }], // 先死的那个的亡语可能已经带走了后面的目标
     cull: n => [`消灭周围一圈战力不超过 ${n} 的敌方单位`, 1.2 * n + .6, (s, ev, u, t) => { const ts = foes(s, u.side, adj8(t)).filter(x => isUnit(s.board[x]) && s.board[x].str <= n); if (ts.length) { fx(ev, 'slash', u.card, t, ts); ts.forEach(x => s.board[x] && kill(s, ev, x)); } }],
     raze: n => [`周围一圈的敌方建筑各受 ${n} 点伤害`, .3 * n, (s, ev, u, t) => zap(s, ev, u.card, t, foes(s, u.side, adj8(t)).filter(x => !isUnit(s.board[x])), n, 'nova')],
     selfBase: n => [`你自己的城堡受 ${n} 点伤害`, -1.1 * n, (s, ev, u, t) => { fx(ev, 'drain', u.card, t, [{ base: u.side }]); _hb(s, ev, u.side, n); }],
@@ -119,7 +119,7 @@ export function build(H) {
   const flag = (key, val, text, cost) => ({ flag: [key, val], text, cost });
   const GUARD = flag('guard', true, '身后一格的友军被能力或法术打中时，替他挡一半', .5), TAUNT = flag('taunt', true, '嘲讽：正前方或左右挨着它的敌人必须先打它，也不能从它身边进城门', .8), FIXED = flag('fixed', true, '冲锋时只沿自己这一路往前，不拐去打旁边的敌人', 0),
     SHIELD = flag('shield', true, '圣盾：挡下受到的第一次伤害', 2), THORNS = n => flag('thorns', n, `荆棘：攻击它的敌人先受 ${n} 点伤害`, 1.1 * n);
-  const AMBUSH = flag('anywhere', true, '奇袭：可以放在前线之外的任何空格（对方家门口那一行除外）', 1.6), SWIFT = flag('swift', true, '乘风：每个回合开始时走两步（别的兵只走一步）', 2);
+  const AMBUSH = flag('anywhere', true, '奇袭：可以放在前线之外的任何空格（对方家门口那一行除外）；放下的那一刻最多行动一格（走一格或打一下）', 2.6), SWIFT = flag('swift', true, '乘风：每个回合开始时走两步（别的兵只走一步）', 2);
   const SIEGE = n => flag('siege', n, `攻城：打建筑和城堡时多造成 ${n} 点伤害`, .7 * n);
   const MOURN = (text, cost, fn) => ({ raw: c => { c.onNearDeath = fn; }, text: '相邻的格子里有单位倒下时，' + text, cost });
 

@@ -74,6 +74,8 @@ const at = (r, t) => r.state.board[t];
   put(s, tile(2, 1), 1, V, 9); r = play(s, 'f2_ace', tile(0, 1)); assert.equal(at(r, tile(2, 1)).str, 9, '连击：这回合第一张牌不触发'); s = r.state; r = play(s, 'f2_ace', tile(0, 1)); assert.equal(at(r, tile(2, 1)).str, 7, '连击：第二张牌触发');
   r = endAs(r.state, 1); assert.equal(r.state.plays, 0, '换回合后连击重新计数');
   s = blank(); s.hand[0][0] = 'f2_support'; s.left = 9; let ts = legalPlays(s).filter(a => a.i === 0).map(a => a.t); assert.ok(ts.includes(tile(ROWS - 2, 3)) && !ts.includes(tile(ROWS - 1, 3)), '奇袭：不受前线限制，但进不了对方家门口那一行');
+  s = blank(); s.hand[0][0] = 'f2_support'; s.left = 9; put(s, tile(3, 1), 1, V, 9); r = play(s, 'f2_support', tile(2, 1)); assert.equal(r.events.filter(e => e.t === 'attack').length, 1, '奇袭：落地能打一下');
+  s = blank(); s.hand[0][0] = 'f2_onyxjaguar'; s.left = 9; r = play(s, 'f2_onyxjaguar', tile(1, 1)); assert.ok(at(r, tile(2, 1)) && !at(r, tile(3, 1)), '奇袭：两步的兵落地也只走一格');
   s = blank(); put(s, tile(1, 0), 0); put(s, tile(1, 2), 1, V, 9, { frozen: true }); const k0 = CARDS.f2_katara.str; r = play(s, 'f2_katara', tile(1, 1)); const side = r.state.board.find(u => u && u.card === 'f2_katara'); assert.ok(r.events.some(e => e.t === 'attack' && e.to === tile(1, 2)), '走一步后从侧面打'); assert.equal(at(r, tile(1, 2)).str, 9 - 2 - k0, '偷袭：侧面先多 2 点'); assert.ok(!side);
   s = blank(); put(s, tile(1, 0), 0, 'f2_xho', 2); put(s, tile(3, 3), 1, V, 9); r = play(s, 'gem', tile(3, 3)); assert.equal(at(r, tile(1, 0)).str, 3, '咒印：每施放一张法术 +1');
   // 四风法师：在场期间每放满 4 张法术，打对方城堡 4 次、每次 1 点；前 3 张不动，第 8 张再来一轮；战力手定为 4

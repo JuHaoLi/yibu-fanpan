@@ -218,7 +218,7 @@ export function apply(state, a) { // 返回新局面和这一步依次发生的�
       ev.push({ t: 'spawn', id: u.id, side, card: id, tile: a.t, str: u.str, shield: u.shield });
       if (c.onPlay) c.onPlay(s, ev, u, a.t);
       let cur = s.board[a.t] === u ? a.t : -1;
-      for (let k = 0; k < c.move && cur >= 0 && s.winner === null; k++) { const n0 = ev.length, nx = step(s, ev, cur, true); if (nx === cur && !acted(ev, n0)) break; cur = nx; } // 一步可以是走一格，也可以是打一下；打完还站着、还有步数就接着走。只有被自己人挡住才停
+      for (let k = 0; k < (c.anywhere ? Math.min(1, c.move) : c.move) && cur >= 0 && s.winner === null; k++) { const n0 = ev.length, nx = step(s, ev, cur, true); if (nx === cur && !acted(ev, n0)) break; cur = nx; } // 一步可以是走一格，也可以是打一下；打完还站着、还有步数就接着走。只有被自己人挡住才停
     }
     s.plays++;
   } else if (a.type === 'swap') {
@@ -270,7 +270,7 @@ function plan(s0, me, o, score) {
 }
 export function aiTurn(state, o = {}) {
   let s = state; const me = s.turn, acts = [], cost = id => CARDS[id].cost, skill = o.skill ?? 1, rnd = o.rnd || Math.random, slack = 1 - skill;
-  const W = o.w || EVAL, score = r => o.deep && r.winner === null ? evaluate(apply(r, { type: 'end' }).state, me, W) : evaluate(r, me, W); // o.w：换一组局面权重（调参工具用）
+  const W = o.w || EVAL, score = r => o.value && r.winner === null ? o.value(apply(r, { type: 'end' }).state, me) : o.deep && r.winner === null ? evaluate(apply(r, { type: 'end' }).state, me, W) : evaluate(r, me, W); // o.w：换一组局面权重（调参工具用）；o.value：换一个评分函数（局面价值网络用，看的是结束回合后的局面）
   const dead = () => { const h = s.hand[me]; let b = -1; h.forEach((id, k) => { if (!CARDS[id].boss && !targets(s, k).length && (b < 0 || cost(id) > cost(h[b]))) b = k; }); /* 首领牌留在手里等能量，不换 */ return b; }; // 现在出不了的牌里最贵的那张
   const swap = () => { const i = dead(); if (s.swapped || i < 0 || !s.deck[me].length) return false; // 手里有出不了的牌就换掉它；换来哪张是随机的，电脑也不偷看
     acts.push({ type: 'swap', i }); s = apply(s, { type: 'swap', i }).state; return true; };
