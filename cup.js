@@ -2,7 +2,7 @@
 // 赛制：瑞士轮每轮同战绩的人互相配对、不重复交手，赢满 3 场出线、输满 3 场淘汰（最多 5 轮）；前两轮单局定胜负（BO1），从第 3 轮起三局两胜（BO3）。
 // 八个出线的人按战绩排种子打淘汰赛（1-8、4-5、2-7、3-6），全部 BO3。每人报名时带两套卡组，每一局开打前各自从两套里挑一套。
 // 除了玩家，其余 15 人都是电脑：Q1（卫冕冠军，纯中立的「零号协议」）、10 位以 AI 命名的选手、4 个路人。电脑之间的对局是真的按规则打完的（chess.js），不是掷骰子。
-import { CARDS, DECKS, PROTOCOL, newGame, apply, aiTurn } from './chess.js';
+import { CARDS, DECKS, PROTOCOL, newGame, apply, aiTurn, upgrade } from './chess.js';
 
 export const WIN = 3, LOSE = 3, SWISS = 5, KO_NAMES = ['八强赛', '半决赛', '决赛'];
 export const bestOf = round => round <= 2 ? 1 : 3; // 瑞士轮第几轮打几局；淘汰赛都是 3
@@ -102,6 +102,13 @@ export function simGame(s, m) {
   return addGame(s, m, { w: (w0 === 0) === (first === 'a') ? 'a' : 'b', da, db, hp: [Math.max(0, hpA), Math.max(0, hpB)], n: Math.ceil(st.n / 2) });
 }
 export function simMatch(s, m) { while (!m.done) simGame(s, m); }
+// 别的场次跟着玩家走：玩家每打完一局，同一轮里还没打完的别的场次也打到同样的局数；玩家这场打完了，别的场次当场全部打完。
+// 这样任何时候看积分表，大家都停在同一轮的同一个进度上。玩家不在这一轮里（已出线、已淘汰）时不动，由界面上的按钮推进。返回这次动过的场次
+export function follow(s) {
+  const ms = current(s), mine = ms.find(m => s.players[m.a].human || s.players[m.b].human); if (!mine) return [];
+  const moved = []; for (const m of ms) if (m !== mine && !m.done && (mine.done || m.games.length < mine.games.length)) { if (mine.done) simMatch(s, m); else while (!m.done && m.games.length < mine.games.length) simGame(s, m); moved.push(m); }
+  return moved;
+}
 
 // ---------- 积分表 ----------
 // 排序：胜场多 → 负场少 → 小分（局数净胜） → 对手分（交过手的人一共赢了多少场） → 先报名的在前
@@ -120,6 +127,6 @@ export function placing(s, id) {
 const KEY = 'yibu-fanpan.cup.v1';
 export const save = s => { try { if (s) localStorage.setItem(KEY, JSON.stringify(s)); else localStorage.removeItem(KEY); } catch { /* 存不了就只在这次打开期间有效 */ } };
 export function load() {
-  try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.v === 1 && Array.isArray(s.players) && s.players.length === 16 && s.players.every(p => p.decks?.length === 2 && p.decks.every(d => d.cards.every(k => CARDS[k])))) return s; } catch { /* 读不了就当没有 */ }
+  try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.v === 1 && Array.isArray(s.players) && s.players.length === 16 && s.players.every(p => p.decks?.length === 2 && p.decks.every(d => (d.cards = upgrade(d.cards)).every(k => CARDS[k])))) return s; } catch { /* 读不了就当没有 */ } /* 卡组里有后来删掉的牌：换成接班的那张（chess.js 的 RETIRED），进行中的锦标赛不作废 */
   return null;
 }

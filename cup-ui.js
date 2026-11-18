@@ -149,7 +149,7 @@ export function cupUI({ host, px, decks, card, valid, fight }) {
     result(ctx, won, st, meSeat = 0) {
       const m = C.current(S).find(x => x.a === ctx.match.a && x.b === ctx.match.b && !x.done); if (!m) return null;
       const mine = ctx.side, g = { w: won ? mine : mine === 'a' ? 'b' : 'a', [mine === 'a' ? 'da' : 'db']: ctx.mi, [mine === 'a' ? 'db' : 'da']: ctx.fd, hp: mine === 'a' ? [st.base[meSeat], st.base[1 - meSeat]] : [st.base[1 - meSeat], st.base[meSeat]], n: Math.ceil(st.n / 2) };
-      const done = C.addGame(S, m, g); save(); const [a, b] = mine === 'a' ? [m.wa, m.wb] : [m.wb, m.wa]; return { done, won: done && m.winner === me().id, my: a, their: b, bo: m.bo };
+      const done = C.addGame(S, m, g); C.follow(S); save(); /* 同一轮的别的场次跟着打到同样的局数（这场打完了就全部打完） */ const [a, b] = mine === 'a' ? [m.wa, m.wb] : [m.wb, m.wa]; return { done, won: done && m.winner === me().id, my: a, their: b, bo: m.bo };
     },
     state: () => S, face,
   };
