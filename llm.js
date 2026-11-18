@@ -1,7 +1,7 @@
 // AI 对手：让大模型替电脑走一回合。玩家自己填接口地址、Key 和模型名（存在自己的浏览器里，不经过我们）。
 // 提速的做法：一回合只问一次、让模型只回一行编号计划；规则放在固定的开头（给支持缓存的接口吃缓存）；
 // 请求在玩家结束回合的那一刻就发出，趁棋盘演出时等回复；超时或出错就用内置电脑，对局不会卡住。
-import { CARDS, ROWS, COLS, rowOf, targets, apply, evaluate, aiTurn, frontDepth } from './chess.js';
+import { CARDS, ROWS, COLS, rowOf, targets, apply, evaluate, aiTurn, frontDepth, STRONG } from './chess.js';
 
 const KEY = 'yibu-fanpan.llm.v1', TIMEOUT = 12000;
 const DEFAULT = { on: false, style: 'openai', url: '', key: '', model: '' };
@@ -62,7 +62,7 @@ export function runPlan(s0, plan) {
     if (!a) { bad = tok; break; }
     try { s = apply(s, a).state; acts.push(a); } catch { bad = tok; break; }
   }
-  if (s.winner === null) acts.push(...aiTurn(s)); // 计划被丢掉一截或没写 end：从这里起交给内置电脑（它总以 end 收尾）
+  if (s.winner === null) acts.push(...aiTurn(s, STRONG)); // 计划被丢掉一截或没写 end：从这里起交给内置电脑（它总以 end 收尾）
   return { acts, bad };
 }
 
@@ -83,9 +83,9 @@ export async function llmTurn(s, note = () => {}) {
   const c = cfg(), ac = new AbortController(), t = setTimeout(() => ac.abort(), TIMEOUT);
   try {
     const text = await ask(c, describe(s), ac.signal), plan = parsePlan(text);
-    if (!plan) { note('AI 的回复读不懂，这回合由内置电脑代打。'); return aiTurn(s); }
+    if (!plan) { note('AI 的回复读不懂，这回合由内置电脑代打。'); return aiTurn(s, STRONG); }
     const { acts, bad } = runPlan(s, plan); if (bad) note(`AI 的计划里「${bad}」走不通，从这一步起由内置电脑代打。`); return acts;
-  } catch (e) { note(`AI 没能出招（${why(e)}），这回合由内置电脑代打。`); return aiTurn(s); }
+  } catch (e) { note(`AI 没能出招（${why(e)}），这回合由内置电脑代打。`); return aiTurn(s, STRONG); }
   finally { clearTimeout(t); }
 }
 // 设置页的“测试连接”：发一个很小的请求，报告耗时

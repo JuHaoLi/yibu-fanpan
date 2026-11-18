@@ -225,13 +225,17 @@ export function apply(state, a) { // 返回新局面和这一步依次发生的�
 export function forecast(state, side) { const s = clone(state), ev = []; advance(s, ev, side); return ev; }
 
 // ---------- 电脑 ----------
-export function evaluate(s, me) {
+// 电脑看局面的权重：城堡每点血、前线每深一格、每点算力、圣盾/装备/回合能力/蛋折合几点战力、单位每往前一行加几成、站到对方门口再加几倍、暗影/中毒/活力、敌方单位按几倍算（冻住的按几倍）、手牌每张值多少。
+// 手拍的初值；tools/ai_tune.mjs 用自我对打逐项上下调四成都没有更好（2026-11-18，800 局，48%–51%），说明短板在搜索不在权重。改了评分的写法要重新跑一遍
+export const STRONG = { deep: true, beam: 12 }; // 现在最强的电脑：预演对面下回合的前进 + 整回合组合搜索（每层留 12 个）
+export const EVAL = { base: 6, front: .4, core: .9, shield: 2, gear: 1.5, onTurn: 1.5, egg: .6, adv: .15, gate: 3, creep: .8, poison: 1.5, vital: 1.5, foe: 1.1, frozen: .8, hand: 0 };
+export function evaluate(s, me, W = EVAL) {
   if (s.winner !== null) return s.winner === me ? 1e6 : -1e6;
-  let v = 6 * (s.base[me] - s.base[1 - me]) + .4 * (frontDepth(s, me) - frontDepth(s, 1 - me)) + .9 * (s.core[me] - s.core[1 - me]); // 攒着的算力迟早变成战力或伤害
+  let v = W.base * (s.base[me] - s.base[1 - me]) + W.front * (frontDepth(s, me) - frontDepth(s, 1 - me)) + W.core * (s.core[me] - s.core[1 - me]) + W.hand * (s.hand[me].length - s.hand[1 - me].length); // 攒着的算力迟早变成战力或伤害
   s.board.forEach((u, t) => { if (!u) return; const d = depth(u.side, rowOf(t)), unit = isUnit(u), c = CARDS[u.card];
-    let w = (u.str + (u.shield ? 2 : 0) + (u.gear ? 1.5 : 0) + (trait(u, 'onTurn') ? 1.5 : 0) + (u.timer !== undefined ? (c.hatch.str ?? 4) * .6 : 0)) * (1 + (unit ? .15 * d : 0)) + (unit && d === ROWS - 1 ? 3 * u.str : 0); // 已经站到对方家门口的，下回合就打城堡
-    if (s.creep[t] >= 0 && s.creep[t] !== u.side) w -= .8; if (u.poison) w -= 1.5; if (u.vital) w += 1.5;
-    v += u.side === me ? w : -w * (u.frozen ? .8 : 1.1); });
+    let w = (u.str + (u.shield ? W.shield : 0) + (u.gear ? W.gear : 0) + (trait(u, 'onTurn') ? W.onTurn : 0) + (u.timer !== undefined ? (c.hatch.str ?? 4) * W.egg : 0)) * (1 + (unit ? W.adv * d : 0)) + (unit && d === ROWS - 1 ? W.gate * u.str : 0); // 已经站到对方家门口的，下回合就打城堡
+    if (s.creep[t] >= 0 && s.creep[t] !== u.side) w -= W.creep; if (u.poison) w -= W.poison; if (u.vital) w += W.vital;
+    v += u.side === me ? w : -w * (u.frozen ? W.frozen : W.foe); });
   return v;
 }
 // 电脑的打法。两条来自 Stormbound 玩家的经验：能直接打穿城门就别贪别的；每回合都把能量花干净，手里出不了的牌及时换掉
@@ -242,14 +246,28 @@ function lethal(s, me, depth) { // 对面城堡快没血时，往下找两三步
 }
 // o（锦标赛的电脑选手用）：skill 0–1，1 是满强度、和不传一样；越低越常看走眼（每步的评分加噪声）、越常漏掉斩杀、越常留着能量就结束回合。
 // o.deep：每一步都先替对面把下回合的前进走一遍再评分，看得见对面的兵马上要打到哪；更强也更慢。o.rnd：随机数（默认 Math.random）
+const keyOf = (s, me) => s.left + '|' + s.hand[me].join() + '|' + s.base.join() + '|' + s.core.join() + '|' + s.board.map(u => u ? u.card + u.side + u.str + (u.shield ? 's' : '') + (u.frozen ? 'f' : '') : '').join(); // 不同顺序走到同一个局面：只留一个
+function plan(s0, me, o, score) {
+  const cost = id => CARDS[id].cost, slack = 1 - (o.skill ?? 1), rnd = o.rnd || Math.random; /* slack：弱档电脑每个候选的评分加噪声（看走眼） */ let beam = [{ s: s0, acts: [], b: 0 }], best = { v: score(s0) + .5, acts: [], s: s0 };
+  for (let d = 0; d < 8 && beam.length; d++) { const next = [], seen = new Set();
+    for (const n of beam) for (const a of legalPlays(n.s)) { const id = n.s.hand[me][a.i], r = apply(n.s, a).state, k = keyOf(r, me); if (seen.has(k)) continue; seen.add(k);
+      const b = n.b + 1.2 * (r.left - (n.s.left - cost(id))) + (r.hand[me].length - (n.s.hand[me].length - 1)) - (CARDS[id].hold?.(n.s, me) ? 9 : 0); // 和贪心一样的附加分：额外换来的能量、额外抽的牌、出牌时机提示
+      next.push({ s: r, acts: [...n.acts, a], b, v: (r.winner === me ? 2e6 : score(r)) + b + (slack ? slack * 8 * (rnd() - .5) : 0) }); }
+    next.sort((x, y) => y.v - x.v); if (next[0] && next[0].v > best.v) best = next[0]; beam = next.filter(n => n.s.winner === null).slice(0, o.beam); }
+  return best;
+}
 export function aiTurn(state, o = {}) {
   let s = state; const me = s.turn, acts = [], cost = id => CARDS[id].cost, skill = o.skill ?? 1, rnd = o.rnd || Math.random, slack = 1 - skill;
-  const score = r => o.deep && r.winner === null ? evaluate(apply(r, { type: 'end' }).state, me) : evaluate(r, me);
+  const W = o.w || EVAL, score = r => o.deep && r.winner === null ? evaluate(apply(r, { type: 'end' }).state, me, W) : evaluate(r, me, W); // o.w：换一组局面权重（调参工具用）
   const dead = () => { const h = s.hand[me]; let b = -1; h.forEach((id, k) => { if (!CARDS[id].boss && !targets(s, k).length && (b < 0 || cost(id) > cost(h[b]))) b = k; }); /* 首领牌留在手里等能量，不换 */ return b; }; // 现在出不了的牌里最贵的那张
   const swap = () => { const i = dead(); if (s.swapped || i < 0 || !s.deck[me].length) return false; // 手里有出不了的牌就换掉它；换来哪张是随机的，电脑也不偷看
     acts.push({ type: 'swap', i }); s = apply(s, { type: 'swap', i }).state; return true; };
   swap();
   if (s.base[1 - me] <= 6 && rnd() >= slack * .8) { const kill = lethal(s, me, 2); if (kill) return [...acts, ...kill]; }
+  if (o.beam) { // 整回合组合搜索：这一回合几张牌的出法和先后顺序整套展开（每层留 o.beam 个最好的），挑回合末局面最好的那一套；出完还剩能量就换一张牌再搜一次
+    for (let k = 0; k < 3 && s.winner === null; k++) { const p = plan(s, me, o, score); acts.push(...p.acts); s = p.s; if (s.winner !== null || !(s.left > 0 && swap())) break; }
+    if (s.winner === null) acts.push({ type: 'end' }); return acts;
+  }
   for (let k = 0; k < 12 && s.winner === null; k++) {
     if (slack && k && rnd() < slack * .3) break; // 偷懒：能量没花完就收手
     let best = null, bs = null, bv = score(s) + .5;

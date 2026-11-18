@@ -1,6 +1,6 @@
 // 下棋的界面：开始界面（选卡组、选对手）→ 组牌界面 → 对局（出牌、换牌、结束回合、电脑回合）→ 结算。
 // 规则和卡牌在 chess.js / chess-cards.js；画面、动画和特效在 board3d.js；这里把它们接起来。你永远在左边、先手。
-import { upgrade, CARDS, FACTIONS, DECKS, FKEYS, DECK, deckInsight, BASE_HP, newGame, apply, targets as legal, forecast, aiTurn, frontDepth, factionOf, deckError } from './chess.js';
+import { upgrade, CARDS, FACTIONS, DECKS, FKEYS, DECK, deckInsight, BASE_HP, newGame, apply, targets as legal, forecast, aiTurn, STRONG, frontDepth, factionOf, deckError } from './chess.js';
 import { board, GFX } from './board3d.js';
 import { areaOf, stageOpts, battleMusic, progress, BADGES, badgeName } from './campaign.js';
 import { campaignUI } from './campaign-ui.js';
@@ -277,7 +277,7 @@ async function endTurn() {
   let early = ai && !lesson ? llmTurn(apply(S, { type: 'end' }).state, x => { if (g === game) log(x); }) : null; // AI：对方回合开头的局面现在就确定了，请求马上发出，趁下面这些演出等回复
   await act({ type: 'end' });                       // 结束回合：电脑的兵先各走一步
   if (net) return foeLoop(g);                       // 联机：等对方一步步走
-  while (g === game && S.winner === null && S.turn === FOE) { const list = lesson ? foeTurn(S) : ai ? await (early || llmTurn(S, x => { if (g === game) log(x); })) : aiTurn(S, camp?.cup?.ai); early = null; await pause(T.t4);   // 对方“想一下”
+  while (g === game && S.winner === null && S.turn === FOE) { const list = lesson ? foeTurn(S) : ai ? await (early || llmTurn(S, x => { if (g === game) log(x); })) : aiTurn(S, camp?.cup ? camp.cup.ai : camp ? undefined : STRONG); early = null; /* 自由对战用最强的电脑；闯关照旧用普通电脑（关卡血量是按它校准的） */ await pause(T.t4);   // 对方“想一下”
     for (const a of list) { if (g !== game || S.winner !== null) break; await act(a); if (a.type !== 'end') await pause(T.t3); } } // 两步之间留一口气
 }
 
@@ -417,7 +417,7 @@ $('end').onclick = endTurn;
 const swapSel = () => { if (S && idle() && !S.swapped && sel >= 0) act({ type: 'swap', i: sel }); };
 $('swap').onclick = swapSel;
 const autoTurn = async () => { if (!S || !idle() || lesson) return; // 让电脑替玩家走完这一回合。界面上的“托管”按钮已经取消，只留给自动测试用（__t.auto）
-  const g = game; chain = true; try { for (const a of aiTurn(S)) { if (g !== game || S.winner !== null || a.type === 'end') break; await act(a); await pause(T.t2); } } finally { chain = false; } if (g === game && S.winner === null) endTurn(); };
+  const g = game; chain = true; try { for (const a of aiTurn(S, STRONG)) { if (g !== game || S.winner !== null || a.type === 'end') break; await act(a); await pause(T.t2); } } finally { chain = false; } if (g === game && S.winner === null) endTurn(); };
 // ---------- 拖牌：按住一张手牌拖到亮起的格子上，途中就是预演，松手打出；拖回石桌上松手等于没拖（牌保持选中）。点按的流程不变 ----------
 let drag = null;
 const handTop = () => stage.getBoundingClientRect().bottom - (parseFloat(getComputedStyle(stage).getPropertyValue('--hand-zone')) || 0); // 手牌占着的那一截以上才算“场上”

@@ -2,13 +2,13 @@
 // 赛制：瑞士轮每轮同战绩的人互相配对、不重复交手，赢满 3 场出线、输满 3 场淘汰（最多 5 轮）；前两轮单局定胜负（BO1），从第 3 轮起三局两胜（BO3）。
 // 八个出线的人按战绩排种子打淘汰赛（1-8、4-5、2-7、3-6），全部 BO3。每人报名时带两套卡组，每一局开打前各自从两套里挑一套。
 // 除了玩家，其余 15 人都是电脑：Q1（卫冕冠军，纯中立的「零号协议」）、10 位以 AI 命名的选手、4 个路人。电脑之间的对局是真的按规则打完的（chess.js），不是掷骰子。
-import { CARDS, DECKS, PROTOCOL, newGame, apply, aiTurn, upgrade } from './chess.js';
+import { CARDS, DECKS, PROTOCOL, STRONG, newGame, apply, aiTurn, upgrade } from './chess.js';
 
 export const WIN = 3, LOSE = 3, SWISS = 5, KO_NAMES = ['八强赛', '半决赛', '决赛'];
 export const bestOf = round => round <= 2 ? 1 : 3; // 瑞士轮第几轮打几局；淘汰赛都是 3
 const pre = name => { const d = DECKS.find(x => x.name === name); return { name, f: d.f, cards: [...d.cards] }; };
-// 电脑的强度（aiTurn 的选项，见 chess.js）。实测（tools/cup_check.mjs 里有对打）：deep 对普通贪心赢约七成；skill .92 对满强度约五五开偏弱；路人对满强度两到三成
-export const TIERS = { max: { deep: true }, ai: { deep: true, skill: .92 } };
+// 电脑的强度（aiTurn 的选项，见 chess.js）。实测：满强度（整回合组合搜索每层留 12 个）对只预演一步的老满强度赢 74%；AI 角色每层留 4 个，对满强度约 46%；路人不预演、随机看走眼
+export const TIERS = { max: STRONG, ai: { deep: true, beam: 4 } };
 export const ROSTER = [
   { key: 'q1', name: 'Q1', tag: '卫冕冠军', tier: 'max', hp: 12, decks: [{ name: '零号协议', f: 'n', cards: [...PROTOCOL] },
     { name: '零号协议·超频', f: 'n', cards: ['q_probe', 'q_helm', 'q_field', 'q_wing', 'q_cannon', 'q_sword', 'q_glitch', 'q_chassis', 'n_soulstealer', 'gem', 'q_emp', 'q_super'] }] },
