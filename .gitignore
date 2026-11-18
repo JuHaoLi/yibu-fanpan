@@ -21,3 +21,5 @@
 .DS_Store
 .playwright-mcp/
 node_modules/
+# 电脑训练和组合普查的数据（tools/lab/）
+/out/

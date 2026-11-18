@@ -74,8 +74,9 @@ const at = (r, t) => r.state.board[t];
   put(s, tile(2, 1), 1, V, 9); r = play(s, 'f2_ace', tile(0, 1)); assert.equal(at(r, tile(2, 1)).str, 9, '连击：这回合第一张牌不触发'); s = r.state; r = play(s, 'f2_ace', tile(0, 1)); assert.equal(at(r, tile(2, 1)).str, 7, '连击：第二张牌触发');
   r = endAs(r.state, 1); assert.equal(r.state.plays, 0, '换回合后连击重新计数');
   s = blank(); s.hand[0][0] = 'f2_support'; s.left = 9; let ts = legalPlays(s).filter(a => a.i === 0).map(a => a.t); assert.ok(ts.includes(tile(ROWS - 2, 3)) && !ts.includes(tile(ROWS - 1, 3)), '奇袭：不受前线限制，但进不了对方家门口那一行');
-  s = blank(); s.hand[0][0] = 'f2_support'; s.left = 9; put(s, tile(3, 1), 1, V, 9); r = play(s, 'f2_support', tile(2, 1)); assert.equal(r.events.filter(e => e.t === 'attack').length, 1, '奇袭：落地能打一下');
-  s = blank(); s.hand[0][0] = 'f2_onyxjaguar'; s.left = 9; r = play(s, 'f2_onyxjaguar', tile(1, 1)); assert.ok(at(r, tile(2, 1)) && !at(r, tile(3, 1)), '奇袭：两步的兵落地也只走一格');
+  s = blank(); s.hand[0][0] = 'f2_support'; s.left = 9; put(s, tile(3, 1), 1, V, 9); r = play(s, 'f2_support', tile(2, 1)); assert.ok(at(r, tile(2, 1)) && !r.events.some(e => e.t === 'attack' || e.t === 'move'), '奇袭（落地不动）：赤蝎落地不走也不打');
+  s = blank(); s.hand[0][0] = 'f2_seenoevil'; s.left = 9; put(s, tile(3, 1), 1, V, 9); r = play(s, 'f2_seenoevil', tile(2, 1)); assert.equal(r.events.filter(e => e.t === 'attack').length, 1, '奇袭（最多一格）：无目剑客落地能打一下');
+  s = blank(); s.hand[0][0] = 'B_f2'; s.left = 12; r = play(s, 'B_f2', tile(1, 1)); assert.ok(at(r, tile(2, 1)) && !at(r, tile(3, 1)), '奇袭（最多一格）：两步的胧落地也只走一格');
   s = blank(); put(s, tile(1, 0), 0); put(s, tile(1, 2), 1, V, 9, { frozen: true }); const k0 = CARDS.f2_katara.str; r = play(s, 'f2_katara', tile(1, 1)); const side = r.state.board.find(u => u && u.card === 'f2_katara'); assert.ok(r.events.some(e => e.t === 'attack' && e.to === tile(1, 2)), '走一步后从侧面打'); assert.equal(at(r, tile(1, 2)).str, 9 - 2 - k0, '偷袭：侧面先多 2 点'); assert.ok(!side);
   s = blank(); put(s, tile(1, 0), 0, 'f2_xho', 2); put(s, tile(3, 3), 1, V, 9); r = play(s, 'gem', tile(3, 3)); assert.equal(at(r, tile(1, 0)).str, 3, '咒印：每施放一张法术 +1');
   // 四风法师：在场期间每放满 4 张法术，打对方城堡 4 次、每次 1 点；前 3 张不动，第 8 张再来一轮；战力手定为 4
@@ -234,7 +235,7 @@ const never = ids.filter(k => !played.has(k)), tokens = Object.keys(CARDS).filte
     if (s.turn === 1) { for (const a of foeTurn(s)) go(a); continue; }
     const st = LESSON.steps[i], no = `教学第 ${i + 1} 步`; assert.ok(st, '教学的步骤走完了还没分出胜负'); i++;
     if (i === 3) assert.equal(s.board[tile(2, 1)]?.str, 1, no + '：钩锁手 3 对 2 打赢，剩 1，站在第三列');
-    if (i === 6) assert.equal(s.base[1], 4, no + '：蛮角兽进门后对面剩 4');
+    if (i === 6) assert.equal(s.base[1], 3, no + '：蛮角兽进门后对面剩 3');
     if (i === 8) assert.equal(s.board[tile(4, 1)]?.card, 'n_golemrune', no + '：符文魔像挡在钩锁手正前方');
     if (i === 10) assert.equal(s.board[tile(4, 1)]?.side, 0, no + '：钩锁手走到了对面门口');
     if (st.do === 'ok') continue;

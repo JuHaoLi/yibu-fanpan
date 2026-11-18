@@ -218,7 +218,7 @@ export function apply(state, a) { // 返回新局面和这一步依次发生的�
       ev.push({ t: 'spawn', id: u.id, side, card: id, tile: a.t, str: u.str, shield: u.shield });
       if (c.onPlay) c.onPlay(s, ev, u, a.t);
       let cur = s.board[a.t] === u ? a.t : -1;
-      for (let k = 0; k < (c.anywhere ? Math.min(1, c.move) : c.move) && cur >= 0 && s.winner === null; k++) { const n0 = ev.length, nx = step(s, ev, cur, true); if (nx === cur && !acted(ev, n0)) break; cur = nx; } // 一步可以是走一格，也可以是打一下；打完还站着、还有步数就接着走。只有被自己人挡住才停
+      for (let k = 0; k < (c.anywhere ? Math.min(c.land ?? 1, c.move) : c.move) && cur >= 0 && s.winner === null; k++) { const n0 = ev.length, nx = step(s, ev, cur, true); if (nx === cur && !acted(ev, n0)) break; cur = nx; } // 一步可以是走一格，也可以是打一下；打完还站着、还有步数就接着走。只有被自己人挡住才停
     }
     s.plays++;
   } else if (a.type === 'swap') {

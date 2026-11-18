@@ -29,23 +29,23 @@ export function build(H) {
   const E = {
     shot: n => [`对本路前方第一个敌人造成 ${n} 点伤害`, .9 * n, (s, ev, u, t) => { const x = ahead(s, u.side, t); if (x >= 0) zap(s, ev, u.card, t, [x], n, 'bolt'); }],
     nova: n => [`相邻的敌人各受 ${n} 点伤害`, 1.4 * n, (s, ev, u, t) => zap(s, ev, u.card, t, foes(s, u.side, adj4(t)), n, 'nova')],
-    ring: n => [`周围一圈的敌人各受 ${n} 点伤害`, 2 * n, (s, ev, u, t) => zap(s, ev, u.card, t, foes(s, u.side, adj8(t)), n, 'nova')],
+    ring: n => [`周围一圈的敌人各受 ${n} 点伤害`, 2.4 * n, (s, ev, u, t) => zap(s, ev, u.card, t, foes(s, u.side, adj8(t)), n, 'nova')],
     blast: n => [`相邻的所有单位和建筑各受 ${n} 点伤害，敌我都算`, n, (s, ev, u, t) => zap(s, ev, u.card, t, adj4(t), n, 'nova')],
     beam: n => [`本路所有敌人各受 ${n} 点伤害`, 1.3 * n, (s, ev, u, t) => zap(s, ev, u.card, t, lane(s, u.side, colOf(t)), n, 'beam')],
-    aid: n => [`相邻的友军各 +${n} 战力`, 1.3 * n, (s, ev, u, t) => bless(s, ev, u.card, t, pals(s, u.side, adj4(t)), n)],
-    aidAll: n => [`你的其他单位各 +${n} 战力`, 2.4 * n, (s, ev, u, t) => bless(s, ev, u.card, t, units(s, u.side).filter(x => x !== t), n)],
+    aid: n => [`相邻的友军各 +${n} 战力`, 1.1 * n, (s, ev, u, t) => bless(s, ev, u.card, t, pals(s, u.side, adj4(t)), n)],
+    aidAll: n => [`你的其他单位各 +${n} 战力`, 2.8 * n, (s, ev, u, t) => bless(s, ev, u.card, t, units(s, u.side).filter(x => x !== t), n)],
     aidFront: n => [`正前方一格的友军 +${n} 战力`, .7 * n, (s, ev, u, t) => bless(s, ev, u.card, t, pals(s, u.side, [t + fwd(u.side) * COLS]), n)],
     rank: n => [`列阵：相邻每有一个友军，自己 +${n} 战力`, 1.2 * n, (s, ev, u, t) => buff(s, ev, t, n * pals(s, u.side, adj4(t)).length)],
     horde: n => [`场上每有一个其他友方单位，自己 +${n} 战力`, 1.8 * n, (s, ev, u, t) => buff(s, ev, t, n * (units(s, u.side).length - 1))],
     lone: n => [`四周没有友军时，自己 +${n} 战力`, .6 * n, (s, ev, u, t) => { if (!pals(s, u.side, adj4(t)).length) buff(s, ev, t, n); }],
-    infiltrate: n => [`渗透：放在对方半场时，自己 +${n} 战力`, .45 * n, (s, ev, u, t) => { if (deep(u.side, t)) buff(s, ev, t, n); }],
-    heal: n => [`你的城堡 +${n} 血`, .6 * n, (s, ev, u, t) => { if (s.base[u.side] < s.cap[u.side]) fx(ev, 'heal', u.card, t, [{ base: u.side }]); mend(s, ev, u.side, n); }],
-    burn: n => [`对方城堡受 ${n} 点伤害`, 1.7 * n, (s, ev, u, t) => { fx(ev, 'bolt', u.card, t, [{ base: 1 - u.side }]); hitBase(s, ev, 1 - u.side, n); }],
+    infiltrate: n => [`渗透：放在对方半场时，自己 +${n} 战力`, .63 * n, (s, ev, u, t) => { if (deep(u.side, t)) buff(s, ev, t, n); }],
+    heal: n => [`你的城堡 +${n} 血`, .9 * n, (s, ev, u, t) => { if (s.base[u.side] < s.cap[u.side]) fx(ev, 'heal', u.card, t, [{ base: u.side }]); mend(s, ev, u.side, n); }],
+    burn: n => [`对方城堡受 ${n} 点伤害`, 2.6 * n, (s, ev, u, t) => { fx(ev, 'bolt', u.card, t, [{ base: 1 - u.side }]); hitBase(s, ev, 1 - u.side, n); }],
     barrage: n => [`对方城堡受 ${n} 次 1 点伤害`, 1.7 * n, (s, ev, u, t) => { for (let i = 0; i < n && s.winner === null; i++) { fx(ev, 'bolt', u.card, t, [{ base: 1 - u.side }]); hitBase(s, ev, 1 - u.side, 1); } }],
-    chill: () => ['冻住相邻的敌方单位', 2, (s, ev, u, t) => chillAll(s, ev, u.card, t, foes(s, u.side, adj4(t)))],
-    chillFront: () => ['冻住本路前方第一个敌方单位', 1.2, (s, ev, u, t) => { const x = ahead(s, u.side, t, true); if (x >= 0) chillAll(s, ev, u.card, t, [x]); }],
+    chill: () => ['冻住相邻的敌方单位', .7, (s, ev, u, t) => chillAll(s, ev, u.card, t, foes(s, u.side, adj4(t)))],
+    chillFront: () => ['冻住本路前方第一个敌方单位', .8, (s, ev, u, t) => { const x = ahead(s, u.side, t, true); if (x >= 0) chillAll(s, ev, u.card, t, [x]); }],
     chillLane: () => ['冻住本路所有敌方单位', 2.4, (s, ev, u, t) => chillAll(s, ev, u.card, t, lane(s, u.side, colOf(t)))],
-    spawn: (card, str, where = 'behind') => [() => `在${{ behind: '身后一格', front: '正前方一格', sides: '左右两侧', here: '原地' }[where]}${where === 'sides' ? '各放' : '放'}一${cards[card].kind === 'structure' ? '座' : '只'} ${str} 战力的${name(card)}`, (where === 'sides' ? 2 : 1) * (str + .4), (s, ev, u, t) => {
+    spawn: (card, str, where = 'behind') => [() => `在${{ behind: '身后一格', front: '正前方一格', sides: '左右两侧', here: '原地' }[where]}${where === 'sides' ? '各放' : '放'}一${cards[card].kind === 'structure' ? '座' : '只'} ${str} 战力的${name(card)}`, .85 * (where === 'sides' ? 2 : 1) * (str + .4), (s, ev, u, t) => {
       const ts = (where === 'behind' ? [t - fwd(u.side) * COLS] : where === 'front' ? [t + fwd(u.side) * COLS] : where === 'here' ? [t] : [t - 1, t + 1].filter(x => inb(x) && rowOf(x) === rowOf(t))).filter(x => inb(x) && !s.board[x]);
       if (ts.length) { fx(ev, 'summon', u.card, t, ts); ts.forEach(x => summon(s, ev, u.side, card, x, str)); } }],
     ward: () => ['相邻的友军各获得圣盾', 2.6, (s, ev, u, t) => { const ts = pals(s, u.side, adj4(t)).filter(x => !s.board[x].shield); if (ts.length) { fx(ev, 'bless', u.card, t, ts); ts.forEach(x => shieldUp(s, ev, x)); } }],
@@ -53,14 +53,14 @@ export function build(H) {
     push: n => [`把正前方的敌人砸 ${n} 点伤害，并击退一格`, .8 * n + .4, (s, ev, u, t) => { const f = t + fwd(u.side) * COLS, b = f + fwd(u.side) * COLS; if (!foes(s, u.side, [f]).length) return; const id = s.board[f].id; zap(s, ev, u.card, t, [f], n, 'slash'); if (s.board[f] && s.board[f].id === id && isUnit(s.board[f]) && inb(b) && !s.board[b]) shift(s, ev, f, b, 'push'); }],
     taint: () => ['在脚下留下暗影（留 3 个回合）', .6, (s, ev, u, t) => taint(s, ev, u.card, t, [t], u.side)],
     taintAdj: () => ['在脚下和相邻的格子留下暗影（留 3 个回合）', 1.5, (s, ev, u, t) => taint(s, ev, u.card, t, [t, ...adj4(t)], u.side)],
-    grow: n => [`自己 +${n} 战力`, 2 * n, (s, ev, u, t) => buff(s, ev, t, n)],
+    grow: n => [`自己 +${n} 战力`, 1.7 * n, (s, ev, u, t) => buff(s, ev, t, n)],
     mana: n => [`获得 ${n} 点能量`, 1.6 * n, (s, ev, u) => { s.left += n; ev.push({ t: 'mana', side: u.side, n }); }],
-    gust: () => ['把本路前方第一个敌人吹退一格；吹不动的（建筑，或者它身后没有空格）改为受 2 点伤害', 1.1, (s, ev, u, t) => { const x = ahead(s, u.side, t); if (x >= 0) blow(s, ev, u.card, t, [x], u.side); }],
+    gust: () => ['把本路前方第一个敌人吹退一格；吹不动的（建筑，或者它身后没有空格）改为受 2 点伤害', .85, (s, ev, u, t) => { const x = ahead(s, u.side, t); if (x >= 0) blow(s, ev, u.card, t, [x], u.side); }],
     gale: () => ['把本路的所有敌人各吹退一格；吹不动的（建筑，或者身后没有空格）改为受 2 点伤害', 2, (s, ev, u, t) => blow(s, ev, u.card, t, lane(s, u.side, colOf(t)), u.side)],
     gustAdj: () => ['把相邻的敌人各吹退一格；吹不动的（建筑，或者身后没有空格）改为受 2 点伤害', 1.6, (s, ev, u, t) => blow(s, ev, u.card, t, adj4(t), u.side)],
     tailwind: () => ['你这一路上的其他友方单位各立刻走一步', 1.4, (s, ev, u, t) => { const ts = units(s, u.side).filter(x => x !== t && colOf(x) === colOf(t)); if (ts.length) { fx(ev, 'bless', u.card, t, ts); march(s, ev, u.side, ts); } }],
-    build: n => [`你每有一座建筑，自己 +${n} 战力`, .9 * n, (s, ev, u, t) => buff(s, ev, t, n * structs(s, u.side).length)],
-    aidStruct: n => [`你的建筑各 +${n} 战力`, .8 * n, (s, ev, u, t) => { const ts = structs(s, u.side); if (ts.length) { fx(ev, 'bless', u.card, t, ts); ts.forEach(x => buff(s, ev, x, n)); } }],
+    build: n => [`你每有一座建筑，自己 +${n} 战力`, 1.04 * n, (s, ev, u, t) => buff(s, ev, t, n * structs(s, u.side).length)],
+    aidStruct: n => [`你的建筑各 +${n} 战力`, .67 * n, (s, ev, u, t) => { const ts = structs(s, u.side); if (ts.length) { fx(ev, 'bless', u.card, t, ts); ts.forEach(x => buff(s, ev, x, n)); } }],
     hex: () => [() => `把本路前方第一个敌方单位变成 1 战力的${name('tk_paper')}`, 5, (s, ev, u, t) => { const x = ahead(s, u.side, t, true); if (x >= 0) { fx(ev, 'bolt', u.card, t, [x]); morph(s, ev, x, 'tk_paper', 1, 'hex'); } }],
     forge: () => ['相邻的友军各 +1 战力，带着装备的再 +2', 1.8, (s, ev, u, t) => { const ts = pals(s, u.side, adj4(t)).filter(x => isUnit(s.board[x])); if (!ts.length) return; fx(ev, 'bless', u.card, t, ts); for (const x of ts) buff(s, ev, x, s.board[x].gear ? 3 : 1); }],
     income: () => ['获得 1 点能量', 4, (s, ev, u) => { s.left += 1; ev.push({ t: 'mana', side: u.side, n: 1 }); }],
@@ -69,7 +69,7 @@ export function build(H) {
     vitalAdj: () => ['相邻的友方单位获得活力：每个回合开始时 +1 战力，中的毒也解了', 2.6, (s, ev, u, t) => { const ts = pals(s, u.side, adj4(t)).filter(x => isUnit(s.board[x]) && !s.board[x].vital); if (ts.length) { fx(ev, 'bless', u.card, t, ts); ts.forEach(x => vitalize(s, ev, x)); } }],
     silence: () => ['禁用本路前方第一个敌人的能力，它的装备也掉了', 1.8, (s, ev, u, t) => { const x = ahead(s, u.side, t); if (x >= 0 && !s.board[x].mute) { fx(ev, 'bolt', u.card, t, [x]); mute(s, ev, x); } }],
     silenceAdj: () => ['禁用相邻敌人的能力，它们的装备也掉了', 2.6, (s, ev, u, t) => { const ts = foes(s, u.side, adj4(t)).filter(x => !s.board[x].mute); if (ts.length) { fx(ev, 'nova', u.card, t, ts); ts.forEach(x => mute(s, ev, x)); } }],
-    kin: (tb, n) => [`你的其他${tb}各 +${n} 战力`, 1.5 * n, (s, ev, u, t) => bless(s, ev, u.card, t, units(s, u.side).filter(x => x !== t && cards[s.board[x].card].tribe === tb), n)],
+    kin: (tb, n) => [`你的其他${tb}各 +${n} 战力`, .5 * n, (s, ev, u, t) => bless(s, ev, u.card, t, units(s, u.side).filter(x => x !== t && cards[s.board[x].card].tribe === tb), n)],
     pack: (tb, n) => [`你每有一个其他的${tb}，自己 +${n} 战力`, n, (s, ev, u, t) => buff(s, ev, t, n * units(s, u.side).filter(x => x !== t && cards[s.board[x].card].tribe === tb).length)],
     // —— 下面这一批能力类型是对照 Stormbound 的卡牌表归纳出来的（只取玩法，名字、文字和数值都是我们自己的）——
     draw: n => [`抽 ${n} 张牌（手牌最多 4 张）`, 1.2 * n, (s, ev, u) => draw(s, ev, u.side, n)],
@@ -82,7 +82,7 @@ export function build(H) {
     cullAdj: n => [`消灭相邻战力不超过 ${n} 的敌方单位`, .7 * n + .4, (s, ev, u, t) => { const ts = foes(s, u.side, adj4(t)).filter(x => isUnit(s.board[x]) && s.board[x].str <= n); if (ts.length) { fx(ev, 'slash', u.card, t, ts); ts.forEach(x => s.board[x] && kill(s, ev, x)); } }], // 先死的那个的亡语可能已经带走了后面的目标
     cull: n => [`消灭周围一圈战力不超过 ${n} 的敌方单位`, 1.2 * n + .6, (s, ev, u, t) => { const ts = foes(s, u.side, adj8(t)).filter(x => isUnit(s.board[x]) && s.board[x].str <= n); if (ts.length) { fx(ev, 'slash', u.card, t, ts); ts.forEach(x => s.board[x] && kill(s, ev, x)); } }],
     raze: n => [`周围一圈的敌方建筑各受 ${n} 点伤害`, .3 * n, (s, ev, u, t) => zap(s, ev, u.card, t, foes(s, u.side, adj8(t)).filter(x => !isUnit(s.board[x])), n, 'nova')],
-    selfBase: n => [`你自己的城堡受 ${n} 点伤害`, -1.1 * n, (s, ev, u, t) => { fx(ev, 'drain', u.card, t, [{ base: u.side }]); _hb(s, ev, u.side, n); }],
+    selfBase: n => [`你自己的城堡受 ${n} 点伤害`, -1.4 * n, (s, ev, u, t) => { fx(ev, 'drain', u.card, t, [{ base: u.side }]); _hb(s, ev, u.side, n); }],
     decay: n => [`自己 −${n} 战力`, -.6 * n, (s, ev, u, t) => hurt(s, ev, t, n)],
     aidLane: n => [`这一路上在它前面的友方单位各 +${n} 战力`, 1.5 * n, (s, ev, u, t) => bless(s, ev, u.card, t, units(s, u.side).filter(x => colOf(x) === colOf(t) && depth(u.side, rowOf(x)) > depth(u.side, rowOf(t))), n)],
     advance: () => ['再往前走一步（前面有人就不走）', 2, (s, ev, u, t) => { const f = t + fwd(u.side) * COLS; if (!inb(f)) { _hb(s, ev, 1 - u.side, u.str, u.id, t); kill(s, ev, t); } else if (!s.board[f]) shift(s, ev, t, f, 'move'); }],
@@ -98,48 +98,55 @@ export function build(H) {
     feast: () => ['献祭：消灭相邻战力最低的一个友军，自己获得它战力的两倍', 0, (s, ev, u, t) => { const ts = pals(s, u.side, adj4(t)).filter(x => isUnit(s.board[x])); if (!ts.length) return; const x = ts.reduce((a, b) => s.board[b].str < s.board[a].str ? b : a), n = s.board[x].str; fx(ev, 'drain', u.card, x, [t]); kill(s, ev, x); if (s.board[t] === u) buff(s, ev, t, n * 2); }],
   };
   const K = { // “攻击时”的效果
-    cleave: n => [`目标两侧的敌人各受 ${n} 点伤害`, 1.1 * n, (s, ev, u, from, to) => zap(s, ev, u.card, from, foes(s, u.side, Math.abs(to - from) === COLS ? [to - 1, to + 1].filter(x => inb(x) && rowOf(x) === rowOf(to)) : [to - COLS, to + COLS]), n, 'slash')],
+    cleave: n => [`目标两侧的敌人各受 ${n} 点伤害`, 1.3 * n, (s, ev, u, from, to) => zap(s, ev, u.card, from, foes(s, u.side, Math.abs(to - from) === COLS ? [to - 1, to + 1].filter(x => inb(x) && rowOf(x) === rowOf(to)) : [to - COLS, to + COLS]), n, 'slash')],
     pierce: n => [`目标身后一格的敌人也受 ${n} 点伤害`, .7 * n, (s, ev, u, from, to) => { const b = to + (to - from); if (inb(b) && (Math.abs(to - from) === COLS || rowOf(b) === rowOf(to))) zap(s, ev, u.card, from, foes(s, u.side, [b]), n, 'beam'); }],
     shatter: n => [`目标被冻住的话，先对它造成 ${n} 点伤害`, .6 * n, (s, ev, u, from, to) => { if (s.board[to] && s.board[to].frozen) zap(s, ev, u.card, from, [to], n, 'frost'); }],
-    flank: n => [`偷袭：从侧面打敌人的话，先对它造成 ${n} 点伤害`, .5 * n, (s, ev, u, from, to) => { if (rowOf(from) === rowOf(to)) zap(s, ev, u.card, from, [to], n, 'slash'); }],
+    flank: n => [`偷袭：从侧面打敌人的话，先对它造成 ${n} 点伤害`, .58 * n, (s, ev, u, from, to) => { if (rowOf(from) === rowOf(to)) zap(s, ev, u.card, from, [to], n, 'slash'); }],
     venom: () => ['让目标中毒：它每个回合开始时 −1 战力', 1.2, (s, ev, u, from, to) => poison(s, ev, to)],
     slayer: n => [`目标比自己强的话，先对它造成 ${n} 点伤害`, .6 * n, (s, ev, u, from, to) => { if (s.board[to] && s.board[to].str > u.str) zap(s, ev, u.card, from, [to], n, 'slash'); }],
     execute: () => ['目标是比自己弱的单位的话，直接消灭它，自己不受伤', 2, (s, ev, u, from, to) => { if (isUnit(s.board[to]) && s.board[to].str < u.str) { fx(ev, 'slash', u.card, from, [to]); kill(s, ev, to); } }],
     rage: n => [`自己先 +${n} 战力`, 1.4 * n, (s, ev, u, from) => buff(s, ev, from, n)],
     shatterKill: () => ['目标是被冻住的单位的话，直接消灭它，自己不受伤', 2, (s, ev, u, from, to) => { if (isUnit(s.board[to]) && s.board[to].frozen) { fx(ev, 'frost', u.card, from, [to]); kill(s, ev, to); } }],
-    leech: n => [`你的城堡 +${n} 血`, .8 * n, (s, ev, u, from) => { if (s.base[u.side] < s.cap[u.side]) fx(ev, 'heal', u.card, from, [{ base: u.side }]); mend(s, ev, u.side, n); }],
+    leech: n => [`你的城堡 +${n} 血`, 1 * n, (s, ev, u, from) => { if (s.base[u.side] < s.cap[u.side]) fx(ev, 'heal', u.card, from, [{ base: u.side }]); mend(s, ev, u.side, n); }],
   };
+  for (const [k, f] of Object.entries(E)) E[k] = (...a) => Object.assign(f(...a), { key: k }); // 每个效果记下自己叫什么，c.parts 里用（tools/lab 校准估值）
+  for (const [k, f] of Object.entries(K)) K[k] = (...a) => Object.assign(f(...a), { key: '攻击·' + k });
   // 什么时候触发
-  const P = e => ({ on: 'onPlay', pre: '出场时，', e }), D = e => ({ on: 'onDeath', pre: '倒下时，', e, k: .7 }), T = e => ({ on: 'onTurn', pre: '你的每个回合开始时，', e }), A = e => ({ on: 'onAttack', pre: '攻击时，', e }), W = e => ({ on: 'onHurt', pre: '狂暴：受伤后还活着的话，', e, k: .6 });
-  const C = e => ({ on: 'onPlay', pre: '连击：这回合你已经打过别的牌的话，', e: [e[0], e[1], (s, ev, u, t) => { if (s.plays > 0) e[2](s, ev, u, t); }], k: .6 });
-  const R = e => ({ on: 'onAfter', pre: '打完还活着的话，', e, k: .8 });
+  const P = e => ({ on: 'onPlay', pre: '出场时，', e }), D = e => ({ on: 'onDeath', pre: '倒下时，', e, k: .7 }), T = e => ({ on: 'onTurn', pre: '你的每个回合开始时，', e }), A = e => ({ on: 'onAttack', pre: '攻击时，', e, k: .86 }), W = e => ({ on: 'onHurt', pre: '狂暴：受伤后还活着的话，', e, k: .52 });
+  const C = e => ({ on: 'onPlay', combo: true, pre: '连击：这回合你已经打过别的牌的话，', e: Object.assign([e[0], e[1], (s, ev, u, t) => { if (s.plays > 0) e[2](s, ev, u, t); }], { key: e.key }), k: .6 });
+  const R = e => ({ on: 'onAfter', pre: '打完还活着的话，', e, k: .44 });
   const O = e => ({ on: 'onAllyDeath', pre: '每有一个友方单位倒下，', e });
-  const S = e => ({ on: 'onSpell', pre: '你每施放一张法术，', e, k: .8 });
-  const EVERY = (n, e) => ({ on: 'onSpell', pre: `你每施放 ${n} 张法术，`, e: [e[0], e[1], (s, ev, u, t) => { u.spells = (u.spells || 0) + 1; ev.push({ t: 'orbs', id: u.id, n: u.spells % n }); if (u.spells % n === 0) e[2](s, ev, u, t); }], k: .8 / n }); // 攒够 n 张才生效一次；数的是它在场期间你放的法术，记在它自己身上（u.spells）；每数一张报一次 orbs，画面在它背后亮一颗红光球
+  const S = e => ({ on: 'onSpell', pre: '你每施放一张法术，', e, k: .58 });
+  const EVERY = (n, e) => ({ on: 'onSpell', pre: `你每施放 ${n} 张法术，`, e: Object.assign([e[0], e[1], (s, ev, u, t) => { u.spells = (u.spells || 0) + 1; ev.push({ t: 'orbs', id: u.id, n: u.spells % n }); if (u.spells % n === 0) e[2](s, ev, u, t); }], { key: e.key }), k: .58 / n }); // 攒够 n 张才生效一次；数的是它在场期间你放的法术，记在它自己身上（u.spells）；每数一张报一次 orbs，画面在它背后亮一颗红光球
   const flag = (key, val, text, cost) => ({ flag: [key, val], text, cost });
-  const GUARD = flag('guard', true, '身后一格的友军被能力或法术打中时，替他挡一半', .5), TAUNT = flag('taunt', true, '嘲讽：正前方或左右挨着它的敌人必须先打它，也不能从它身边进城门', .8), FIXED = flag('fixed', true, '冲锋时只沿自己这一路往前，不拐去打旁边的敌人', 0),
-    SHIELD = flag('shield', true, '圣盾：挡下受到的第一次伤害', 2), THORNS = n => flag('thorns', n, `荆棘：攻击它的敌人先受 ${n} 点伤害`, 1.1 * n);
-  const AMBUSH = flag('anywhere', true, '奇袭：可以放在前线之外的任何空格（对方家门口那一行除外）；放下的那一刻最多行动一格（走一格或打一下）', 2.6), SWIFT = flag('swift', true, '乘风：每个回合开始时走两步（别的兵只走一步）', 2);
+  const GUARD = flag('guard', true, '身后一格的友军被能力或法术打中时，替他挡一半', .5), TAUNT = flag('taunt', true, '嘲讽：正前方或左右挨着它的敌人必须先打它，也不能从它身边进城门', 1.06), FIXED = flag('fixed', true, '冲锋时只沿自己这一路往前，不拐去打旁边的敌人', 0),
+    SHIELD = flag('shield', true, '圣盾：挡下受到的第一次伤害', 2), THORNS = n => flag('thorns', n, `荆棘：攻击它的敌人先受 ${n} 点伤害`, .9 * n);
+  const AMBUSH = flag('anywhere', true, '奇袭：可以放在前线之外的任何空格（对方家门口那一行除外）；放下的那一刻最多行动一格（走一格或打一下）', 1.2), SWIFT = flag('swift', true, '乘风：每个回合开始时走两步（别的兵只走一步）', 0); // 普查测出来几乎不值战力（2026-11-18）
+  // 奇袭的另一种：放下那一刻不行动（c.land = 0，默认 1 = 最多行动一格）。2026-11-19 按 tools/lab/ambush.mjs 实测（每格 1 万局）逐张选：
+  // 赤蝎、无常、玄豹、幽刃、四代目落地不动；无目剑客、首领胧最多一格。战力也按实测定，写在 chess-tune.js
+  const AMBUSH0 = { raw: c => { c.anywhere = true; c.land = 0; }, key: '词条·anywhere0', text: '奇袭：可以放在前线之外的任何空格（对方家门口那一行除外）；放下的那一刻不走也不打，下回合开始才行动', cost: .6 };
   const SIEGE = n => flag('siege', n, `攻城：打建筑和城堡时多造成 ${n} 点伤害`, .7 * n);
   const MOURN = (text, cost, fn) => ({ raw: c => { c.onNearDeath = fn; }, text: '相邻的格子里有单位倒下时，' + text, cost });
 
   // ---------- 登记卡牌 ----------
   const baseline = (cost, move) => [2 * (cost - 1), 1.75 * cost - 2.5, 1.5 * cost - 3.5, 1.25 * cost - 4][move];
   function compile(c, abil) {
-    const texts = []; let val = 0;
+    const texts = [], parts = []; let val = 0; // parts：能力的组成，给 tools/lab/value_fit.mjs 校准估值用，游戏不读
     for (const a of abil) {
-      if (a.flag) { c[a.flag[0]] = a.flag[1]; texts.push(() => a.text); val += a.cost; continue; }
-      if (a.raw) { a.raw(c); texts.push(() => a.text); val += a.cost; continue; }
-      const [tx, v, fn] = a.e, prev = c[a.on]; texts.push(Object.assign(() => typeof tx === 'function' ? tx() : tx, { pre: a.pre })); val += v * (a.k ?? 1);
+      if (a.flag) { c[a.flag[0]] = a.flag[1]; texts.push(() => a.text); val += a.cost; parts.push(['词条·' + a.flag[0], a.cost, 1, 'flag']); continue; }
+      if (a.raw) { a.raw(c); texts.push(() => a.text); val += a.cost; parts.push([a.key ?? '相邻倒下', a.cost, 1, a.key ? 'flag' : 'onNearDeath']); continue; }
+      const [tx, v, fn] = a.e, prev = c[a.on]; texts.push(Object.assign(() => typeof tx === 'function' ? tx() : tx, { pre: a.pre })); val += v * (a.k ?? 1); parts.push([a.e.key ?? '?', v, a.k ?? 1, a.combo ? 'combo' : a.on]);
       c[a.on] = prev ? (...args) => { prev(...args); fn(...args); } : fn;
     }
-    c.texts = texts; return val;
+    c.texts = texts; c.parts = parts; return val;
   }
-  const put = (id, c, raw) => { c.faction = F; c.str = Math.max(1, Math.min(15, Math.round(raw) + (TUNE[id] || 0))); cards[id] = c; };
+  const put = (id, c, raw) => { c.faction = F; c.raw = raw; c.str = Math.max(1, Math.min(15, Math.round(raw) + (TUNE[id] || 0))); cards[id] = c; };
   // 贵的单位身板再加一截：对照 Stormbound 的牌表，我们 4 费以上的单位能力占得太多、战力偏低，花了大价钱却站不住
   const lift = (cost, move) => cost <= 3 ? 0 : cost <= 5 ? 1 : cost === 6 ? (move ? 2 : 1) : cost === 7 ? 2 : 4;
-  function unit(id, nm, sp, cost, move, abil = []) { const c = { name: nm, kind: 'unit', cost, move, sp }; put(id, c, baseline(cost, move) + lift(cost, move) - compile(c, abil)); }
-  function struct(id, nm, sp, cost, abil = []) { const c = { name: nm, kind: 'structure', cost, move: 0, sp }; put(id, c, cost + 2 - compile(c, abil)); }
+  // 2026-11-18 按普查校准：高费单位原来给多了、便宜单位和会走路的单位给少了（tools/lab/value_fit.mjs，60 万局战力随机 ±1）
+  const recal = (cost, move) => [1.1, 1.1, .8, .4, -1.1, -1.7, -2.8, -3.1, -3.4][Math.min(cost, 8)] + [0, .1, .9, .9][move];
+  function unit(id, nm, sp, cost, move, abil = []) { const c = { name: nm, kind: 'unit', cost, move, sp }; put(id, c, baseline(cost, move) + lift(cost, move) + recal(cost, move) - compile(c, abil)); }
+  function struct(id, nm, sp, cost, abil = []) { const c = { name: nm, kind: 'structure', cost, move: 0, sp }; put(id, c, cost + 3.6 - compile(c, abil)); } // 建筑的基线 2026-11-18 从 +2 校准到 +3.6
   function egg(id, nm, sp, cost, str, card, turns, hatchStr) { cards[id] = { name: nm, kind: 'structure', cost, move: 0, sp, str, faction: F, hatch: { card, turns, str: hatchStr }, texts: [() => `孵化：${turns} 个回合后变成一只 ${hatchStr} 战力的${name(card)}`] }; }
   // 首领牌：闯关里击败首领才能拿到，战力手填（明显比同费的牌高），不参与自动调数值；title 是它的称号
   // 费用在 2026-11-18 整体加了 1–2 点：把首领塞进同阵营预设对打 12 套预设，原费用下带上它胜率多 11–50 个点；加 1 点后还多 15 个点以上的加 2 点（奥瑞安、胧、厄古、龙使、团团），其余加 1 点
@@ -362,17 +369,17 @@ export function build(H) {
   unit('f2_katara', '苦无手', 'f2_katara', 2, 1, [A(K.flank(2))]);
   unit('f2_spellthief', '窃咒者', 'f2_spellthief', 2, 0, [C(E.mana(1))]);
   unit('f2_ranged', '手里剑忍', 'f2_ranged', 3, 0, [P(E.shot(2)), C(E.shot(2))]);
-  unit('f2_support', '赤蝎', 'f2_support', 3, 1, [AMBUSH]);
+  unit('f2_support', '赤蝎', 'f2_support', 3, 1, [AMBUSH0]);
   unit('f2_lanternfox', '灯笼狐', 'f2_lanternfox', 3, 1, [S(E.aid(1))]);
   unit('f2_sparrowhawk', '雀鹰忍', 'f2_sparrowhawk', 3, 2, [A(K.flank(2))]);
   unit('f2_caster', '符咒师', 'f2_caster', 3, 0, [S(E.shot(2))]);
   unit('f2_tank', '赤甲武者', 'f2_tank', 3, 0, [TAUNT, P(E.lone(2))]);
-  unit('f2_deathphantom', '无常', 'f2_deathphantom', 3, 1, [AMBUSH, D(E.nova(1))]);
+  unit('f2_deathphantom', '无常', 'f2_deathphantom', 3, 1, [AMBUSH0, D(E.nova(1))]);
   unit('f2_pandabear', '熊猫武僧', 'f2_pandabear', 3, 1, [D(E.spawn('tk_panda', 2, 'here'))]);
   unit('f2_kindling', '炎环舞者', 'f2_kindling', 4, 0, [P(E.nova(1)), C(E.nova(1))]);
   unit('f2_mage4winds', '四风法师', 'f2_mage4winds', 4, 0, [EVERY(4, E.barrage(4))]); cards.f2_mage4winds.str = 4; // 战力手定为 4（不走自动估值）
   unit('f2_onnabugeisha', '女武者', 'f2_onnabugeisha', 4, 1, [A(K.flank(3))]);
-  unit('f2_onyxjaguar', '玄豹', 'f2_onyxjaguar', 4, 2, [AMBUSH]);
+  unit('f2_onyxjaguar', '玄豹', 'f2_onyxjaguar', 4, 2, [AMBUSH0]);
   unit('f2_flareslinger', '火铳手', 'f2_flareslinger', 4, 0, [P(E.shot(4))]);
   unit('f2_hammonnladeseeker', '寻刃者', 'f2_hammonnladeseeker', 4, 1, [C(E.grow(3))]);
   unit('f2_sekitori', '关取力士', 'f2_sekitori', 4, 0, [TAUNT, P(E.push(2))]);
@@ -380,12 +387,12 @@ export function build(H) {
   unit('f2_geomancer', '地脉师', 'f2_geomancer', 5, 0, [S(E.aidAll(1))]);
   unit('f2_demononi', '鬼面', 'f2_demononi', 5, 1, [C(E.ring(2))]);
   unit('f2_stormkage', '风暴上忍', 'f2_stormkage', 5, 2, [A(K.flank(3))]);
-  unit('f2_supekuta', '幽刃', 'f2_supekuta', 5, 1, [AMBUSH, P(E.nova(2))]);
+  unit('f2_supekuta', '幽刃', 'f2_supekuta', 5, 1, [AMBUSH0, P(E.nova(2))]);
   unit('f2_eclipseasura', '蚀日修罗', 'f2_eclipseasura', 6, 1, [P(E.ring(1)), C(E.ring(2))]);
   unit('f2_firewyrm', '火龙', 'f2_firewyrm', 6, 2, [P(E.beam(2))]);
   unit('f2_grandmasterzendo', '宗师禅道', 'f2_grandmasterzendo', 7, 1, [P(E.aid(1)), S(E.grow(2))]);
   unit('f2_eternitypainter', '永恒画师', 'f2_eternitypainter', 7, 0, [P(E.hex())]);
-  unit('f2_shidaimk2', '四代目', 'f2_shidaimk2', 8, 1, [AMBUSH, P(E.ring(3))]);
+  unit('f2_shidaimk2', '四代目', 'f2_shidaimk2', 8, 1, [AMBUSH0, P(E.ring(3))]);
   unit('f2_keshraifanblade', '毒扇忍', 'f2_keshraifanblade', 3, 1, [P(E.venom())]);
   unit('f2_kibeholder', '影缚者', 'f2_kibeholder', 4, 0, [C(E.silenceAdj())]);
   unit('f2_heartofthesonghai', '岚影之心', 'f2_heartofthesonghai', 2, 0, [P(E.last(5))]);

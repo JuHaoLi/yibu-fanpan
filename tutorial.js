@@ -6,7 +6,7 @@ import { tile } from './chess.js';
 const play = (card, r, c, say) => ({ do: 'play', card, t: tile(r, c), say }); // r：离自己城堡几列（0 是家门口）；c：第几路
 const end = say => ({ do: 'end', say }), ok = say => ({ do: 'ok', say });     // ok：纯讲解，点“知道了”往下
 export const LESSON = {
-  lesson: true, name: '新兵训练', area: 'n', base: [10, 7], // 对面的城堡只有 7 点血：进两次门就结束（蛮角兽 3 点，破阵骑士 4 点）
+  lesson: true, name: '新兵训练', area: 'n', base: [10, 6], // 对面的城堡只有 6 点血：进两次门就结束（蛮角兽 3 点，破阵骑士 3 点）
   // 牌序就是抽牌顺序：前四张是起手，后面按顺序补（打出和换掉的牌排到最后）
   mine: ['grapple', 'f5_brundlbeast', 'neutral_astralcrusader', 'lancer', 'squire', 'neutral_jaxi', 'f1s_smite'],
   foe: ['general', 'n_golemrune', 'neutral_rook', 'neutral_golemstone', 'neutral_jaxi', 'squire'],
@@ -18,7 +18,7 @@ export const LESSON = {
     ok('每回合开始，你的兵自动前进一步。撞上敌人互相扣战力：3 对 2，你赢了，还剩 1。'),
     play('f5_brundlbeast', 2, 2, '新兵只能放在前线以内。前线就是你最靠前的兵所在的那一列。把「蛮角兽」放到亮起的格子。'),
     end('它有 2 步，一口气冲到了对面门口。点「结束回合」。'),
-    ok('兵走进城门，按自己的战力扣城堡的血。对面只剩 4 了。'),
+    ok('兵走进城门，按自己的战力扣城堡的血。对面只剩 3 了。'),
     { do: 'swap', card: 'neutral_astralcrusader', say: '「星界十字军」要 7 点能量，现在出不起。每回合可以换一张牌：点它，再点「换牌」。' },
     play('f1s_smite', 4, 1, '换来了法术「惩戒」。对面的符文魔像下回合会撞倒你的兵：点「惩戒」，再点它。'),
     end('路清出来了。点「结束回合」。'),
