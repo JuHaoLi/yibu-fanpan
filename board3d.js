@@ -768,7 +768,7 @@ export const board = {
       case 'beam': { const far = ts.reduce((a, b) => a.distanceTo(from) > b.distanceTo(from) ? a : b), a = from.clone().setY(.5); if (e.from.base !== undefined) a.z = far.z * .5; // 从城堡放的：起点往目标那一路靠一靠
         if (beamTo(R, a, far)) { later(.07, () => { if (!px(pickEl(KIND.beamHit, e.el), fl, d0)) ts.forEach(b => burst(b, color, hot)); }); return later(.12, () => {}); } break; }
       case 'slash': if (px(R, fl.map(v => v.setX(v.x - d0 * 1.35)), d0)) return later(.1, () => {}); break;
-      default: if (px(R, fl, d0)) return later({ storm: .2 + ts.length * .05, frost: .16, venom: .14, gust: .22, bless: .2, heal: .2, summon: .18, shade: .14, creep: .14, thorn: .1 }[e.k] || .14, () => {});
+      default: if (px(R, fl, d0)) return later({ swords: .62, storm: .2 + ts.length * .05, frost: .16, venom: .14, gust: .22, bless: .2, heal: .2, summon: .18, shade: .14, creep: .14, thorn: .1 }[e.k] || .14, () => {});
     }
     switch (e.k) {
       case 'bolt': return Promise.all(ts.map(b => bolt(from, b, color, hot)));

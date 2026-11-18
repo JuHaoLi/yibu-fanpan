@@ -41,7 +41,7 @@ function art(id) { // 卡面上的图：角色取待机第一帧，脚贴着画�
   return artCache[id] = c;
 }
 const KIND = { unit: '单位', structure: '建筑', spell: '法术', gear: '装备' };
-const KW = /(连击|奇袭|偷袭|攻城|嘲讽|圣盾|荆棘|乘风|列阵|渗透|中毒|活力|冻住|禁用|献祭|孵化|狂暴|装备|算力|释放)/g, rich = t => t.replace(KW, '<b class="kw">$1</b>'); // 说明里的关键词加粗
+const KW = /(万剑归宗|连击|奇袭|偷袭|攻城|嘲讽|圣盾|荆棘|乘风|列阵|渗透|中毒|活力|冻住|禁用|献祭|孵化|狂暴|装备|算力|释放)/g, rich = t => t.replace(KW, '<b class="kw">$1</b>'); // 说明里的关键词加粗
 function cardEl(id, tag = 'div') { // 一张牌。类型看轮廓（样式按 unit / structure / spell / gear 裁），所以右上只写种族或“建筑、法术、装备”；移动力是几个折角，不写数字
   const c = CARDS[id], n = c.text.length, e = el(tag, `kcard ${factionOf(id)} ${c.kind}${c.gear ? ' gear' : ''}${n > 40 ? ' mid' : ''}${n > 48 ? ' long' : ''}`);
   const type = c.boss ? '首领牌 · ' + c.title : c.gear ? KIND.gear : KIND[c.kind] + (c.tribe ? ' · ' + c.tribe : ''), [w, h, s] = artSize(id);

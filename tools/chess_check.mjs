@@ -153,6 +153,9 @@ const at = (r, t) => r.state.board[t];
   s = blank(); put(s, tile(2, 0), 1, V, 9); put(s, tile(3, 3), 1, V, 9); put(s, tile(1, 2), 0); r = play(s, 'B_f6', tile(1, 1)); assert.ok(at(r, tile(2, 0)).frozen && at(r, tile(3, 3)).frozen, '伊蕾娜：冻住所有敌方单位');
   s = blank(); put(s, tile(2, 0), 1, V, 2); put(s, tile(3, 3), 1, V, 9); put(s, tile(3, 1), 1, V, 4); r = play(s, 'B_final', tile(0, 1)); assert.equal(at(r, tile(2, 0)).side, 0); assert.equal(at(r, tile(3, 1)).side, 0, '莱金：最弱的两个变成你的'); assert.equal(at(r, tile(3, 3)).side, 1);
   assert.ok(deckError([...STARTERS.f1.slice(1), 'B_f1']), '没赢到手的首领牌不能带'); assert.equal(deckError([...STARTERS.f1.slice(1), 'B_f1'], ['B_f1']), '', '赢到手就能带'); assert.ok(deckError([...STARTERS.f1.slice(2), 'B_f1', 'B_n1'], ['B_f1', 'B_n1']), '一副最多一张首领牌'); }
+{ let s = blank(); put(s, tile(1, 1), 0, 'B_n1', 7); put(s, tile(2, 1), 1, V, 12); let r = endAs(s, 0); assert.equal(at(r, tile(1, 1)), null, '李俊昊撞上比自己强的：同归于尽'); assert.equal(at(r, tile(2, 1)), null); assert.ok(r.events.some(e => e.t === 'fx' && e.k === 'swords'), '万剑归宗特效');
+  s = blank(); put(s, tile(1, 1), 0, 'B_n1', 7); put(s, tile(2, 1), 1, V, 3); r = endAs(s, 0); assert.equal(at(r, tile(2, 1))?.str, 4, '弱的照常对撞');
+  s = blank(); put(s, tile(2, 1), 0, 'B_n1', 7); put(s, tile(3, 1), 1, V, 9); r = endAs(s, 1); assert.equal(at(r, tile(2, 1)), null, '被更强的打也同归'); assert.equal(at(r, tile(3, 1)), null); }
 
 // ---- 电脑用随机卡组打几千局：不出错、不变量成立、每张牌都被打出过 ----
 const fs = FKEYS, played = new Set(), spawned = new Set(), seen = new Set(); let games = 0, draws = 0, first = 0, turns = 0;

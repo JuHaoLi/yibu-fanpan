@@ -93,6 +93,8 @@ function attack(s, ev, from, to) {
   if (thorns && s.board[from] === a) { fx(ev, 'thorn', s.board[to].card, to, [from]); hurt(s, ev, from, thorns); }
   const d = s.board[to];
   if (d && s.board[from] === a) {
+    if (isUnit(d) && ((trait(a, 'duel') && d.str > a.str) || (trait(d, 'duel') && a.str > d.str))) { // 同归（李俊昊的万剑归宗）：和比自己强的单位对撞，按打平算，双方一起倒下
+      const big = d.str > a.str ? to : from; fx(ev, 'swords', (big === to ? a : d).card, big === to ? from : to, [big]); kill(s, ev, to); const at = s.board.indexOf(a); if (at >= 0) kill(s, ev, at); return -1; }
     let x = a.str, y = d.str;
     if (d.shield) { d.shield = false; ev.push({ t: 'shield', tile: to, id: d.id, on: false }); x = 0; }
     if (a.shield) { a.shield = false; ev.push({ t: 'shield', tile: from, id: a.id, on: false }); y = 0; }

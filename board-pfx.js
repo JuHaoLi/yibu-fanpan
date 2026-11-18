@@ -31,6 +31,7 @@ export const KIND = {
     f6: { src: ['ice/frost-nova', { at: .4, rate: 1.5, s: .8 }], hit: ['ice/snowflake-burst', { at: .1, s: .7 }] },
     n: { src: ['arcane/mana-burst', { at: .2 }], hit: 'impacts/hit-spark' },
   },
+  swords: 'melee/wanjian', // 万剑归宗（李俊昊同归于尽）：一步翻盘自己画的特效
   slash: { f1: ['melee/double-slash', { pal: 'holy' }], f2: 'melee/dagger-flurry', f3: ['melee/thrust', { pal: 'gold' }], f4: 'melee/scythe-reap', f5: 'melee/claw-swipe', f6: 'melee/sword-slash', n: ['melee/sword-slash', { pal: 'metal' }] },
   thorn: ['nature/thorns', { at: .3, s: .6, fwd: -.5 }],
   frost: ['ice/snowflake-burst', { at: .1 }],
@@ -76,7 +77,7 @@ export const BOSS = {
   B_f4: { enter: ['spawn/spawn-portal', { at: .1 }], hit: [['shadow/grasping-hands', { at: .1, rate: 1.4, s: 1.1 }], ['melee/claw-swipe', { pal: 'arcane', s: 1.4, own: true }]], cast: [['shadow/black-hole', { life: 1.3, lift: 1 }], ['shadow/necro-skulls', { life: 1.3 }]], die: [['shadow/dark-explosion', { at: .45 }]] },
   B_f5: { enter: ['impacts/ground-slam', { s: 1.2 }], hit: [['melee/hammer-smash', { s: 1.4, own: true }], ['nature/quake', { at: .45, rate: 1.3 }]], cast: [['nature/thorns', { at: .3, fwd: -.5 }]], die: [['explosions/big-explosion', { pal: 'leaf' }]] },
   B_f6: { enter: ['ice/frost-nova', { at: .4 }], hit: [['ice/ice-spikes', { at: .2, own: true, rate: 1.3, s: .5 }], ['ice/snowflake-burst', { at: .1 }]], cast: [['ice/frost-nova', { at: .4 }], ['ice/ice-crystal', { life: 1.2, lift: 1.3 }]], die: [['ice/ice-shatter', { s: 1.4 }]] },
-  B_n1: { enter: ['explosions/smoke-bomb', { at: 1.3, rate: 1.5, pal: 'shadow' }], hit: [['melee/spin-slash', { s: 1.3, own: true }], ['melee/double-slash', { s: 1.4, own: true, pal: 'arcane' }]], cast: [['fire/fire-ring', { at: .3 }]], die: [['explosions/implosion', { lift: .5 }]] },
+  B_n1: { enter: ['explosions/smoke-bomb', { at: 1.3, rate: 1.5, pal: 'shadow' }], hit: [['melee/wanjian', { s: .75, rate: 1.4 }], ['melee/double-slash', { s: 1.4, own: true, pal: 'arcane' }]], cast: [['melee/wanjian', { s: .9 }]], die: [['explosions/implosion', { lift: .5 }]] },
   B_n2: { enter: ['arcane/time-stop', { rate: 1.6 }], hit: [['melee/dagger-flurry', { s: 1.8, own: true, pal: 'arcane' }], ['impacts/parry', { lift: .4 }]], cast: [['arcane/time-stop', { rate: 1.8, s: 1.2 }]], die: [['arcane/mana-burst', { at: .2, s: 1.4 }]] },
   B_n3: { enter: ['ice/snowflake-burst', { at: .1, s: 1.6 }], hit: [['melee/hammer-smash', { s: 1.5, own: true, pal: 'ice' }], ['ice/icicle-fall', { at: .85 }]], cast: [['ice/blizzard-vortex', { life: 1.2 }]], die: [['ice/ice-shatter', { s: 1.6 }], ['explosions/big-explosion', { pal: 'ice' }]] },
   B_n4: { enter: ['fire/meteor', { at: 1.2 }], hit: [['fire/fire-breath', { life: .7, own: true, lift: .5, fwd: .3 }], ['fire/flame-pillar', { at: .5, s: .7 }]], cast: [['fire/fire-tornado', { life: 1.2 }]], die: [['explosions/big-explosion', {}]] },
