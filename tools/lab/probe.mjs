@@ -1,11 +1,10 @@
 // 诊断：手写评分和价值网络，谁更能从"刚结束回合"的局面猜出最后谁赢。按回合段分开看。
 // 用法：node tools/lab/probe.mjs <权重.json> [局数=300]
-import { readFileSync } from 'node:fs';
 import { newGame, apply, aiTurn, evaluate, EVAL, STRONG } from '../../chess.js';
-import { fromJSON, valueFn } from './net.mjs';
-import { pickDeck, lcg } from './play.mjs';
+import { valueFn } from './net.mjs';
+import { pickDeck, lcg, readPlayNet } from './play.mjs';
 
-const [file, G = '300'] = process.argv.slice(2), V = valueFn(fromJSON(readFileSync(file, 'utf8')), 1), rows = [];
+const [file, G = '300'] = process.argv.slice(2), V = valueFn(readPlayNet(file), 1), rows = [];
 for (let g = 0; g < +G; g++) { const seed = (777000 + g) * 2654435761 >>> 0, rnd = lcg(seed), dr = lcg(seed ^ 0x5bd1e995);
   let s = newGame([pickDeck(dr), pickDeck(dr)], rnd); const pts = [];
   while (s.winner === null && s.n <= 70) { const me = s.turn; for (const x of aiTurn(s, { ...STRONG, rnd })) s = apply(s, x).state; if (s.winner === null) pts.push([evaluate(s, me, EVAL), V(s, me), me, s.n]); }

@@ -4,12 +4,37 @@
 import assert from 'node:assert/strict';
 import { CARDS, FACTIONS, STARTERS, FKEYS, newGame, apply, aiTurn, legalPlays, forecast, frontDepth, deckError, targets, tile, COLS, ROWS, HAND, DECK, BASE_HP, SHADE } from '../chess.js';
 import { LESSON, keepOrder, stepOk, foeTurn } from '../tutorial.js';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { allIds, idsFor, BOSS } from '../board-pfx.js';
+import { CIX, encode, featurize, fromJSON, scratch, valueFn } from '../chess-net.js';
 // 像素特效的对照表（board-pfx.js）：表里每个名字在 vendor/pixelfx/fx 里都得有文件；十一位首领各有一套；一场对局要预载的不超过 70 个
 { const miss = allIds().filter(id => !existsSync(new URL(`../vendor/pixelfx/fx/${id}.js`, import.meta.url))); assert.deepEqual(miss, [], '像素特效表里有名字找不到文件');
   for (const k of Object.keys(CARDS).filter(k => CARDS[k].boss)) assert.ok(BOSS[k]?.hit?.length && BOSS[k].cast && BOSS[k].die && BOSS[k].enter, `首领 ${k} 的专属特效不全`);
   assert.ok(idsFor(['f1', 'f4', 'n'], ['B_f4']).length <= 70); }
+
+// 自由对战和锦标赛实际加载的权重，应当能给带有机核牌的局面打分。
+{
+  const shipped = JSON.parse(readFileSync(new URL('../assets/ai/net-g3.json', import.meta.url), 'utf8'));
+  const options = { allowNewCards: true };
+  const state = newGame([STARTERS.f7, STARTERS.f1], () => .25);
+  state.hand[0] = ['r_drone', 'B_n1'];
+  assert.ok(Number.isFinite(valueFn(fromJSON(shipped, options))(state, 0)));
+
+  const width = shipped.E.length / (shipped.cards.length + 1);
+  const row = n => Array(width).fill(n);
+  const older = { ...shipped, cards: ['B_n1', 'n_scroll'], E: [...row(0), ...row(.25), ...row(.5)] };
+  const net = fromJSON(older, options);
+  const embedding = id => Array.from(net.E.subarray(CIX[id] * width, (CIX[id] + 1) * width));
+  assert.deepEqual(embedding('B_n1'), row(.25));
+  assert.deepEqual(embedding('n_scroll'), row(.5));
+  assert.deepEqual(embedding('r_drone'), row(0));
+  const w = scratch(net), [n] = featurize(encode(state, 0), net.E, w.x, w.nz, w.emb);
+  assert.equal(new Set(w.nz.subarray(0, n)).size, n, '新牌和老牌在同一手里，稀疏特征不能重复计分');
+  assert.throws(() => fromJSON(older), /重训/, '训练续跑仍要求相同牌表');
+  for (const bad of [{ din: 0 }, { cards: ['B_n1', 'B_n1'] }, { cards: ['B_n1', 'unknown'] }, { E: [] }]) {
+    assert.throws(() => fromJSON({ ...older, ...bad }, options), /重训/);
+  }
+}
 
 let seed = 9; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
 const sh = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };

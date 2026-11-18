@@ -29,14 +29,15 @@ const TF = 9 + CS + D, TILE0 = 0, CREEP0 = N * 2 * TF, HAND0 = CREEP0 + N * 3, G
 export const DIN = GLOB0 + 15;
 export function featurize(e, E, x, nz, emb) { // 写进稠密的 x，nz 记非零位置，emb 记 [位置, 牌] 给嵌入求梯度；返回 nz 个数
   let n = 0, m = 0; const put = (i, v) => { if (v) { x[i] = v; nz[n++] = i; } };
-  const card = (base, ci) => { for (let k = 0; k < CS; k++) { const v = SF[ci * CS + k]; if (v) { x[base + k] += v; if (x[base + k] === v) nz[n++] = base + k; } }
-    for (let k = 0; k < D; k++) { const p = base + CS + k; if (x[p] === 0) nz[n++] = p; x[p] += E[ci * D + k]; } emb[m++] = base + CS; emb[m++] = ci; };
+  const card = (base, ci, first = true) => { for (let k = 0; k < CS; k++) { const v = SF[ci * CS + k]; if (v) { x[base + k] += v; if (x[base + k] === v) nz[n++] = base + k; } }
+    // 手牌共用同一组嵌入位置。第一张即使是零向量，也只把这些位置登记一次。
+    for (let k = 0; k < D; k++) { const p = base + CS + k; if (first) nz[n++] = p; x[p] += E[ci * D + k]; } emb[m++] = base + CS; emb[m++] = ci; };
   for (let t = 0; t < N; t++) { const o = t * 6, ci = e[o];
     if (ci) { const b = TILE0 + (t * 2 + e[o + 1]) * TF, f = e[o + 3];
       put(b, 1); put(b + 1, e[o + 2] / 10); put(b + 2, f & 1); put(b + 3, (f >> 1) & 1); put(b + 4, (f >> 2) & 1); put(b + 5, (f >> 3) & 1); put(b + 6, (f >> 4) & 1); put(b + 7, (f >> 5) & 1); put(b + 8, (f >> 8) / 3);
       card(b + 9, ci); }
     const cr = e[o + 4]; if (cr) put(CREEP0 + t * 3 + cr - 1, 1); put(CREEP0 + t * 3 + 2, e[o + 5] / 3); }
-  let hc = 0; for (let i = 0; i < 4; i++) { const ci = e[N * 6 + i]; if (ci) { card(HAND0, ci); hc++; } } put(HAND0 + CS + D, hc / 4);
+  let hc = 0; for (let i = 0; i < 4; i++) { const ci = e[N * 6 + i]; if (ci) { card(HAND0, ci, hc === 0); hc++; } } put(HAND0 + CS + D, hc / 4);
   const g = N * 6 + 4, sc = [10, 10, 10, 10, 10, 10, 8, 8, 1, 1, 12, 12, 4, 30, 1];
   for (let i = 0; i < 15; i++) put(GLOB0 + i, i === 14 ? 0 : e[g + i] / sc[i]); if (e[g + 14]) put(GLOB0 + 14, e[g + 14] === 1 ? 1 : -1);
   return [n, m];
@@ -49,8 +50,27 @@ export function initNet(rnd = Math.random, H1 = 64, H2 = 32) { // 隐藏层大�
 }
 export const KEYS = ['E', 'W1', 'b1', 'W2', 'b2', 'w3', 'b3'];
 export const toJSON = net => JSON.stringify({ cards: CIDS, din: DIN, ...Object.fromEntries(KEYS.map(k => [k, Array.from(net[k], v => Math.round(v * 1e5) / 1e5)])) });
-export function fromJSON(txt) { const o = typeof txt === 'string' ? JSON.parse(txt) : txt;
-  if (o.din !== DIN || o.cards.join() !== CIDS.join()) throw new Error('网络是按另一套牌训练的，要重训'); return Object.fromEntries(KEYS.map(k => [k, Float32Array.from(o[k])])); }
+export function fromJSON(txt, { allowNewCards = false } = {}) {
+  const o = typeof txt === 'string' ? JSON.parse(txt) : txt;
+  const incompatible = '网络是按另一套牌训练的，要重训';
+  if (o.din !== DIN || !Array.isArray(o.cards) || !o.cards.length || o.E?.length !== (o.cards.length + 1) * D) throw new Error(incompatible);
+  const sameCards = o.cards.length === CIDS.length && o.cards.every((id, i) => id === CIDS[i]);
+  if (!sameCards && !allowNewCards) throw new Error(incompatible);
+  const net = Object.fromEntries(KEYS.map(k => [k, Float32Array.from(o[k])]));
+  if (!sameCards) {
+    // 对局可以沿用旧牌的嵌入。新牌先用牌面特征评分，学到的 8 维留零。训练读档仍要求牌表完全一致。
+    const E = new Float32Array(NC * D);
+    E.set(net.E.subarray(0, D));
+    const seen = new Set();
+    for (const [i, id] of o.cards.entries()) {
+      if (typeof id !== 'string' || !Object.hasOwn(CIX, id) || seen.has(id)) throw new Error(incompatible);
+      seen.add(id);
+      E.set(net.E.subarray((i + 1) * D, (i + 2) * D), CIX[id] * D);
+    }
+    net.E = E;
+  }
+  return net;
+}
 
 // 前向。scratch：一份工作内存（每个线程一份），返回 logit
 export function scratch(net) { return { x: new Float32Array(DIN), nz: new Int32Array(DIN), emb: new Int32Array(64), h1: new Float32Array(net.b1.length), h2: new Float32Array(net.b2.length), n: 0, m: 0 }; }

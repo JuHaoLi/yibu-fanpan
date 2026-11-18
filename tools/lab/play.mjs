@@ -6,13 +6,14 @@ import { DECKS, STRONG, EVAL, evaluate } from '../../chess.js';
 import { randomDeck } from './census.mjs';
 import { fromJSON, valueFn, mixAI } from './net.mjs';
 
+export const readPlayNet = file => fromJSON(readFileSync(file, 'utf8'), { allowNewCards: true });
 export function makeAI(spec) {
   if (spec === 'strong') return { ...STRONG };
   if (/^beam\d+$/.test(spec)) return { deep: true, beam: +spec.slice(4) };
   const m = /^net:([^@]+)(?:@([\d.]+))?(?:#(\d+))?$/.exec(spec); // #n：搜索宽度，默认和最强电脑一样
-  if (m) return { beam: m[3] ? +m[3] : STRONG.beam, value: valueFn(fromJSON(readFileSync(m[1], 'utf8')), m[2] ? +m[2] : 10) };
+  if (m) return { beam: m[3] ? +m[3] : STRONG.beam, value: valueFn(readPlayNet(m[1]), m[2] ? +m[2] : 10) };
   const x = /^mix:([^@]+)@([\d.]+)(?:#(\d+))?$/.exec(spec); // 手写评分 + 倍数 × 网络 logit；#n 搜索宽度
-  if (x) return { ...mixAI(fromJSON(readFileSync(x[1], 'utf8')), +x[2]), ...(x[3] ? { beam: +x[3] } : {}) };
+  if (x) return { ...mixAI(readPlayNet(x[1]), +x[2]), ...(x[3] ? { beam: +x[3] } : {}) };
   throw new Error('不认识的电脑：' + spec);
 }
 // 卡组：四分之一用预设，其余随机合法卡组
