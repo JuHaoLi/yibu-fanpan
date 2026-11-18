@@ -46,7 +46,7 @@ export function cupUI({ host, px, decks, card, valid, fight }) {
     slab.append(el('p', 'err', err), go);
     const prize = el('div', 'prize'), seeds = el('div', 'seeds');
     for (const r of C.ROSTER.filter(r => r.tier === 'max')) seeds.append(who({ ...r }));
-    prize.append(el('i', 'chest'), el('b', '', '冠军奖励'), el('p', 'dim', `卫冕冠军 Q1 的机核卡组「零号协议」12 张：新机制「算力」。Q1 作为卫冕冠军，城堡 12 血。`), el('small', 'dim', '种子选手'), seeds);
+    prize.append(el('i', 'chest'), el('b', '', '冠军奖励'), el('p', 'dim', `卫冕冠军 Q1 的机核卡组「零号协议」12 张：新机制「算力」。`), el('small', 'dim', '种子选手'), seeds);
     box.append(el('div', 'cup-two', '')); box.lastChild.append(slab, prize);
     box.append(el('small', 'credit', '选手头像：角色形象设计 小叶子XIYZ · 美术和制作 喵了个猫了个咪了个猫（meow-ai-arena，MIT）。名字只是致敬，与各家公司无关。')); root.replaceChildren(box);
   }

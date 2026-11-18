@@ -1,7 +1,9 @@
 // 两个电脑对打，看 A 的胜率。同一对卡组、同一个种子打四局：两边各用两套卡组、各先手一次，只有电脑不同。
-// 用法：node tools/lab/arena.mjs <电脑A> <电脑B> [局数=2000，取 4 的倍数] [线程数=核数-1] [种子起点=900001]
+// 用法：node tools/lab/arena.mjs <电脑A> <电脑B> [局数=2000，取 4 的倍数] [线程数=核数-1] [种子起点=900001] [结果JSON路径]
+//   给了结果路径就再写一份机器可读的 {a,b,winA,ci,games,msA,msB}
 import { isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { availableParallelism } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { newGame, apply, aiTurn } from '../../chess.js';
 import { makeAI, pickDeck, lcg, farm } from './play.mjs';
@@ -21,9 +23,10 @@ if (!isMainThread) {
     parentPort.postMessage({ won, games, ms, turns });
   });
 } else if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const [a, b, G = '2000', W = String(Math.max(1, availableParallelism() - 1)), base = '900001'] = process.argv.slice(2), t0 = Date.now();
+  const [a, b, G = '2000', W = String(Math.max(1, availableParallelism() - 1)), base = '900001', outJson] = process.argv.slice(2), t0 = Date.now();
   let won = 0, games = 0; const ms = [0, 0], turns = [0, 0];
   await farm(new URL(import.meta.url), +G, +W, 8, { a, b, base: +base }, r => { won += r.won; games += r.games; for (const k of [0, 1]) { ms[k] += r.ms[k]; turns[k] += r.turns[k]; } });
   const p = won / games, ci = 1.96 * Math.sqrt(p * (1 - p) / games);
   console.log(`${a} 对 ${b}：A 胜率 ${(100 * p).toFixed(1)}% ± ${(100 * ci).toFixed(1)}（${games} 局，${((Date.now() - t0) / 1000).toFixed(0)} 秒）；每回合想多久 A ${(ms[0] / turns[0]).toFixed(1)} 毫秒、B ${(ms[1] / turns[1]).toFixed(1)} 毫秒`);
+  if (outJson) writeFileSync(outJson, JSON.stringify({ a, b, winA: p, ci, games, msA: ms[0] / turns[0], msB: ms[1] / turns[1] }));
 }

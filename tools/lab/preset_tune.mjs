@@ -1,7 +1,7 @@
 // 预设递归调牌的一轮：12 套预设两两对打（每局给双方所有棋子的战力随机 −1/0/+1），
 // 测出每套的胜率，以及每张棋子在它那套里"加减 1 点战力，这套胜率变多少"（斜率）；
 // 再给超出范围的预设挑牌：优先挑只属于这个阵营、不在别的预设里、斜率大的棋子，每张每轮最多 ±1，调到预计回到中线附近。
-// 用法：node tools/lab/preset_tune.mjs <电脑> <每对局数> <线程数> [下限=40] [上限=60] [--apply]
+// 用法：node tools/lab/preset_tune.mjs <电脑> <每对局数> <线程数> [下限=40] [上限=60] [输出路径=out/lab/preset_round.json] [--apply]
 //   --apply：把挑出来的改动直接加进 chess-tune.js；不加就只打印
 import { isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -23,7 +23,7 @@ if (!isMainThread) {
       res.push([a, b, w < 0 ? .5 : (w === 0) === aFirst ? 1 : 0, DECKS[a].cards.map(k => dl[k] ?? 0), DECKS[b].cards.map(k => dl[k] ?? 0)]); }
     parentPort.postMessage(res); });
 } else if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const args = process.argv.slice(2), doApply = args.includes('--apply'), [ai = 'strong', per = '800', W = '20', lo = '40', hi = '60'] = args.filter(x => x !== '--apply'), t0 = Date.now(), games = [];
+  const args = process.argv.slice(2), doApply = args.includes('--apply'), [ai = 'strong', per = '800', W = '20', lo = '40', hi = '60', outPath = 'out/lab/preset_round.json'] = args.filter(x => x !== '--apply'), t0 = Date.now(), games = [];
   await farm(new URL(import.meta.url), PAIRS.length * +per, +W, 20, { ai, per: +per }, r => games.push(...r));
   // 胜率
   const win = Array(K).fill(0), cnt = Array(K).fill(0); for (const [a, b, wa] of games) { win[a] += wa; cnt[a]++; win[b] += 1 - wa; cnt[b]++; }
@@ -46,6 +46,6 @@ if (!isMainThread) {
       for (const c of picks) plan.push({ k: c.k, d: out, deck: name, s: c.s });
       line += `  → ${out > 0 ? '加' : '减'} ${picks.map(c => `${CARDS[c.k].name}(${CARDS[c.k].str}→${CARDS[c.k].str + out}，每点 ${c.s.toFixed(1)})`).join('、')}，预计 ${out > 0 ? '+' : '−'}${got.toFixed(0)}`; }
     console.log(line); }
-  writeFileSync('out/lab/preset_round.json', JSON.stringify({ ai, per: +per, rates: DECKS.map((d, i) => ({ name: d.name, rate: +rate(i).toFixed(1) })), slopes: DECKS.map((d, i) => d.cards.map((k, j) => [k, +pp(sl[i][j]).toFixed(2)])), plan }, null, 1));
+  writeFileSync(outPath, JSON.stringify({ ai, per: +per, rates: DECKS.map((d, i) => ({ name: d.name, rate: +rate(i).toFixed(1) })), slopes: DECKS.map((d, i) => d.cards.map((k, j) => [k, +pp(sl[i][j]).toFixed(2)])), plan }, null, 1));
   if (doApply && plan.length) { for (const p of plan) TUNE[p.k] = (TUNE[p.k] || 0) + p.d; const f = new URL('../../chess-tune.js', import.meta.url); writeFileSync(f, readFileSync(f, 'utf8').replace(/export const TUNE = .*;\n/, 'export const TUNE = ' + JSON.stringify(TUNE) + ';\n')); console.log(`已写进 chess-tune.js：${plan.length} 张`); }
 }

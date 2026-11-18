@@ -1,0 +1,53 @@
+{
+ "dir": "out/loop",
+ "workers": 20,
+ "selfplayGames": 300000,
+ "posGames": 200000,
+ "presets": 0.25,
+ "teacherGames": 40000,
+ "K": 6,
+ "M": 4,
+ "p": 0.3,
+ "opp": "mix",
+ "act": 0,
+ "lambda": 0.7,
+ "epochs": 3,
+ "stage1": 1,
+ "searchWeight": 1,
+ "mix": 20,
+ "gateGames": 4000,
+ "gateWin": 0.52,
+ "gateWin1": 0.5,
+ "bands": [
+  5,
+  4,
+  4,
+  3
+ ],
+ "maxChanges": 20,
+ "presetsPer": 400,
+ "presetLo": 40,
+ "presetHi": 60,
+ "doneOutside": 3,
+ "maxRounds": 8,
+ "nice": 10,
+ "lock": [
+  "f2_mage4winds",
+  "f4_buildlegendary"
+ ],
+ "smoke": {
+  "dir": "out/loop-smoke",
+  "workers": 4,
+  "selfplayGames": 800,
+  "posGames": 400,
+  "teacherGames": 40,
+  "K": 3,
+  "M": 2,
+  "gateGames": 80,
+  "presetsPer": 8,
+  "epochs": 1,
+  "maxRounds": 2,
+  "gateWin": 0,
+  "gateWin1": 0
+ }
+}

@@ -8,10 +8,12 @@ export const WIN = 3, LOSE = 3, SWISS = 5, KO_NAMES = ['八强赛', '半决赛',
 export const bestOf = round => round <= 2 ? 1 : 3; // 瑞士轮第几轮打几局；淘汰赛都是 3
 const pre = name => { const d = DECKS.find(x => x.name === name); return { name, f: d.f, cards: [...d.cards] }; };
 // 电脑的强度（aiTurn 的选项，见 chess.js）。实测：满强度（整回合组合搜索每层留 12 个）对只预演一步的老满强度赢 74%；AI 角色每层留 4 个，对满强度约 46%；路人不预演、随机看走眼
-// 游戏里网络权重载入后，max 会被换成大师电脑（chess-ui.js 的 loadMaster，搜索 + 价值网络，对满强度约 64%）；node 里的自检照旧用满强度
+// 游戏里网络权重载入后，max 会被换成大师电脑（chess-ui.js 的 loadMaster：价值网络 net-g4，搜索宽度降到 4）；node 里的自检照旧用满强度
+// 2026-11-19 实测（每组 100–200 届，玩家席由普通电脑代打；种子对非种子的单局胜率 Q1/克劳德/GPT嗖，三人合计夺冠率）：满强度 + Q1 12 血 73/66/74%、79%；
+//   大师全宽度 + Q1 12 血 83/77/83%、95%；大师全宽度 + Q1 10 血 78/80/81%、95%；大师宽度 4 + Q1 10 血 70/68/75%、74%（现在用的）
 export const TIERS = { max: STRONG, ai: { deep: true, beam: 4 } };
 export const ROSTER = [
-  { key: 'q1', name: 'Q1', tag: '卫冕冠军', tier: 'max', hp: 12, decks: [{ name: '零号协议', f: 'f7', cards: [...PROTOCOL] },
+  { key: 'q1', name: 'Q1', tag: '卫冕冠军', tier: 'max', decks: [{ name: '零号协议', f: 'f7', cards: [...PROTOCOL] },
     { name: '零号协议·超频', f: 'f7', cards: ['q_probe', 'q_helm', 'q_field', 'q_wing', 'q_cannon', 'q_sword', 'q_glitch', 'q_chassis', 'n_soulstealer', 'gem', 'q_emp', 'q_super'] }] },
   { key: 'claude', name: '克劳德', face: 'claude', tier: 'max', decks: [pre('方尖碑'), pre('荆棘反击')] },
   { key: 'gptsol', name: 'GPT嗖', face: 'gptsol', tier: 'max', decks: [pre('荆棘反击'), pre('方尖碑')] },
@@ -26,7 +28,7 @@ export const ROSTER = [
 ];
 const WALKERS = ['老铁匠', '流浪诗人', '酒馆老板', '新兵蛋子', '赌场常客', '退役骑士', '牌桌幽灵', '夜班守卫', '算命先生', '码头搬运工'];
 export const opts = p => p.tier === 'walk' ? { skill: p.skill } : TIERS[p.tier] || {}; // 这位电脑选手的 aiTurn 选项
-export const HP = 10, hpOf = p => p.hp || HP; // 城堡血量：卫冕冠军 Q1 是 12（和闯关首领一样的待遇），其余都是 10
+export const HP = 10, hpOf = p => p.hp || HP; // 城堡血量：都是 10（Q1 原来 12，换上大师电脑后降回 10，见 TIERS 上面的实测）
 
 // 带种子的随机数（mulberry32）：存档里只存一个整数，读档后接着走
 export const rng = seed => { let a = seed >>> 0; const f = () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; f.state = () => a; return f; };
