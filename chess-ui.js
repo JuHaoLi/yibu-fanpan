@@ -70,7 +70,7 @@ let mode = 'free'; // 开始界面的三种玩法：自由对战、闯关（camp
 function home() {
   $('result').hidden = $('builder').hidden = true; $('home').hidden = false; lesson = null; document.body.classList.remove('lesson');
   const list = allDecks(); chosen = Math.min(chosen, list.length - 1);
-  $('home').classList.toggle('camp', mode !== 'free'); $('home').classList.toggle('cupmode', mode === 'cup'); $('roombtn').hidden = $('aibtn').hidden = mode !== 'free'; aiLabel(); music('home'); // 锦标赛和闯关一样整屏盖住城堡
+  $('home').classList.toggle('camp', mode !== 'free'); $('home').classList.toggle('cupmode', mode === 'cup'); $('roombtn').hidden = mode !== 'free'; aiLabel(); music('home'); // 锦标赛和闯关一样整屏盖住城堡
   $('modes').replaceChildren(...[['free', '自由对战'], ['camp', '闯关'], ['cup', '锦标赛']].map(([m, t]) => { const b = el('button', 'tab n' + (m === mode ? ' on' : ''), t); b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', m === mode); b.onclick = () => { mode = m; home(); }; return b; }));
   if (mode === 'camp') { cups.hide(); return campUI.show(); } campUI.hide(); if (mode === 'cup') return cups.show(); cups.hide();
   $('play').textContent = taught() ? '开始对局' : '新手教学'; $('play').disabled = false; // 第一次来：金色主按钮是两分钟的教学，不想学可以点旁边的“跳过教学”
@@ -106,25 +106,28 @@ $('newdeck').onclick = () => build({ name: `我的卡组 ${customs.length + 1}`,
 $('foesel').append(...FKEYS.map(f => { const o = el('option', '', FACTIONS[f].name); o.value = f; return o; }));
 // 自由对战的难度。大师 = 整回合搜索 + 价值网络（tools/lab 自我对打训练出来的，对困难约赢 64%）。锦标赛的三个种子选手也用大师；闯关还是普通电脑（换大师的话血量要差到 14 比 5 才拉得回通关率，先不换）。
 // 网络权重打开页面就在后台下载；下不来就退回困难
-const DIFFS = { easy: ['入门', { skill: .6 }], normal: ['普通', {}], hard: ['困难', STRONG], master: ['大师', null] }, DKEY = 'yibu-fanpan.diff.v1';
-let diff = (() => { try { return DIFFS[localStorage.getItem(DKEY)] ? localStorage.getItem(DKEY) : 'hard'; } catch { return 'hard'; } })(), MASTER = null, masterP = null;
+// AI（大模型）也是一档难度：选它就由玩家自己填的大模型当对手（llm.js），选别的就是内置电脑
+const DIFFS = { easy: ['入门', { skill: .6 }], normal: ['普通', {}], hard: ['困难', STRONG], master: ['大师', null], ai: ['AI（大模型）', null] }, DKEY = 'yibu-fanpan.diff.v1';
+let diff = (() => { try { if (llmCfg().on) { llmSave({ ...llmCfg(), on: false }); localStorage.setItem(DKEY, 'ai'); } /* 旧版是单独的“AI 对手”开关：开着的玩家换成这一档 */ return DIFFS[localStorage.getItem(DKEY)] ? localStorage.getItem(DKEY) : 'hard'; } catch { return 'hard'; } })(), MASTER = null, masterP = null;
 $('diffsel').append(...Object.entries(DIFFS).map(([k, [n]]) => { const o = el('option', '', n); o.value = k; o.selected = k === diff; return o; }));
-$('diffsel').onchange = e => { diff = e.target.value; try { localStorage.setItem(DKEY, diff); } catch { /* 存不了就只记这一次 */ } };
+$('diffsel').onchange = e => { diff = e.target.value; try { localStorage.setItem(DKEY, diff); } catch { /* 存不了就只记这一次 */ } aiLabel(); if (diff === 'ai' && !llmOn()) aiOpen(); }; // 第一次选 AI 就弹出接口设置
 const loadMaster = () => masterP ??= fetch('assets/ai/net-g3.json').then(r => r.json()).then(o => { MASTER = TIERS.max = mixAI(fromJSON(o)); }).catch(e => { console.warn('大师电脑没载入，用困难代替', e); masterP = null; });
 loadMaster();
-const freeAI = () => diff === 'master' ? MASTER || STRONG : DIFFS[diff][1];
-$('play').onclick = () => { if (!taught()) return teach(); const d = allDecks()[chosen], v = $('foesel').value, pool = DECKS.filter(x => v === 'any' || x.f === v), foe = pool[Math.floor(Math.random() * pool.length)]; start(d, { name: `${FACTIONS[foe.f].name}·${foe.name}`, cards: foe.cards }); };
+const freeAI = () => diff === 'master' ? MASTER || STRONG : DIFFS[diff][1] || STRONG;
+$('play').onclick = () => { if (!taught()) return teach(); if (diff === 'ai' && !llmOn()) return aiOpen('先填好接口地址和模型名，才能和 AI 对战。', true); const d = allDecks()[chosen], v = $('foesel').value, pool = DECKS.filter(x => v === 'any' || x.f === v), foe = pool[Math.floor(Math.random() * pool.length)]; start(d, { name: `${FACTIONS[foe.f].name}·${foe.name}`, cards: foe.cards }); };
 
 // ---------- AI 对手 ----------
 // 玩家自己填接口、Key、模型名，自由对战里电脑那一方由大模型走；怎么问、怎么回退见 llm.js
-const aiDlg = $('aidlg'); function aiLabel() { $('aibtn').textContent = llmOn() ? 'AI 对手：开' : 'AI 对手'; }
-const aiRead = () => ({ on: $('aion').checked, style: $('aistyle').value, url: $('aiurl').value.trim(), key: $('aikey').value.trim(), model: $('aimodel').value.trim() });
+let aiTally = { llm: 0, fallback: 0, why: '' }, aiWarn = ''; // 这一局 AI 自己出招 / 内置电脑代打各几回合；aiWarn：上回合代打了，提示行里一直挂着
+const aiDlg = $('aidlg'); function aiLabel() { $('aibtn').hidden = mode !== 'free' || diff !== 'ai'; } // “AI 设置”只在难度选了 AI 时出现
+const aiRead = () => ({ style: $('aistyle').value, url: $('aiurl').value.trim(), key: $('aikey').value.trim(), model: $('aimodel').value.trim() });
 const aiHolder = () => { const a = $('aistyle').value === 'anthropic'; $('aiurl').placeholder = a ? '例如 https://api.anthropic.com' : '例如 https://api.deepseek.com/v1'; $('aimodel').placeholder = a ? '例如 claude-haiku-5-5' : '例如 deepseek-chat'; };
 const aiSay = (t, bad) => { $('aistat').textContent = t; $('aistat').className = bad ? 'bad' : ''; };
-$('aibtn').onclick = () => { const c = llmCfg(); $('aion').checked = c.on; $('aistyle').value = c.style; $('aiurl').value = c.url; $('aikey').value = c.key; $('aimodel').value = c.model; aiHolder(); aiSay(''); aiDlg.showModal(); };
+function aiOpen(msg = '', bad = false) { const c = llmCfg(); $('aistyle').value = c.style; $('aiurl').value = c.url; $('aikey').value = c.key; $('aimodel').value = c.model; aiHolder(); aiSay(msg, bad); aiDlg.showModal(); }
+$('aibtn').onclick = () => aiOpen();
 $('aistyle').onchange = aiHolder; $('aiclose').onclick = () => aiDlg.close();
-$('aisave').onclick = () => { const c = aiRead(); if (c.on && !llmOn(c)) return aiSay('开启需要填接口地址和模型名。', true); llmSave(c); aiLabel(); aiDlg.close(); };
-$('aitest').onclick = async () => { const b = $('aitest'); b.disabled = true; aiSay('正在测试…'); const r = await llmPing(aiRead()); b.disabled = false; aiSay(r.ok ? `连通了，一次回复 ${r.ms} 毫秒。` : r.why, !r.ok); };
+$('aisave').onclick = () => { const c = aiRead(); if (!llmOn(c)) return aiSay('要填接口地址和模型名。', true); llmSave(c); aiDlg.close(); };
+$('aitest').onclick = async () => { const b = $('aitest'); b.disabled = true; aiSay('正在测试…'); const r = await llmPing(aiRead()); b.disabled = false; aiSay(r.ok ? `连通了，一次回复 ${r.ms} 毫秒。点保存就能开始。` : r.why, !r.ok); };
 
 // ---------- 房间对战 ----------
 // 开房的人拿到 4 位房间号，另一个人输入房间号加入；用的都是开始界面上当前选中的那套卡组。传输见 room.js
@@ -297,7 +300,8 @@ async function endTurn() {
   let early = ai && !lesson ? llmTurn(apply(S, { type: 'end' }).state, x => { if (g === game) log(x); }) : null; // AI：对方回合开头的局面现在就确定了，请求马上发出，趁下面这些演出等回复
   await act({ type: 'end' });                       // 结束回合：电脑的兵先各走一步
   if (net) return foeLoop(g);                       // 联机：等对方一步步走
-  while (g === game && S.winner === null && S.turn === FOE) { const list = lesson ? foeTurn(S) : ai ? await (early || llmTurn(S, x => { if (g === game) log(x); })) : aiTurn(S, camp?.cup ? cupOpts(camp.cup.foeP) : camp ? undefined : freeAI()); early = null; /* 自由对战按选的难度；锦标赛按选手的档次；闯关照旧用普通电脑（关卡血量是按它校准的） */ await pause(T.t4);   // 对方“想一下”
+  while (g === game && S.winner === null && S.turn === FOE) { const list = lesson ? foeTurn(S) : ai ? await (early || llmTurn(S, x => { if (g === game) log(x); })) : aiTurn(S, camp?.cup ? cupOpts(camp.cup.foeP) : camp ? undefined : freeAI()); early = null;
+    if (ai && list.by) { aiTally[list.by]++; aiTally.why = list.why || aiTally.why; aiWarn = list.by === 'fallback' ? `AI 这回合没能出招（${list.why}），是内置电脑代打的。检查一下「AI 设置」里的接口。` : ''; } // 战报只留四条、手机上还收着，代打的事放到提示行里，下回合 AI 正常出招才消失 /* 自由对战按选的难度；锦标赛按选手的档次；闯关照旧用普通电脑（关卡血量是按它校准的） */ await pause(T.t4);   // 对方“想一下”
     for (const a of list) { if (g !== game || S.winner !== null) break; await act(a); if (a.type !== 'end') await pause(T.t3); } } // 两步之间留一口气
 }
 
@@ -382,7 +386,7 @@ function sync() {
   $('foe').innerHTML = `${RIVAL}<span class="who"> · ${theirs.name}</span>　能量 ${px(S.mana[FOE], 2)}　手牌 ${px(S.hand[FOE].length, 2)}` + (usesCore(S, FOE) ? `　算力 <span class="core">${px(S.core[FOE], 2)}</span>` : ''); drawCore(ME, S.core[ME]);
   $('deckn').textContent = `你的卡组：${mine.name}`;
   drawPile(); syncBoard(); renderHand();
-  tell(S.winner !== null ? '' : lesson ? line() : S.turn !== ME ? `${RIVAL}在行动… 按住${touch ? '画面' : '空格'}可以加速。` : busy ? '' : sel < 0 ? `轮到你：点一张手牌${touch ? '' : '（或按 1–4）'}，再点亮起的格子。流动的箭头是对面下回合要做的事。` : hint());
+  tell(S.winner !== null ? '' : lesson ? line() : S.turn !== ME ? `${RIVAL}在行动… 按住${touch ? '画面' : '空格'}可以加速。` : busy ? '' : sel < 0 ? aiWarn || `轮到你：点一张手牌${touch ? '' : '（或按 1–4）'}，再点亮起的格子。流动的箭头是对面下回合要做的事。` : hint());
 }
 const why = c => step() && step().card !== S.hand[ME][sel] ? '先照提示来' : c.cost > S.left ? `差 ${c.cost - S.left} 点能量` : c.kind === 'spell' ? '没有合适的目标' : '没有可放的格子'; // 这张牌为什么现在打不出
 const hint = () => { if (lesson) return line(); const c = CARDS[S.hand[ME][sel]], ts = targets(S, sel); return !ts.length ? `「${c.name}」打不出：${why(c)}。${S.swapped ? '' : touch ? '可以换掉它。' : '可以换掉它（C）。'}` : ts[0] === -1 ? `「${c.name}」：${touch ? '再点一次这张牌，或把它拖到场上施放。' : '再点一次或按回车施放。'}` : `「${c.name}」：${touch ? '点亮起的格子看结果，再点一次打出，或直接拖过去。' : '点亮起的格子（或方向键选格、回车打出）。'}${c.kind === 'spell' ? '' : c.anywhere ? '奇袭：不受前线限制。' : '只能放在你的前线以内。'}`; };
@@ -493,7 +497,7 @@ async function curtain(fn) { // 过场：两扇城门合上 → 门后换界面�
 }
 const leave = () => { if (camp?.cup && S && S.winner === null && !camp.cup.counted) { camp.cup.counted = true; cups.result(camp.cup, false, S, ME); } /* 锦标赛里中途放弃：这一局算输 */ return curtain(() => { game++; busy = true; if (net) { net.close(); net = null; } seat(0, '电脑'); clearTimeout(flagT); flagEl.className = revealEl.className = ''; pileEl.replaceChildren(); board.clear(); for (const p of [0, 1]) board.setBase(p, BASE_HP); home(); }).then(() => campUI.arrive()); }; // 回开始界面：这一局没演完的步骤作废。闯关里刚打赢的那一步，等城门开了才在地图上演
 async function start(d, foe, stage = null, link = null) { // stage：闯关里的这一关（带城堡血量、开局摆的东西）；自由对战是 null；link：联机房间（room.js），有的话座位、牌序都听它的
-  const g = ++game; mine = d; theirs = foe; busy = true; camp = stage; net = link; ai = !stage && !link && llmOn(); seat(link ? link.me : 0, link ? '对手' : ai ? 'AI' : stage?.cup ? stage.cup.rival : stage ? '电脑' : DIFFS[diff][0] + '电脑');
+  const g = ++game; mine = d; theirs = foe; busy = true; camp = stage; net = link; ai = !stage && !link && diff === 'ai' && llmOn(); aiTally = { llm: 0, fallback: 0, why: '' }; aiWarn = ''; seat(link ? link.me : 0, link ? '对手' : ai ? 'AI' : stage?.cup ? stage.cup.rival : stage ? '电脑' : DIFFS[diff][0] + '电脑');
   const bar = gateEl.querySelector('.bricks'), need = [...new Set([...mine.cards, ...theirs.cards, ...(stage?.setup || []).map(x => x.card), ...Object.keys(CARDS).filter(k => CARDS[k].token)])]; let n = 0;
   try { await curtain(async () => { $('home').hidden = $('result').hidden = true; feed.length = 0; log(`你用「${mine.name}」，${RIVAL}用「${theirs.name}」。`); tell(''); bricks(bar, 0);
     await Promise.all([...need.map(t => board.preload([t]).then(() => bricks(bar, ++n / need.length))), !link && !ai && (stage?.cup || !stage && diff === 'master') ? loadMaster() : null]); if (g !== game) return; // 一种角色一种角色地载，城门上的砖跟着亮
@@ -506,7 +510,8 @@ async function start(d, foe, stage = null, link = null) { // stage：闯关里�
 }
 function finish() { // 结算：底色淡入、胜负盖章、统计随后；按钮最后才出现并可点，免得刚才还在点棋盘的手误触
   const won = S.winner === ME, r = $('result'), bs = [...r.querySelectorAll('button')]; music(won ? 'win' : 'lose'); $('verdict').textContent = won ? '你赢了' : '你输了'; $('verdict').className = won ? 'win' : 'lose';
-  $('summary').textContent = `${mine.name} 对 ${theirs.name}，打了 ${Math.ceil(S.n / 2)} 个回合\n你的城堡 ${Math.max(0, S.base[ME])} / ${S.cap[ME]}　　${RIVAL}的城堡 ${Math.max(0, S.base[FOE])} / ${S.cap[FOE]}`;
+  $('summary').textContent = `${mine.name} 对 ${theirs.name}，打了 ${Math.ceil(S.n / 2)} 个回合\n你的城堡 ${Math.max(0, S.base[ME])} / ${S.cap[ME]}　　${RIVAL}的城堡 ${Math.max(0, S.base[FOE])} / ${S.cap[FOE]}`
+    + (ai ? `\nAI 自己出招 ${aiTally.llm} 回合${aiTally.fallback ? `，内置电脑代打 ${aiTally.fallback} 回合（${aiTally.why}）` : ''}` : '');
   const rw = $('reward'); rw.replaceChildren(); $('again').textContent = '再来一局'; $('again').hidden = false; $('tohome').textContent = '回城'; after = net ? rematch : null; // 联机的再来一局：两边都点了才开（房主换先后手）
   if (camp?.lesson) { if (won) { taught(true); $('verdict').textContent = '学会了'; $('summary').textContent = LESSON.done; $('again').textContent = '去闯关'; after = () => { mode = 'camp'; leave(); }; $('tohome').textContent = '自由对战'; } else after = teach; } // 教学打完：主按钮带去闯关
   else if (camp?.cup) { // 锦标赛：这一局的胜负记进比赛；对面的头像换表情（它赢了得意、输了伤心）

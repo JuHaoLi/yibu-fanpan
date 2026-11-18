@@ -7,7 +7,7 @@ const KEY = 'yibu-fanpan.llm.v1', TIMEOUT = 12000;
 const DEFAULT = { on: false, style: 'openai', url: '', key: '', model: '' };
 export const cfg = () => { try { return { ...DEFAULT, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return { ...DEFAULT }; } };
 export const save = c => { try { localStorage.setItem(KEY, JSON.stringify({ ...DEFAULT, ...c })); } catch { /* 存不了就算了 */ } };
-export const enabled = (c = cfg()) => !!(c.on && c.model && c.url); // 接口地址一律由玩家填，代码里不写死任何外部网址（离线包的体检要求）
+export const enabled = (c = cfg()) => !!(c.model && c.url); // 用不用 AI 由难度里的“AI（大模型）”那一档决定，这里只看接口填没填 // 接口地址一律由玩家填，代码里不写死任何外部网址（离线包的体检要求）
 
 // ---------- 给模型的玩法说明（固定不变，放在最前面） ----------
 export const PLAYBOOK = `你在玩一个回合制的棋类卡牌游戏，扮演其中一方。目标：把对面城堡的血打到 0（先打到 0 的赢）。
@@ -78,14 +78,16 @@ async function ask(c, user, signal) {
 }
 const why = e => e.name === 'AbortError' ? `超过 ${TIMEOUT / 1000} 秒没回` : e instanceof TypeError ? '连不上接口（地址不对，或这个接口不允许网页直接调用）' : e.message;
 
-// 让模型走这一回合：永远返回一串能走通的动作；note(text) 用来把“代打了”这类情况告诉玩家
+// 让模型走这一回合：永远返回一串能走通的动作；note(text) 用来把“代打了”这类情况告诉玩家。
+// 返回的数组带 by（'llm' = 模型出的招，计划后半截代打也算；'fallback' = 整回合内置电脑代打）和 why（代打的原因），界面用来提示和结算统计
+const tag = (acts, by, why = '') => Object.assign(acts, { by, why });
 export async function llmTurn(s, note = () => {}) {
   const c = cfg(), ac = new AbortController(), t = setTimeout(() => ac.abort(), TIMEOUT);
   try {
     const text = await ask(c, describe(s), ac.signal), plan = parsePlan(text);
-    if (!plan) { note('AI 的回复读不懂，这回合由内置电脑代打。'); return aiTurn(s, STRONG); }
-    const { acts, bad } = runPlan(s, plan); if (bad) note(`AI 的计划里「${bad}」走不通，从这一步起由内置电脑代打。`); return acts;
-  } catch (e) { note(`AI 没能出招（${why(e)}），这回合由内置电脑代打。`); return aiTurn(s, STRONG); }
+    if (!plan) { note('AI 的回复读不懂，这回合由内置电脑代打。'); return tag(aiTurn(s, STRONG), 'fallback', '回复读不懂'); }
+    const { acts, bad } = runPlan(s, plan); if (bad) note(`AI 的计划里「${bad}」走不通，从这一步起由内置电脑代打。`); return tag(acts, 'llm');
+  } catch (e) { note(`AI 没能出招（${why(e)}），这回合由内置电脑代打。`); return tag(aiTurn(s, STRONG), 'fallback', why(e)); }
   finally { clearTimeout(t); }
 }
 // 设置页的“测试连接”：发一个很小的请求，报告耗时

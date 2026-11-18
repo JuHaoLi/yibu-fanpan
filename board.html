@@ -74,7 +74,7 @@
       <div class="startbar">
         <button id="play" class="primary">开始对局</button>
         <button id="roombtn" title="用选中的卡组，和朋友在线对战">房间对战</button>
-        <button id="aibtn" title="让大模型当电脑那一方（自己填接口）">AI 对手</button>
+        <button id="aibtn" title="填大模型的接口地址、Key、模型名" hidden>AI 设置</button>
         <label class="opt">对手 <select id="foesel"><option value="any" selected>随机阵营</option></select></label>
         <label class="opt">难度 <select id="diffsel"></select></label>
         <span id="homehint" class="row"></span>
@@ -119,13 +119,12 @@
 </dialog>
 
 <dialog id="aidlg" class="slab dlg" aria-labelledby="aititle">
-  <b id="aititle">AI 对手</b>
-  <p>让大模型当你的对手（只在自由对战里用，闯关和教学不用）。每个电脑回合会把棋盘和 AI 这一方的手牌发给你填的接口，你的手牌不发。Key 只存在这台设备的浏览器里。选不带“思考”的快模型，回合更快。</p>
+  <b id="aititle">AI 设置</b>
+  <p>难度选「AI（大模型）」时，由大模型当你的对手（只在自由对战里，闯关、锦标赛和教学不用）。每个电脑回合会把棋盘和 AI 这一方的手牌发给你填的接口，你的手牌不发。Key 只存在这台设备的浏览器里。选不带“思考”的快模型，回合更快。</p>
   <label>接口类型 <select id="aistyle"><option value="openai">OpenAI 兼容（DeepSeek、通义、OpenAI 等）</option><option value="anthropic">Claude（Anthropic）</option></select></label>
   <label>接口地址 <input id="aiurl" type="text" autocomplete="off" spellcheck="false"></label>
   <label>Key <input id="aikey" type="password" autocomplete="off"></label>
   <label>模型名 <input id="aimodel" type="text" autocomplete="off" spellcheck="false"></label>
-  <label class="chk"><input id="aion" type="checkbox"> 用 AI 当对手</label>
   <p id="aistat" role="status"></p>
   <div class="row"><button id="aisave" class="primary">保存</button><button id="aitest">测试连接</button><button id="aiclose" class="link">关闭</button></div>
 </dialog>
