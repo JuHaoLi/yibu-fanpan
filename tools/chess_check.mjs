@@ -75,6 +75,23 @@ const at = (r, t) => r.state.board[t];
   r = endAs(r.state, 1); assert.equal(r.state.plays, 0, '换回合后连击重新计数');
   s = blank(); s.hand[0][0] = 'f2_support'; s.left = 9; let ts = legalPlays(s).filter(a => a.i === 0).map(a => a.t); assert.ok(ts.includes(tile(ROWS - 2, 3)) && !ts.includes(tile(ROWS - 1, 3)), '奇袭：不受前线限制，但进不了对方家门口那一行');
   s = blank(); s.hand[0][0] = 'f2_support'; s.left = 9; put(s, tile(3, 1), 1, V, 9); r = play(s, 'f2_support', tile(2, 1)); assert.ok(at(r, tile(2, 1)) && !r.events.some(e => e.t === 'attack' || e.t === 'move'), '奇袭（落地不动）：赤蝎落地不走也不打');
+  for (const [card, castleDamage, deathDamage] of [['f2_support', 3, 0], ['f2_deathphantom', 2, 2]]) {
+    const name = CARDS[card].name;
+    s = play(blank(), card, tile(ROWS - 2, 1)).state;
+    assert.equal(s.board[tile(ROWS - 2, 1)]?.str, castleDamage, `${name}奇袭落地后留在原格`);
+    for (let i = 0; i < 4; i++) s = apply(s, { type: 'end' }).state;
+    assert.equal(BASE_HP - s.base[1], castleDamage, `${name}走空路进城的伤害`);
+
+    s = blank(); put(s, tile(2, 1), 1, card);
+    for (const t of [tile(2, 0), tile(2, 2), tile(1, 0)]) put(s, t, 0, 'n_windrunner', 2);
+    put(s, tile(3, 1), 0, V, 4);
+    put(s, tile(1, 1), 1, V, 2);
+    r = play(s, 'f1s_smite', tile(2, 1));
+    for (const t of [tile(2, 0), tile(2, 2)]) assert.equal(at(r, t)?.str ?? 0, 2 - deathDamage, `惩戒击倒${name}后，两侧逐风者的剩余战力`);
+    assert.equal(at(r, tile(3, 1)).str, 4 - deathDamage, `${name}倒下时对相邻敌人的伤害`);
+    assert.equal(at(r, tile(1, 0)).str, 2, '斜角的逐风者不受波及');
+    assert.equal(at(r, tile(1, 1)).str, 2, '倒下单位的友军不受波及');
+  }
   s = blank(); s.hand[0][0] = 'f2_seenoevil'; s.left = 9; put(s, tile(3, 1), 1, V, 9); r = play(s, 'f2_seenoevil', tile(2, 1)); assert.equal(r.events.filter(e => e.t === 'attack').length, 1, '奇袭（最多一格）：无目剑客落地能打一下');
   s = blank(); s.hand[0][0] = 'B_f2'; s.left = 12; r = play(s, 'B_f2', tile(1, 1)); assert.ok(at(r, tile(2, 1)) && !at(r, tile(3, 1)), '奇袭（最多一格）：两步的胧落地也只走一格');
   s = blank(); put(s, tile(1, 0), 0); put(s, tile(1, 2), 1, V, 9, { frozen: true }); const k0 = CARDS.f2_katara.str; r = play(s, 'f2_katara', tile(1, 1)); const side = r.state.board.find(u => u && u.card === 'f2_katara'); assert.ok(r.events.some(e => e.t === 'attack' && e.to === tile(1, 2)), '走一步后从侧面打'); assert.equal(at(r, tile(1, 2)).str, 9 - 2 - k0, '偷袭：侧面先多 2 点'); assert.ok(!side);

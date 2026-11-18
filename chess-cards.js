@@ -374,7 +374,7 @@ export function build(H) {
   unit('f2_sparrowhawk', '雀鹰忍', 'f2_sparrowhawk', 3, 2, [A(K.flank(2))]);
   unit('f2_caster', '符咒师', 'f2_caster', 3, 0, [S(E.shot(2))]);
   unit('f2_tank', '赤甲武者', 'f2_tank', 3, 0, [TAUNT, P(E.lone(2))]);
-  unit('f2_deathphantom', '无常', 'f2_deathphantom', 3, 1, [AMBUSH0, D(E.nova(1))]);
+  unit('f2_deathphantom', '无常', 'f2_deathphantom', 3, 1, [AMBUSH0, D(E.nova(2))]);
   unit('f2_pandabear', '熊猫武僧', 'f2_pandabear', 3, 1, [D(E.spawn('tk_panda', 2, 'here'))]);
   unit('f2_kindling', '炎环舞者', 'f2_kindling', 4, 0, [P(E.nova(1)), C(E.nova(1))]);
   unit('f2_mage4winds', '四风法师', 'f2_mage4winds', 4, 0, [EVERY(4, E.barrage(4))]); cards.f2_mage4winds.str = 4; // 战力手定为 4（不走自动估值）
