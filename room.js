@@ -1,4 +1,4 @@
-// 联机房间：PeerJS（WebRTC 点对点）。房间号 4 位数字，房主的 peer id 是 PFX + 房间号。
+// 联机房间：PeerJS（WebRTC 点对点）。房间号 6 位数字（4 位只有 9000 个号，玩的人一多就撞），房主的 peer id 是 PFX + 房间号。
 // 双方各自跑同一份规则（规则里没有随机，洗牌只看种子），所以线上只传“打了哪张牌”这类动作；开局由房主发洗牌种子和先后手。
 // 不防作弊：对方的手牌在本地内存里读得到，休闲对局够用。
 import { deckError, CARDS } from './chess.js';
@@ -36,7 +36,7 @@ export async function createRoom(deck, owned) {
   const Peer = await load(); let peer, code;
   for (let k = 0; ; k++) {
     if (k >= 6) throw new Error('房间号都被占了，过一会儿再试。');
-    code = String(1000 + Math.floor(Math.random() * 9000)); peer = new Peer(PFX + code, opts());
+    code = String(100000 + Math.floor(Math.random() * 900000)); peer = new Peer(PFX + code, opts());
     try { await waitOpen(peer); break; } catch (e) { peer.destroy(); if (e.type !== 'unavailable-id') throw explain(e); }
   }
   let conn = null, started = false;

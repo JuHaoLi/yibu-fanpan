@@ -96,7 +96,7 @@
     </div>
     <aside class="right slab">
       <input id="bname" maxlength="16" aria-label="卡组名字">
-      <div class="meta"><b id="bcount"></b><span id="bfaction"></span></div>
+      <div class="meta"><b id="bcount"></b><span id="bfaction"></span><button id="bcode" class="link" title="把这套牌变成一串代码，复制给别人；也能把别人的代码粘进来">代码</button></div>
       <div id="curve" title="各费用的张数"></div>
       <div class="scroll">
         <div id="bcards"></div>
@@ -111,9 +111,17 @@
 <dialog id="roomdlg" class="slab dlg" aria-labelledby="roomtitle">
   <b id="roomtitle">房间对战</b>
   <p>用开始界面选中的卡组，和朋友在线对战。两个人各开一个页面：一个人开房，把房间号告诉另一个人，对方输入房间号加入。</p>
-  <div class="row"><button id="roommake" class="primary">开房</button><input id="roomcode" inputmode="numeric" maxlength="4" placeholder="房间号" aria-label="房间号" autocomplete="off"><button id="roomjoin">加入</button></div>
+  <div class="row"><button id="roommake" class="primary">开房</button><input id="roomcode" inputmode="numeric" maxlength="6" placeholder="6 位房间号" aria-label="房间号" autocomplete="off"><button id="roomjoin">加入</button></div>
   <p id="roomstat" role="status"></p>
   <div class="row"><button id="roomclose" class="link">关闭</button></div>
+</dialog>
+
+<dialog id="codedlg" class="slab dlg" aria-labelledby="codetitle">
+  <b id="codetitle">卡组代码</b>
+  <p>把一套牌变成一行字：复制给别人，对方粘进来点“导入”，就能在这边原样组出来。</p>
+  <input id="codebox" type="text" spellcheck="false" autocomplete="off" aria-label="卡组代码">
+  <p id="codestat" role="status"></p>
+  <div class="row"><button id="codecopy" class="primary">复制</button><button id="codeimport">导入到这边</button><button id="codeclose" class="link">关闭</button></div>
 </dialog>
 
 <dialog id="aidlg" class="slab dlg" aria-labelledby="aititle">

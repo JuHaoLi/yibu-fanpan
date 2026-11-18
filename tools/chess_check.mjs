@@ -2,7 +2,7 @@
 // 先逐条验规则和各阵营的独有机制，再让电脑用随机卡组打几千局，确认每张牌都被打出过、全程不出错。
 // 平衡统计和数值微调在 tools/chess_tune.mjs。
 import assert from 'node:assert/strict';
-import { CARDS, FACTIONS, STARTERS, FKEYS, newGame, apply, aiTurn, legalPlays, forecast, frontDepth, deckError, targets, tile, COLS, ROWS, HAND, DECK, BASE_HP, SHADE } from '../chess.js';
+import { CARDS, FACTIONS, STARTERS, DECKS as DECKS2, FKEYS, newGame, apply, aiTurn, legalPlays, forecast, frontDepth, deckError, targets, tile, COLS, ROWS, HAND, DECK, BASE_HP, SHADE } from '../chess.js';
 import { LESSON, keepOrder, stepOk, foeTurn } from '../tutorial.js';
 import { existsSync } from 'node:fs';
 import { allIds, idsFor, BOSS } from '../board-pfx.js';
@@ -210,7 +210,38 @@ const never = ids.filter(k => !played.has(k)), tokens = Object.keys(CARDS).filte
     assert.equal(boss.foe.length, DECK, `${a.name}：首领关对手还是十二张牌`);
     const g = newGame([STARTERS.f1, boss.foe], rnd, stageOpts(boss)); assert.ok(g.hand[1].includes(boss.boss), `${a.name}：首领牌要在对面起手里`); }
 }
-// 新手教学的脚本：每一步都合法，对面照脚本走，最后是玩家赢；文案里写死的数字和局面对得上
+// 数据体检：规则跑得再全也查不出这些东西——预设卡组是不是能带、每关的对手卡组和开局站位、每张牌的说明、名字里有没有脏字或占位符。
+// 「改坏一处数据」以前只能靠人眼；首领名字被一次“改名”提交带进过脏字，这条就是那时加的。
+{ const { AREAS } = await import('../campaign.js'), { RETIRED } = await import('../chess.js');
+  const bossOwned = Object.keys(CARDS).filter(k => CARDS[k].boss);
+  for (const d of DECKS2) { assert.equal(deckError(d.cards, bossOwned), '', `预设卡组「${d.name}」不合法`); const fs2 = new Set(d.cards.map(k => CARDS[k].faction)); assert.ok(fs2.size <= 2 && (fs2.size < 2 || fs2.has('n')), `预设卡组「${d.name}」只该有一个阵营（加中立）`); }
+  for (const [k, v] of Object.entries(RETIRED)) { assert.ok(CARDS[v], `接班的牌 ${v} 不存在`); assert.ok(!CARDS[k], `删掉的牌 ${k} 还在牌库里`); }
+  const dirty = /进击的巨屌|屌|妈的|操你|傻逼|fuck|shit|TODO|XXX|占位|undefined|null/i;
+  for (const a of AREAS) { assert.ok(a.stages.length === 5, `${a.name} 不是 5 关`);
+    a.stages.forEach(s => { const no = `${a.name}·${s.name}`;
+      assert.ok(!dirty.test(s.name) && !dirty.test(s.intro), no + '：关卡名或说明里有脏字/占位符');
+      assert.equal(s.foe.length, DECK, no + '：对手不是十二张牌'); assert.equal(new Set(s.foe).size, DECK, no + '：对手卡组有重复');
+      assert.equal(deckError(s.foe, bossOwned), '', no + '：对手卡组不合法');
+      assert.ok(s.base[0] > 0 && s.base[1] > 0 && s.base[0] <= 15 && s.base[1] <= 18, no + '：城堡血量不对劲');
+      for (const x of s.setup || []) { assert.ok(x.tile >= 0 && x.tile < COLS * ROWS, no + '：开局摆位越界'); assert.ok(CARDS[x.card], no + '：开局摆了不存在的牌 ' + x.card); assert.equal(x.side, 1, no + '：开局摆的不是对面的牌'); }
+    }); }
+  for (const [k, c] of Object.entries(CARDS)) {
+    assert.ok(c.name && c.name.trim(), `牌 ${k} 没名字`); assert.ok(c.text && c.text.trim(), `牌 ${k}（${c.name}）没有说明`);
+    assert.ok(!dirty.test(c.name) && !dirty.test(c.text), `牌 ${k} 的名字或说明里有脏字/占位符`);
+    if (c.kind !== 'spell') assert.ok(c.str > 0, `牌 ${k} 战力是 ${c.str}`);
+    assert.ok(c.cost >= 0 && c.cost <= 8, `牌 ${k} 费用是 ${c.cost}`);
+  }
+}
+// 卡组代码：一副牌 ↔ 一行字，能原样读回来；少一张、重复、不认识的牌都要拦住
+{ const { encode, decode } = await import('../deckcode.js'), d = STARTERS.f1;
+  assert.deepEqual(decode(encode(d)).cards, d, '卡组代码能原样读回来');
+  assert.deepEqual(decode(encode(d).replace('YF1-', '')).cards, d, '不带前缀也认');
+  assert.ok(decode('YF1-' + d.slice(0, 11).join('.')).error, '少一张不给过');
+  assert.ok(decode('YF1-' + [...d.slice(0, 11), d[0]].join('.')).error, '重复的牌不给过');
+  assert.ok(decode('YF1-' + [...d.slice(0, 11), '不存在的牌'].join('.')).error, '不认识的牌不给过');
+  assert.ok(decode('').error, '空的不给过');
+  assert.ok(decode('YF1-' + [...d.slice(0, 11), 'B_final'].join('.')).cards, '首领牌按“已拥有”放行，保存时再拦');
+}// 新手教学的脚本：每一步都合法，对面照脚本走，最后是玩家赢；文案里写死的数字和局面对得上
 { let s = newGame([LESSON.mine, LESSON.foe], keepOrder, { base: LESSON.base, ordered: true }), i = 0; const go = a => { s = apply(s, a).state; };
   while (s.winner === null) {
     if (s.turn === 1) { for (const a of foeTurn(s)) go(a); continue; }

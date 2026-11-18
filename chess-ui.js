@@ -7,6 +7,7 @@ import { campaignUI } from './campaign-ui.js';
 import { cupUI } from './cup-ui.js';
 import { LESSON, keepOrder, stepOk, foeTurn } from './tutorial.js';
 import { createRoom, joinRoom } from './room.js';
+import { encode as encodeDeck, decode as decodeDeck } from './deckcode.js';
 import { llmTurn, enabled as llmOn, cfg as llmCfg, save as llmSave, ping as llmPing } from './llm.js';
 import { sfx, music, unlock, toggleMute, isMuted, eventSound } from './sound.js';
 import { uiFx, ready as fxReady, UI as FXUI } from './ui-pfx.js';
@@ -122,7 +123,7 @@ roomDlg.addEventListener('close', () => { roomLive?.cancel(); roomLive = null; }
 $('roomclose').onclick = () => roomDlg.close();
 $('roommake').onclick = async () => { const d = allDecks()[chosen], bad = deckError(d.cards, owned()); if (bad) return roomSay(bad, true); roomBusy(true); roomSay('正在开房…');
   try { const r = await createRoom(d, owned()); roomLive = r; roomSay(`房间号 ${px(r.code, 4)}<br>把房间号告诉对方，等他加入…`); roomGo(await r.ready); } catch (e) { if (roomDlg.open) { roomSay(e.message, true); roomBusy(false); } } };
-$('roomjoin').onclick = async () => { const code = $('roomcode').value.trim(), d = allDecks()[chosen], bad = deckError(d.cards, owned()); if (!/^\d{4}$/.test(code)) return roomSay('房间号是 4 位数字。', true); if (bad) return roomSay(bad, true); roomBusy(true); roomSay('正在连接…');
+$('roomjoin').onclick = async () => { const code = $('roomcode').value.trim(), d = allDecks()[chosen], bad = deckError(d.cards, owned()); if (!/^\d{6}$/.test(code)) return roomSay('房间号是 6 位数字。', true); if (bad) return roomSay(bad, true); roomBusy(true); roomSay('正在连接…');
   try { roomGo(await joinRoom(code, d)); } catch (e) { roomSay(e.message, true); roomBusy(false); } };
 
 // ---------- 组牌界面 ----------
@@ -157,6 +158,13 @@ function drawBuilder() {
 }
 $('bname').oninput = e => { B.name = e.target.value; };
 $('bsave').onclick = () => { const d = { name: (B.name || '').trim() || '我的卡组', cards: [...B.cards] }; if (deckError(d.cards, owned())) return; if (B.at >= 0) customs[B.at] = d; else if (customs.length < SLOTS) customs.push(d); else return; store(customs); chosen = DECKS.length + (B.at >= 0 ? B.at : customs.length - 1); home(); };
+// 卡组代码：一副牌 ↔ 一行字。自组卡组只有五个格子、又没法分享，复制粘贴是最省事的路
+const codeDlg = $('codedlg'), codeSay = (t, bad) => { $('codestat').textContent = t; $('codestat').className = bad ? 'bad' : ''; };
+$('bcode').onclick = () => { codeSay(''); $('codebox').value = B.cards.length === DECK ? encodeDeck(B.cards) : ''; codeDlg.showModal(); if (B.cards.length === DECK) { $('codebox').select(); codeSay('这是这套牌的代码。'); } else codeSay('先把 12 张选满，再复制代码。', true); };
+$('codeclose').onclick = () => codeDlg.close();
+$('codecopy').onclick = async () => { const t = $('codebox').value.trim() || (B.cards.length === DECK ? encodeDeck(B.cards) : ''); if (!t) return codeSay('先把 12 张选满，再复制代码。', true);
+  $('codebox').value = t; try { await navigator.clipboard.writeText(t); codeSay('复制好了，贴给别人就行。'); } catch { $('codebox').select(); codeSay('浏览器不让直接写剪贴板：已经全选，按 Ctrl/⌘+C 复制。'); } };
+$('codeimport').onclick = () => { const r = decodeDeck($('codebox').value); if (r.error) return codeSay(r.error, true); B.cards = [...r.cards]; if (!B.name) B.name = '导入的卡组'; $('bname').value = B.name; codeDlg.close(); drawBuilder(); };
 $('bcancel').onclick = home;
 $('bclear').onclick = () => { B.cards = []; drawBuilder(); };
 $('bq').oninput = e => { query = e.target.value; drawBuilder(); };
