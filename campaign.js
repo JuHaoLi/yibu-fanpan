@@ -1,6 +1,6 @@
 // 闯关模式：七个场地的关卡数据和存档。关卡是数据不是代码——每关只说对面用什么牌、双方城堡多少血、开局场上摆了什么。
 // 六个阵营场地各 4 关加 1 个首领；六个都通关后开中立场地：4 个小首领加 1 个最终首领。击败首领获得它的首领牌。
-import { CARDS, DECKS, ROWS, tile } from './chess.js';
+import { CARDS, DECKS, ROWS, tile, upgrade } from './chess.js';
 import { HP } from './campaign-hp.js'; // 每关双方的城堡血量，由 tools/chess_campaign.mjs --fit 按目标通关率校准出来
 
 const deck = name => DECKS.find(d => d.name === name).cards;
@@ -43,10 +43,10 @@ export const AREAS = [
      '被冻住的兵下回合不走，能力也失效。', '对面喜欢把兵放进你的半场，守住前线。', '对面开局就有两堵冰墙和一座引力井。', '对面开局有引力井和冰棘。', '首领出场冻住你所有的兵，被冻住的她一刀一个。'],
     [put('icewall', 1, 1, 4), put('icewall', 1, 2, 4), put('f6_gravitywell', 0, 1)], [put('f6_gravitywell', 0, 1), put('f6_blazingspines', 0, 2)], 'B_f6', 'f6_whitewyvern'), // 换出去的那张必须在「渗透与龙」里：以前写的是 drake（在另一套「冰封控制」里），首领牌就再也进不了对手卡组
   { key: 'n', name: '无主之地', intro: '不属于任何阵营的强者。四个小首领，最后是糖果暴君。', boss: 'B_final', stages: [
-    { name: '影刃宗师 李俊昊', intro: '他在场时，你所有的兵每回合挨一刀，掉 1 点。', foe: ['neutral_dex', 'neutral_jaxi', 'n_arrow', 'neutral_sai', 'n_widow', 'neutral_silverbeak', 'maul', 'n_grenadier', 'neutral_bloodletter', 'gem', 'n_herbalist', 'B_n1'], base: [10, 12], boss: 'B_n1', music: 'boss_n1' },
+    { name: '影刃宗师 李俊昊', intro: '他在场时，你所有的兵每回合挨一刀，掉 1 点。', foe: ['n_militia', 'neutral_jaxi', 'n_arrow', 'neutral_sai', 'n_widow', 'neutral_silverbeak', 'maul', 'n_grenadier', 'neutral_bloodletter', 'gem', 'n_herbalist', 'B_n1'], base: [10, 12], boss: 'B_n1', music: 'boss_n1' },
     { name: '六臂默者 王嘉伟', intro: '它一出场，你所有兵的能力都失效。对面是一队魔像。', foe: ['neutral_golemstone', 'neutral_moltengolem', 'n_golemsmith', 'warden', 'n_golemrune', 'neutral_giantcrab', 'n_ironclad', 'neutral_golemsteel', 'n_diamond', 'g_shield', 'potion', 'B_n2'], base: [10, 12], boss: 'B_n2', music: 'boss_n2' },
-    { name: '霜暴巨兽 戈尔', intro: '14 战力，打城堡还多 4 点。别让它走到头。', foe: ['neutral_dex', 'general', 'grapple', 'neutral_rook', 'n_breach', 'n_grenadier', 'neutral_thunderhorn', 'n_kron', 'neutral_astralcrusader', 'sword', 'n_bonereaper', 'B_n3'], base: [10, 12], boss: 'B_n3', music: 'boss_n3' },
-    { name: '赤翼龙使 潘腾之进击的巨屌', intro: '一出场带两条雏龙，所有的龙都变强。', foe: ['n_dragonling', 'neutral_dex', 'martyr', 'n_dragonspeaker', 'neutral_rook', 'n_roost', 'noshrak', 'neutral_bloodletter', 'n_soulstealer', 'n_vigor', 'g_spear', 'B_n4'], base: [10, 12], boss: 'B_n4', music: 'boss_n4' },
+    { name: '霜暴巨兽 戈尔', intro: '14 战力，打城堡还多 4 点。别让它走到头。', foe: ['neutral_jaxi', 'general', 'grapple', 'neutral_rook', 'n_breach', 'n_grenadier', 'neutral_thunderhorn', 'n_kron', 'neutral_astralcrusader', 'sword', 'n_bonereaper', 'B_n3'], base: [10, 12], boss: 'B_n3', music: 'boss_n3' },
+    { name: '赤翼龙使 潘腾之进击的巨屌', intro: '一出场带两条雏龙，所有的龙都变强。', foe: ['n_dragonling', 'neutral_jaxi', 'martyr', 'n_dragonspeaker', 'neutral_rook', 'n_roost', 'noshrak', 'neutral_bloodletter', 'n_soulstealer', 'n_vigor', 'g_spear', 'B_n4'], base: [10, 12], boss: 'B_n4', music: 'boss_n4' },
     { name: '糖果暴君 团团', intro: '别看它小：它会把你最弱的两个兵收买过去，每回合身后再多一只小熊猫。', foe: ['neutral_jaxi', 'n_abjudicator', 'n_artificer', 'n_rejuvenator', 'n_harmony', 'n_vampire', 'n_spelleater', 'n_chaosknight', 'n_shadowlord', 'tyrant', 'n_turn', 'B_final'], base: [10, 15], boss: 'B_final', music: 'boss_final' },
   ] },
 ];
@@ -64,8 +64,9 @@ export const BADGES = AREAS.filter(a => a.key !== 'n').map(a => a.key), badgeNam
 export const progress = {
   data: { runs: {}, done: {}, owned: [] },
   load() { try { const d = JSON.parse(localStorage.getItem(KEY)); if (d && typeof d === 'object') { const runs = d.runs && typeof d.runs === 'object' && !Array.isArray(d.runs) ? d.runs : {}; if (d.run && typeof d.run === 'object') runs[d.run.area] = { deck: d.run.deck, at: d.run.at }; // 旧存档只记一个进行中的场地
+      for (const r of Object.values(runs)) if (r && r.deck && Array.isArray(r.deck.cards)) r.deck.cards = upgrade(r.deck.cards); // 锁定的卡组里有后来删掉的牌：换成接班的那张
       const done = {}; for (const [k, v] of Object.entries(d.done && typeof d.done === 'object' && !Array.isArray(d.done) ? d.done : {})) if (v && areaOf(k)) done[k] = true; // 只认本作里有的场地：存档里要是存着数组或别的东西，徽章会在下一次保存时被悄悄丢掉（JSON 不存数组上的自定义属性）
-      this.data = { runs: Object.fromEntries(Object.entries(runs).filter(([k, r]) => areaOf(k) && r && r.deck && Array.isArray(r.deck.cards) && Number.isInteger(r.at) && r.at >= 0 && r.at < areaOf(k).stages.length)), done, owned: (Array.isArray(d.owned) ? d.owned : []).filter(k => typeof k === 'string' && CARDS[k] && (CARDS[k].boss || CARDS[k].prize)) }; /* 赢到手的首领牌和锦标赛奖励牌 */ } } catch { /* 读不了就从头来 */ } return this.data; },
+      this.data = { runs: Object.fromEntries(Object.entries(runs).filter(([k, r]) => areaOf(k) && r && r.deck && Array.isArray(r.deck.cards) && r.deck.cards.every(c => CARDS[c]) && Number.isInteger(r.at) && r.at >= 0 && r.at < areaOf(k).stages.length)), done, owned: (Array.isArray(d.owned) ? d.owned : []).filter(k => typeof k === 'string' && CARDS[k] && (CARDS[k].boss || CARDS[k].prize)) }; /* 赢到手的首领牌和锦标赛奖励牌 */ } } catch { /* 读不了就从头来 */ } return this.data; },
   save() { try { localStorage.setItem(KEY, JSON.stringify(this.data)); } catch { /* 存不了就只在这次打开期间有效 */ } },
   badges() { return BADGES.filter(k => this.data.done[k]).length; },                                                // 已经拿到几枚徽章
   open(key) { return key !== 'n' || this.badges() === BADGES.length; },                                          // 无主之地：集齐六枚徽章才能进；进去之后四个小首领一个个打过，才轮到最终首领

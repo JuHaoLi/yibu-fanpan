@@ -8,8 +8,8 @@ const end = say => ({ do: 'end', say }), ok = say => ({ do: 'ok', say });     //
 export const LESSON = {
   lesson: true, name: '新兵训练', area: 'n', base: [10, 7], // 对面的城堡只有 7 点血：进两次门就结束（蛮角兽 3 点，破阵骑士 4 点）
   // 牌序就是抽牌顺序：前四张是起手，后面按顺序补（打出和换掉的牌排到最后）
-  mine: ['grapple', 'f5_brundlbeast', 'neutral_astralcrusader', 'lancer', 'squire', 'neutral_dex', 'f1s_smite'],
-  foe: ['general', 'n_golemrune', 'neutral_rook', 'neutral_golemstone', 'neutral_dex', 'squire'],
+  mine: ['grapple', 'f5_brundlbeast', 'neutral_astralcrusader', 'lancer', 'squire', 'neutral_jaxi', 'f1s_smite'],
+  foe: ['general', 'n_golemrune', 'neutral_rook', 'neutral_golemstone', 'neutral_jaxi', 'squire'],
   foePlays: [['general', tile(4, 1)], ['n_golemrune', tile(4, 1)], ['neutral_rook', tile(4, 0)]], // 对面第几个回合出哪张、放哪格
   foeSay: ['对面也出了兵，朝你冲过来。', '对面放了个大个子挡路。', '对面又出了一个兵。'],
   steps: [

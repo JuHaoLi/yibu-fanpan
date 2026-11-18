@@ -216,6 +216,8 @@ body.chess header { position:absolute; z-index:6; top:var(--s3); left:max(var(--
 #decklist { flex:1; min-width:0; display:flex; align-items:flex-start; gap:var(--s4); overflow-x:auto; }
 .grp { flex:1 1 0; min-width:104px; display:flex; flex-flow:column wrap; align-content:flex-start; align-items:flex-start; gap:var(--s1) var(--s3); max-height:104px; }
 .grp > em { height:16px; color:var(--fl, var(--dim)); font:var(--f12); font-style:normal; }
+.grp.mine { flex:3 1 0; min-width:300px; max-height:none; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); align-content:start; } .grp.mine > em { grid-column:1 / -1; } .grp.mine .flag { width:auto; }   /* 自组卡组固定五个格子：标题一行，下面三列两排 */
+.flag.empty { background:none; color:var(--night-4); box-shadow:inset 0 0 0 1px var(--night-3); clip-path:none; }
 .flag { width:100%; height:32px; padding:0 var(--s4) 0 var(--s2); overflow:hidden; background:var(--fd); color:var(--fl); font:var(--f14); line-height:32px; text-align:left; white-space:nowrap; text-overflow:ellipsis; clip-path:polygon(0 0, 100% 0, calc(100% - 8px) 50%, 100% 100%, 0 100%); }
 @media (hover:hover) { .flag:hover { background:var(--night-3); } }
 .flag.on { width:calc(100% + var(--s3)); background:var(--fc); color:var(--ink); font-weight:700; }                    /* 选中的旗更长、染阵营色，旗头一盏金灯 */
@@ -370,7 +372,7 @@ button.card.pick { height:auto; margin:0; box-shadow:none; text-align:left; lett
   .band { padding:var(--s1) max(var(--s3), var(--sr)) var(--sb) max(var(--s3), var(--sl)); gap:var(--s2); align-items:center; }
   #decklist { gap:var(--s3); align-items:flex-end; }
   .grp { position:relative; flex:none; min-width:0; max-height:none; flex-flow:row nowrap; gap:var(--s1); padding-top:16px; } .grp > em { position:absolute; left:0; top:0; white-space:nowrap; }
-  .flag, .flag.on { flex:none; width:auto; padding-right:var(--s4); } #newdeck, #editdeck { margin-top:2px; }
+  .flag, .flag.on { flex:none; width:auto; padding-right:var(--s4); } .grp.mine { display:flex; flex:none; min-width:0; } #newdeck, #editdeck { margin-top:2px; }
   .old { top:var(--s1); right:max(var(--s2), var(--sr)); height:44px; }
 
   /* 组牌：左边牌池上下滚；右边的石板一直在——十二张卡条排两列，保存钉在底下 */

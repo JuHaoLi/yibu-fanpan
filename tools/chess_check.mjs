@@ -28,8 +28,8 @@ const at = (r, t) => r.state.board[t];
 { let s = blank(); put(s, tile(1, 1), 0, V, 9); put(s, tile(1, 0), 1, V, 1, { frozen: true }); put(s, tile(1, 2), 1, V, 1, { frozen: true });
   assert.ok(!forecast(s, 0).some(e => e.t === 'attack'), '已经在场上的单位只往前走，不拐去打旁边的'); assert.ok(forecast(s, 0).some(e => e.t === 'move' && e.to === tile(2, 1)));
   put(s, tile(2, 1), 1, V, 1); assert.equal(forecast(s, 0).find(e => e.t === 'attack').to, tile(2, 1), '正前有人就打正前');
-  s = blank(); put(s, tile(1, 3), 0); put(s, tile(1, 0), 1, V, 1); put(s, tile(1, 2), 1, V, 1); let r = play(s, 'neutral_dex', tile(1, 1)); assert.equal(r.events.find(e => e.t === 'attack').to, tile(1, 2), '冲锋时正前没人：先打靠中间的一侧');
-  put(s, tile(2, 1), 1, V, 1); r = play(s, 'neutral_dex', tile(1, 1)); assert.equal(r.events.find(e => e.t === 'attack').to, tile(2, 1), '冲锋时正前有人就打正前'); }
+  s = blank(); put(s, tile(1, 3), 0); put(s, tile(1, 0), 1, V, 1); put(s, tile(1, 2), 1, V, 1); let r = play(s, 'neutral_jaxi', tile(1, 1)); assert.equal(r.events.find(e => e.t === 'attack').to, tile(1, 2), '冲锋时正前没人：先打靠中间的一侧');
+  put(s, tile(2, 1), 1, V, 1); r = play(s, 'neutral_jaxi', tile(1, 1)); assert.equal(r.events.find(e => e.t === 'attack').to, tile(2, 1), '冲锋时正前有人就打正前'); }
 { const s = blank(); put(s, tile(ROWS - 1, 3), 0, V, 4); const r = endAs(s, 0); assert.equal(r.state.base[1], BASE_HP - 4, '走到头按战力打城堡'); assert.equal(at(r, tile(ROWS - 1, 3)), null); }
 { const s = blank(); assert.equal(frontDepth(s, 0), 0, '开局只能放在紧挨城堡的那一行'); put(s, tile(2, 1), 0); assert.equal(frontDepth(s, 0), 2); put(s, tile(ROWS - 1, 0), 0); assert.equal(frontDepth(s, 0), ROWS - 2, '前线最远到对方家门口前一行');
   s.hand[0][0] = V; s.left = 9; const ts = legalPlays(s).filter(a => a.i === 0).map(a => a.t); assert.ok(ts.includes(tile(ROWS - 2, 2)) && !ts.includes(tile(ROWS - 1, 2)) && !ts.includes(tile(2, 1))); }
@@ -199,6 +199,11 @@ const never = ids.filter(k => !played.has(k)), tokens = Object.keys(CARDS).filte
     assert.deepEqual(none, { card: null, cleared: false, badge: false }, '没有进行中的场地时 win 返回空结果');
     assert.deepEqual(progress.win('不存在的场地'), { card: null, cleared: false, badge: false }, '不存在的场地也不抛');
     delete globalThis.localStorage; }
+  // 删掉的牌（chess.js 的 RETIRED）：存档里锁定的卡组还带着它的，读进来换成接班的那张；带着根本不认识的牌的进度不读
+  { const { RETIRED, upgrade } = await import('../chess.js'); for (const [old, now] of Object.entries(RETIRED)) { assert.ok(!CARDS[old], `${old} 已经删了，不该还在牌表里`); assert.ok(CARDS[now], `${old} 的接班牌 ${now} 不存在`); }
+    const old = { name: '旧', cards: STARTERS.f1.map((c, i) => (i ? c : 'neutral_dex')) }; globalThis.localStorage = { getItem: () => JSON.stringify({ runs: { f1: { deck: old, at: 2 }, f2: { deck: { name: '坏', cards: ['没有这张牌'] }, at: 1 } }, done: {}, owned: [] }), setItem() {} };
+    progress.load(); assert.ok(progress.data.runs.f1.deck.cards.includes('neutral_jaxi') && !progress.data.runs.f1.deck.cards.includes('neutral_dex'), '锁定卡组里的旧牌换成接班的'); assert.equal(deckError(progress.data.runs.f1.deck.cards), ''); assert.ok(!progress.data.runs.f2, '带着不认识的牌的进度不读');
+    assert.deepEqual(upgrade(['neutral_dex', 'neutral_jaxi']), ['neutral_dex', 'neutral_jaxi'], '接班的牌已经在卡组里就不换（免得重复）'); delete globalThis.localStorage; }
   // 每个首领关的对手卡组里必须真的有那张首领牌，开局也得在对面手里（永冻隘口以前换错了牌，首领一直不出现）
   for (const a of AREAS) { const boss = a.stages.find(s => s.boss); if (!boss) continue;
     assert.ok(boss.foe.includes(boss.boss), `${a.name}：首领牌 ${boss.boss} 不在对手卡组里`);

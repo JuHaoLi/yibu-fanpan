@@ -1645,13 +1645,6 @@ export const MORE_GFX = {
   h: 18,
   scale: 1.6
  },
- "neutral_dex": {
-  file: "neutral_dex",
-  cell: 100,
-  feet: 84,
-  h: 30,
-  scale: 1.6
- },
  "n_militia": {
   file: "neutral_mercmelee1",
   cell: 80,

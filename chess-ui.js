@@ -1,6 +1,6 @@
 // 下棋的界面：开始界面（选卡组、选对手）→ 组牌界面 → 对局（出牌、换牌、结束回合、电脑回合）→ 结算。
 // 规则和卡牌在 chess.js / chess-cards.js；画面、动画和特效在 board3d.js；这里把它们接起来。你永远在左边、先手。
-import { CARDS, FACTIONS, DECKS, FKEYS, DECK, deckInsight, BASE_HP, newGame, apply, targets as legal, forecast, aiTurn, frontDepth, factionOf, deckError } from './chess.js';
+import { upgrade, CARDS, FACTIONS, DECKS, FKEYS, DECK, deckInsight, BASE_HP, newGame, apply, targets as legal, forecast, aiTurn, frontDepth, factionOf, deckError } from './chess.js';
 import { board, GFX } from './board3d.js';
 import { areaOf, stageOpts, battleMusic, progress, BADGES, badgeName } from './campaign.js';
 import { campaignUI } from './campaign-ui.js';
@@ -54,7 +54,8 @@ const mdCard = id => { const c = cardEl(id); c.removeAttribute('title'); if (pho
 
 // ---------- 卡组：每个阵营一套预设 + 存在浏览器里的自组卡组 ----------
 const KEY = 'yibu-fanpan.decks.v1';
-const saved = () => { try { return (JSON.parse(localStorage.getItem(KEY)) || []).filter(d => d && !deckError(d.cards, owned())); } catch { return []; } };
+const SLOTS = 5; // 自组卡组固定五个格子：满了要先删一套才能再建
+const saved = () => { try { return (JSON.parse(localStorage.getItem(KEY)) || []).map(d => d && { ...d, cards: upgrade(d.cards) }).filter(d => d && !deckError(d.cards, owned())); } catch { return []; } }; // 卡组里有后来删掉的牌：换成接班的那张（见 chess.js 的 RETIRED）
 const store = list => { try { localStorage.setItem(KEY, JSON.stringify(list)); } catch { /* 存不了就只在这次打开期间有效 */ } };
 let customs = saved(), chosen = 0; // chosen：开始界面上选中的是第几套（先排预设，再排自组）
 const allDecks = () => [...DECKS.map(d => ({ ...d, preset: true })), ...customs];
@@ -81,10 +82,11 @@ function home() {
     ...(d.preset ? [] : [op('删除', e => { const b = e.currentTarget; if (b.dataset.sure) { customs.splice(at, 1); store(customs); return home(); } b.dataset.sure = 1; b.textContent = '再点确认'; setTimeout(() => { delete b.dataset.sure; b.textContent = '删除'; }, 2000); }, 'danger')])); // 危险操作两秒内点两下才生效，不弹浏览器的确认框
   $('homehint').append(taught() ? op('教学', teach) : op('跳过教学', () => { taught(true); home(); }));
   // 其余的卡组只是一面旗：每个阵营一组，自组的另成一组
-  const flag = (x, i) => { const b = el('button', 'flag ' + deckFaction(x.cards) + (i === chosen ? ' on' : ''), x.name); b.setAttribute('aria-pressed', i === chosen); b.title = i === chosen ? '再点一次进入编辑' : x.plan || ''; b.onclick = () => { if (i === chosen) return edit(); chosen = i; home(); }; return b; };
+  const flag = (x, i) => { const b = el('button', 'flag ' + deckFaction(x.cards) + (i === chosen ? ' on' : ''), x.name); b.setAttribute('aria-pressed', i === chosen); b.title = i === chosen ? '再点一次进入编辑' : x.plan || ''; b.onclick = () => { if (i === chosen) return x.preset && customs.length >= SLOTS ? 0 : edit(); chosen = i; home(); }; return b; };
   const grp = (cls, name, items) => { const g = el('div', 'grp ' + cls, `<em>${name}</em>`); g.append(...items); return g; };
   $('decklist').replaceChildren(...FKEYS.map(k => grp(k, FACTIONS[k].name, list.map((x, i) => x.preset && x.f === k ? flag(x, i) : null).filter(Boolean))),
-    ...(customs.length ? [grp('', '自组', customs.map((x, i) => flag(x, DECKS.length + i)))] : [])); showFlag();
+    grp('mine', `自组 ${customs.length} / ${SLOTS}`, [...customs.map((x, i) => flag(x, DECKS.length + i)), ...Array.from({ length: Math.max(0, SLOTS - customs.length) }, () => { const b = el('button', 'flag empty', '＋ 空位'); b.title = '在这个格子里建一套新卡组'; b.onclick = () => $('newdeck').click(); return b; })])); showFlag();
+  const full = customs.length >= SLOTS; $('newdeck').disabled = full; $('newdeck').title = full ? `自组卡组最多 ${SLOTS} 套，先删掉一套` : ''; if (d.preset) { $('editdeck').disabled = full; if (full) $('editdeck').title = $('newdeck').title; } else $('editdeck').disabled = false; // 五个格子满了：新建和“改编”都按不动，编辑自己的不受影响
 }
 const showFlag = () => $('decklist').querySelector('.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); // 小屏上旗排成一行横着滚：选中的那面要在视野里
 // 徽章：通关一个阵营场地得一枚（盾形小牌，阵营色；没拿到的是暗色空槽）。地图上嵌在城门里；这里只有打通全部场地的结算演出用
@@ -154,7 +156,7 @@ function drawBuilder() {
   $('berr').textContent = B.cards.length < DECK ? `再选 ${DECK - B.cards.length} 张。` : err; $('bsave').disabled = !!err;
 }
 $('bname').oninput = e => { B.name = e.target.value; };
-$('bsave').onclick = () => { const d = { name: (B.name || '').trim() || '我的卡组', cards: [...B.cards] }; if (deckError(d.cards, owned())) return; if (B.at >= 0) customs[B.at] = d; else customs.push(d); store(customs); chosen = DECKS.length + (B.at >= 0 ? B.at : customs.length - 1); home(); };
+$('bsave').onclick = () => { const d = { name: (B.name || '').trim() || '我的卡组', cards: [...B.cards] }; if (deckError(d.cards, owned())) return; if (B.at >= 0) customs[B.at] = d; else if (customs.length < SLOTS) customs.push(d); else return; store(customs); chosen = DECKS.length + (B.at >= 0 ? B.at : customs.length - 1); home(); };
 $('bcancel').onclick = home;
 $('bclear').onclick = () => { B.cards = []; drawBuilder(); };
 $('bq').oninput = e => { query = e.target.value; drawBuilder(); };

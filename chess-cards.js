@@ -449,7 +449,6 @@ export function build(H) {
   // ======== 中立：哪个阵营都能带 ========
   F = 'n';
   token('tk_mini', '小贾克西', 'neutral_minijax');
-  unit('neutral_dex', '游侠德克斯', 'neutral_dex', 2, 1);
   unit('n_militia', '民兵', 'neutral_mercmelee1', 1, 0);                                   // 1 费的兵：前几个回合能把零头能量花掉
   unit('n_courier', '信使', 'neutral_mercmelee2', 1, 1, [D(E.selfBase(1))]);
   unit('neutral_jaxi', '贾克西', 'neutral_jaxi', 2, 1, [D(E.spawn('tk_mini', 1, 'here'))]);
@@ -589,7 +588,7 @@ export function build(H) {
   // 有能推进前线的兵，有解场的牌，4 费以上的不超过 4 张，低费牌是核心（一回合多出几张通常比出一张大的强）。
   const decks = [
     { f: 'f1', name: '铁壁列阵', plan: '抱团成长：圣盾挡刀，列阵和祝福把一小队人越养越大，靠雄狮冲线收尾。', cards: ['n_militia', 'squire', 'f1_fiz', 'f1_friendsguard', 'f1_spellbladeadept', 'f1_silvermanevanguard', 'f1_warblade', 'f1s_smite', 'lion', 'f1_sunbreaker', 'f1_radiantdragoon', 'f1_archdeacon'] },
-    { f: 'f1', name: '骑士冲锋', plan: '种族快攻：铺一排骑士，掌旗官和团长给同族加成，破阵骑士和龙骑直冲城门。', cards: ['n_militia', 'squire', 'neutral_dex', 'f1s_shield', 'n_bannerman', 'f1_kingsguard', 'f1_silvermanevanguard', 'f1s_smite', 'lancer', 'n_knightlord', 'f1_radiantdragoon', 'f1s_rally'] },
+    { f: 'f1', name: '骑士冲锋', plan: '种族快攻：铺一排骑士，掌旗官和团长给同族加成，破阵骑士和龙骑直冲城门。', cards: ['n_militia', 'squire', 'neutral_jaxi', 'f1s_shield', 'n_bannerman', 'f1_kingsguard', 'f1_silvermanevanguard', 'f1s_smite', 'lancer', 'n_knightlord', 'f1_radiantdragoon', 'f1s_rally'] },
     { f: 'f2', name: '连击快攻', plan: '低费连击：一回合连出三四张小牌触发连击，用抽牌续手，不给对面喘气。', cards: ['f2s_stance', 'f2_melee', 'f2_ace', 'f2_katara', 'f2_support', 'f2s_shuriken', 'n_gambler', 'f2_sparrowhawk', 'f2_deathphantom', 'f2_seenoevil', 'f2_supekuta', 'f2_hammonnladeseeker'] },
     { f: 'f2', name: '咒印法术', plan: '法术联动：场上留着带咒印的人，每放一张法术他们就变强、放箭或给全队加战力。', cards: ['f2s_stance', 'f2_melee', 'f2_xho', 'f2s_shuriken', 'f2s_dash', 'f2_caster', 'f2_lanternfox', 'f2_pandabear', 'f2_support', 'f2s_clone', 'f2_buildlegendary', 'f2_kibeholder'] },
     { f: 'f3', name: '方尖碑', plan: '建筑流：先立碑，碑越多人越强；筑城官让碑多干一次活，水晶提供额外能量。', cards: ['f3_dunecaster', 'f3_rae', 'f3_pax', 'f3_obelyskredsand', 'f3_trifectaperfecta', 'f3_general', 'f3_orbweaver', 'n_militia', 'f3_obelyskgoldenflame', 'f3_falcius', 'f3_endlessobelysk', 'f3_dreamshaper'] },

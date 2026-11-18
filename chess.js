@@ -151,6 +151,8 @@ const built = build(H); Object.assign(CARDS, built.cards);
 export const FACTIONS = built.factions;   // { f1: { name, style, key }, ... , n: 中立 }
 export const STARTERS = built.starters;   // 每个阵营一套预设卡组
 export const FKEYS = Object.keys(FACTIONS).filter(f => f !== 'n');
+export const RETIRED = { neutral_dex: 'neutral_jaxi' }; // 删掉的牌 → 接班的牌。玩家存档里的卡组（自组的、闯关里锁定的）可能还带着旧牌：读进来时换掉，不然卡组作废、闯关开打直接报错
+export const upgrade = cards => (Array.isArray(cards) ? cards.map(c => (RETIRED[c] && !cards.includes(RETIRED[c]) ? RETIRED[c] : c)) : cards);
 export const DECKS = built.decks;         // 按打法组好的预设卡组：[{ f, name, plan, cards }]
 export const PROTOCOL = built.protocol;   // 零号协议：锦标赛冠军奖励的 12 张中立牌（Q1 的卡组）
 // 卡组体检：照“制胜手段 / 前线 / 解场 / 费用”几条经验看一副牌缺什么。返回 [{ ok, text }]
