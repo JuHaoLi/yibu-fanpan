@@ -4,6 +4,12 @@
 import assert from 'node:assert/strict';
 import { CARDS, FACTIONS, STARTERS, FKEYS, newGame, apply, aiTurn, legalPlays, forecast, frontDepth, deckError, targets, tile, COLS, ROWS, HAND, DECK, BASE_HP, SHADE } from '../chess.js';
 import { LESSON, keepOrder, stepOk, foeTurn } from '../tutorial.js';
+import { existsSync } from 'node:fs';
+import { allIds, idsFor, BOSS } from '../board-pfx.js';
+// 像素特效的对照表（board-pfx.js）：表里每个名字在 vendor/pixelfx/fx 里都得有文件；十一位首领各有一套；一场对局要预载的不超过 70 个
+{ const miss = allIds().filter(id => !existsSync(new URL(`../vendor/pixelfx/fx/${id}.js`, import.meta.url))); assert.deepEqual(miss, [], '像素特效表里有名字找不到文件');
+  for (const k of Object.keys(CARDS).filter(k => CARDS[k].boss)) assert.ok(BOSS[k]?.hit?.length && BOSS[k].cast && BOSS[k].die && BOSS[k].enter, `首领 ${k} 的专属特效不全`);
+  assert.ok(idsFor(['f1', 'f4', 'n'], ['B_f4']).length <= 70); }
 
 let seed = 9; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
 const sh = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };

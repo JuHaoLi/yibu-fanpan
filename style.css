@@ -395,3 +395,10 @@ button.card.pick { height:auto; margin:0; box-shadow:none; text-align:left; lett
 .dlg input[type=text], .dlg input[type=password], .dlg select, #roomcode { height:40px; padding:0 var(--s2); background:var(--night-0); color:var(--paper); border:0; box-shadow:inset 0 2px 0 var(--ink), 0 0 0 2px var(--night-3); font:var(--f16); }
 #roomcode { width:96px; font:var(--f24); letter-spacing:.2em; text-align:center; }
 #roomstat, #aistat { min-height:24px; color:var(--mana-hi); } #roomstat { min-height:48px; } #roomstat.bad, #aistat.bad { color:var(--hurt-hi); }
+
+/* 像素特效的小画布（ui-pfx.js）：不挡点击，像素不糊。结算里的垫在字后面；输了的雨铺满整块、压暗一些 */
+#pfx { position:fixed; inset:0; z-index:60; pointer-events:none; overflow:hidden; }
+canvas.pfx { position:absolute; pointer-events:none; image-rendering:pixelated; }
+canvas.pfx.cover { inset:0; width:100%; height:100%; object-fit:cover; opacity:.5; } canvas.pfx.under { z-index:-1; }
+#result .slab { position:relative; z-index:1; }
+#picked b { position:relative; } #picked b canvas.pfx { top:50%; transform:translateY(-50%); margin-left:10px; }

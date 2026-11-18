@@ -46,6 +46,7 @@ node tools/chess_check.mjs
 | `campaign.js` | 闯关的关卡数据和存档 |
 | `tutorial.js` | 新手教学：一局照脚本走的对局 |
 | `board3d.js` | 场景和特效（three.js，全部用代码画） |
+| `board-pfx.js`、`ui-pfx.js` | 像素特效：什么场合放哪个特效的对照表，棋盘上和界面上的播放器（特效库在 `vendor/pixelfx`，MIT） |
 | `chess-ui.js`、`style.css`、`motion.css` | 界面和动效 |
 | `audio.js`、`sound.js` | 声音 |
 | `tools/` | 自检、平衡、打包、画图标的脚本 |
@@ -53,6 +54,6 @@ node tools/chess_check.mjs
 
 ## 素材和许可
 
-第三方素材和代码的出处、许可逐项列在 [LICENSES.md](LICENSES.md)：角色图来自 CC0 的开放素材，音乐音效是 CC0，three.js 是 MIT，图标、场景、界面是自己用代码画的。
+第三方素材和代码的出处、许可逐项列在 [LICENSES.md](LICENSES.md)：角色图来自 CC0 的开放素材，音乐音效是 CC0，three.js 和 pixelfx 特效库是 MIT，图标、场景、界面是自己用代码画的。
 
 本仓库里自己写的代码、卡牌设计和关卡**版权所有，暂未开放授权**。公开是为了试玩和收集反馈。

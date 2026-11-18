@@ -8,6 +8,7 @@ import { LESSON, keepOrder, stepOk, foeTurn } from './tutorial.js';
 import { createRoom, joinRoom } from './room.js';
 import { llmTurn, enabled as llmOn, cfg as llmCfg, save as llmSave, ping as llmPing } from './llm.js';
 import { sfx, music, unlock, toggleMute, isMuted, eventSound } from './sound.js';
+import { uiFx, ready as fxReady, UI as FXUI } from './ui-pfx.js';
 import * as sound from './sound.js'; // sound.pause / sound.resume：切后台时用（本文件里 pause 这个名字已经是“等一拍”）
 progress.load(); const owned = () => progress.data.owned; // 闯关里赢到手的首领牌
 
@@ -69,6 +70,7 @@ function home() {
   // 选中的那一套是主角：名字、打法、12 个兵按费用列队
   const d = list[chosen], f = deckFaction(d.cards), at = chosen - DECKS.length;
   $('picked').className = f; $('picked').innerHTML = `<b${d.name.length > 6 ? ' class="long"' : ''}>${d.name}</b><em>${d.preset ? '预设' : '自组'} · ${FACTIONS[f].name}</em><p>${d.plan || FACTIONS[f].key || FACTIONS[f].style}</p>`;
+  { const b = $('picked').firstChild; fxReady(FXUI.emblem[f]).then(() => { if (b.isConnected) uiFx(FXUI.emblem[f], 0, 0, { into: b, inline: true }); }); } // 卡组名后面挂一个这个阵营的像素小东西
   $('lineup').replaceChildren(...[...d.cards].sort(byCost).map(id => cardEl(id)));
   const op = (text, fn, cls = 'link') => { const x = el('button', cls, text); x.onclick = fn; return x; };
   // 编辑入口放在底下那排卡组旗的右边（不跟开始按钮那一排挤，那一排东西多了会被挤出屏幕）；已经选中的旗再点一次也是进编辑
@@ -484,7 +486,11 @@ function finish() { // 结算：底色淡入、胜负盖章、统计随后；按
       if (res.card) rw.append(mdCard(res.card)); // 首领牌自己就是奖励，不再配一句说明
       $('again').textContent = '回地图'; after = leave; $('tohome').hidden = true; }
     else { $('again').textContent = '重打'; after = () => fight(camp.area); $('tohome').textContent = '回地图'; } }
-  r.hidden = false; restart(r, 'in'); for (const b of bs) b.disabled = true; nap(T.read + T.t2).then(() => { for (const b of bs) b.disabled = false; if (!r.hidden) $('again').focus(); });
+  r.hidden = false; restart(r, 'in'); for (const b of bs) b.disabled = true;
+  const W = r.clientWidth, H = r.clientHeight, card = rw.querySelector('.kcard'); // 像素特效：赢了撒彩纸、接连放六发焰火，输了下雨；奖励牌后面转一圈光。都垫在结算的字后面，结算一关就跟着收
+  if (won) { uiFx(FXUI.confetti, W / 2, H, { into: r }); for (let i = 0; i < 6; i++) setTimeout(() => { const f = FXUI.win[i % FXUI.win.length]; if (!r.hidden) uiFx(f, W * (.12 + (i * 37 % 10) * .076), f[0].endsWith('rocket') ? H : H * (.22 + (i % 3) * .1), { into: r, seed: i + 1 }); }, 250 + i * 450); }
+  else uiFx(FXUI.lose, 0, 0, { into: r, cover: true });
+  if (card) fxReady(FXUI.reward).then(() => { const slab = r.querySelector('.slab'), a = card.getBoundingClientRect(), b = slab.getBoundingClientRect(); if (!r.hidden && a.width) uiFx(FXUI.reward, a.left - b.left + a.width / 2, a.top - b.top + a.height / 2, { into: slab, under: true }); }); nap(T.read + T.t2).then(() => { for (const b of bs) b.disabled = false; if (!r.hidden) $('again').focus(); });
 }
 let camp = null, after = null; // camp：正在打的闯关关卡；after：结算后主按钮要做的事（下一关、重打、回地图）
 $('again').onclick = () => { $('tohome').hidden = false; (after || (() => start(mine, theirs)))(); }; $('tohome').onclick = () => { $('tohome').hidden = false; leave(); };
@@ -492,7 +498,8 @@ $('again').onclick = () => { $('tohome').hidden = false; (after || (() => start(
 if (new URLSearchParams(location.search).has('timer')) window.__t = { CARDS, board, state: () => S, view: () => V, lesson: () => lesson && lesson.i, teach, act, start, pick, endTurn, map: campUI.state, go: campUI.go, fight: campUI.battle, async setup(fn) { board.clear(); fn(S); await board.preload(S.board.filter(Boolean).map(u => u.card)); for (const [t, u] of S.board.entries()) if (u) { await board.add({ ...u, tile: t }); if (u.gear) board.gear(u.id, u.gear); } sel = -1; busy = false; sync(); } };
 // 声音：浏览器要等玩家第一次点按之后才允许出声；按钮统一一个点击声；静音开关记在浏览器里
 let heard = false; const wake = () => { heard = true; unlock(); }; addEventListener('pointerdown', wake, { once: true }); addEventListener('keydown', wake, { once: true });
-document.addEventListener('click', e => { const b = e.target.closest('button'); if (b && !b.disabled && !b.classList.contains('kcard')) sfx('ui_click'); });
+document.addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.disabled || b.classList.contains('kcard')) return; sfx('ui_click');
+  const q = b.getBoundingClientRect(), key = !e.clientX && !e.clientY; uiFx(b.id === 'end' ? FXUI.end : b.classList.contains('primary') ? FXUI.primary : FXUI.click, key ? q.left + q.width / 2 : e.clientX, key ? q.top + q.height / 2 : e.clientY); }); // 点按钮溅一下像素火花（主按钮的大一点）；键盘按的没有坐标，落在按钮中间
 const mutes = [...document.querySelectorAll('.mute')], drawMute = () => { for (const b of mutes) { b.textContent = isMuted() ? '声音关' : '声音开'; b.setAttribute('aria-pressed', isMuted()); } }; // 开始界面和对局里各有一个，状态一起变
 // 切到后台就停声音，回来接着放。早先的试玩版是拿静音开关顶的，并在本地记了一笔；unhush 把那一笔消掉，免得老玩家一直是静音
 const BG = 'yibu-fanpan.bgmute', unhush = () => { try { if (localStorage.getItem(BG)) { localStorage.removeItem(BG); if (isMuted()) toggleMute(); } } catch { /* 存不了就算了 */ } };
