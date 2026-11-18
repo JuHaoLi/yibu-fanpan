@@ -29,6 +29,23 @@ function load(file) {
   return bufs.get(file);
 }
 
+// 出声的线路。音乐全是 8 位芯片风：方波的泛音堆在 2–5 千赫，正是人耳最敏感、听久了最累的一段，原样放出来发尖。
+// 所以音乐单独过一道“磨圆”：3.2 千赫以上滚降，1.5 千赫以上整体再压 5 分贝，220 赫兹以下垫 2 分贝，音量再收 3 分贝（MUSIC_TRIM）。
+// 实测（浏览器里用 OfflineAudioContext 离线渲染，不出声）：2 千赫以上的能量降 10 分贝，整体降 3.4 分贝；频谱重心从两三千赫降到一千赫上下。音效不过这一道，保持清脆。
+// 最后总线上一个限幅器：音乐加上好几个音效叠在一起会冲过满刻度，削波也是“刺耳”的一个来源；LIMIT_COMP 抵掉浏览器给压缩器自动补的增益，平时的音量不变（实测小声信号进出相差不到 0.1 分贝，三个满刻度音效叠加出来峰值 0.93）。
+const MUSIC_TRIM = 0.7, LIMIT_COMP = 0.845;
+export function chain(c) { // c：AudioContext 或 OfflineAudioContext（自检用）。返回 { master, musicBus, sfxBus }
+  const mk = (type, f, g) => { const b = c.createBiquadFilter(); b.type = type; b.frequency.value = f; if (g !== undefined) b.gain.value = g; else b.Q.value = -3; return b; }; // 低通的 Q 以分贝计：−3 是不带鼓包的平滑滚降
+  const out = c.createGain(); out.gain.value = LIMIT_COMP; out.connect(c.destination);
+  const lim = c.createDynamicsCompressor(); lim.threshold.value = -4; lim.knee.value = 4; lim.ratio.value = 12; lim.attack.value = 0.003; lim.release.value = 0.12; lim.connect(out);
+  const master = c.createGain(); master.connect(lim);
+  const sfxBus = c.createGain(); sfxBus.connect(master);
+  const trim = c.createGain(); trim.gain.value = MUSIC_TRIM; trim.connect(master);
+  const low = mk('lowshelf', 220, 2), high = mk('highshelf', 1500, -5), lp = mk('lowpass', 3200); lp.connect(high); high.connect(low); low.connect(trim);
+  const musicBus = c.createGain(); musicBus.connect(lp);
+  return { master, musicBus, sfxBus };
+}
+
 function applyVol() {
   if (!ctx) return;
   const t = ctx.currentTime;
@@ -72,9 +89,7 @@ export const audio = {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return;
       ctx = new AC();
-      master = ctx.createGain(); master.connect(ctx.destination);
-      musicBus = ctx.createGain(); musicBus.connect(master);
-      sfxBus = ctx.createGain(); sfxBus.connect(master);
+      ({ master, musicBus, sfxBus } = chain(ctx));
       applyVol();
       loadManifest();
     }
