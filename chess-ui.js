@@ -328,7 +328,7 @@ function renderHand() { // 手牌就地对账：节点常驻，按牌的 id 增�
     if (k >= 0) anim(e, board.calm ? [{ opacity: 0 }, { opacity: 1 }] : [{ translate: `${from.left - r.left}px ${from.top - r.top}px`, scale: .4, opacity: 0 }, { opacity: 1, offset: .3 }, { translate: '0 0', scale: 1, opacity: 1 }], board.calm ? .12 : T.t3, k * .07); // 新牌从牌库堆发过来
     else if (!board.calm && Math.abs(was.get(e) - r.left) > 1) anim(e, [{ translate: `${was.get(e) - r.left}px 0` }, { translate: '0 0' }], T.t2); });                                                                     // 留下的牌滑去补位
   $('swap').disabled = !on || S.swapped || sel < 0 || !!st && (st.do !== 'swap' || V.hand[sel] !== st.card); $('swap').classList.toggle('is-want', !$('swap').disabled && !!st);
-  $('end').disabled = !on || !!st && st.do !== 'end'; $('auto').disabled = !on || !!lesson;
+  $('end').disabled = !on || !!st && st.do !== 'end';
   $('swap').textContent = S.swapped ? '已换过' : '换牌'; $('swap').title = S.swapped ? '这回合已经换过一张了' : '先选一张手牌，再点这里把它换成牌库里随机的一张（快捷键 C）'; $('end').title = '快捷键 E';
   $('end').classList.toggle('is-done', !$('end').disabled && !V.hand.some((_, i) => targets(S, i).length)); // 没有能出的牌了：结束回合按钮开始催你
   const z = on && sel >= 0 ? V.hand[sel] : ''; if (zoomEl.dataset.id !== z) { zoomEl.dataset.id = z; zoomEl.className = z ? 'on' : ''; const c = z && mdCard(z); if (c) c.classList.add('md'); zoomEl.replaceChildren(...(c ? [c] : [])); } // 小屏上手牌只管认和点：选中的那张在舞台左边放大成全文（显示与否由样式按屏幕高度定）
@@ -416,7 +416,8 @@ board.onHover(t => {
 $('end').onclick = endTurn;
 const swapSel = () => { if (S && idle() && !S.swapped && sel >= 0) act({ type: 'swap', i: sel }); };
 $('swap').onclick = swapSel;
-$('auto').onclick = async () => { if (!S || !idle() || lesson) return; const g = game; chain = true; try { for (const a of aiTurn(S)) { if (g !== game || S.winner !== null || a.type === 'end') break; await act(a); await pause(T.t2); } } finally { chain = false; } if (g === game && S.winner === null) endTurn(); };
+const autoTurn = async () => { if (!S || !idle() || lesson) return; // 让电脑替玩家走完这一回合。界面上的“托管”按钮已经取消，只留给自动测试用（__t.auto）
+  const g = game; chain = true; try { for (const a of aiTurn(S)) { if (g !== game || S.winner !== null || a.type === 'end') break; await act(a); await pause(T.t2); } } finally { chain = false; } if (g === game && S.winner === null) endTurn(); };
 // ---------- 拖牌：按住一张手牌拖到亮起的格子上，途中就是预演，松手打出；拖回石桌上松手等于没拖（牌保持选中）。点按的流程不变 ----------
 let drag = null;
 const handTop = () => stage.getBoundingClientRect().bottom - (parseFloat(getComputedStyle(stage).getPropertyValue('--hand-zone')) || 0); // 手牌占着的那一截以上才算“场上”
@@ -512,7 +513,7 @@ function finish() { // 结算：底色淡入、胜负盖章、统计随后；按
 let camp = null, after = null; // camp：正在打的闯关关卡；after：结算后主按钮要做的事（下一关、重打、回地图）
 $('again').onclick = () => { $('tohome').hidden = false; (after || (() => start(mine, theirs)))(); }; $('tohome').onclick = () => { $('tohome').hidden = false; leave(); };
 // 自动测试用：地址带 ?timer 时把对局状态露出来，可以直接摆一个局面再演一步
-if (new URLSearchParams(location.search).has('timer')) window.__t = { CARDS, board, state: () => S, view: () => V, lesson: () => lesson && lesson.i, teach, act, start, pick, endTurn, map: campUI.state, go: campUI.go, fight: campUI.battle, cup: cups.state, async setup(fn) { board.clear(); fn(S); await board.preload(S.board.filter(Boolean).map(u => u.card)); for (const [t, u] of S.board.entries()) if (u) { await board.add({ ...u, tile: t }); if (u.gear) board.gear(u.id, u.gear); } sel = -1; busy = false; sync(); } };
+if (new URLSearchParams(location.search).has('timer')) window.__t = { auto: () => autoTurn(), CARDS, board, state: () => S, view: () => V, lesson: () => lesson && lesson.i, teach, act, start, pick, endTurn, map: campUI.state, go: campUI.go, fight: campUI.battle, cup: cups.state, async setup(fn) { board.clear(); fn(S); await board.preload(S.board.filter(Boolean).map(u => u.card)); for (const [t, u] of S.board.entries()) if (u) { await board.add({ ...u, tile: t }); if (u.gear) board.gear(u.id, u.gear); } sel = -1; busy = false; sync(); } };
 // 声音：浏览器要等玩家第一次点按之后才允许出声；按钮统一一个点击声；静音开关记在浏览器里
 let heard = false; const wake = () => { heard = true; unlock(); }; addEventListener('pointerdown', wake, { once: true }); addEventListener('keydown', wake, { once: true });
 document.addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.disabled || b.classList.contains('kcard')) return; sfx('ui_click');
@@ -527,7 +528,6 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ---------- 手机上的杂事 ----------
-const dock = () => (phone.matches ? document.querySelector('main > header') : $('btns')).append($('auto')); phone.addEventListener('change', dock); dock(); // 小屏的石桌只放得下换牌和结束回合：托管挪到顶上那排系统按钮里
 { const bar = document.querySelector('main > header'), fold = on => { bar.classList.toggle('open', on); $('menu').setAttribute('aria-expanded', on); }; $('menu').onclick = () => fold(!bar.classList.contains('open')); addEventListener('pointerdown', e => { if (!bar.contains(e.target)) fold(false); }, true); } /* 小屏：顶上那排系统按钮收在左上角的菜单里，点别处收起 */
 $('side').onclick = () => $('side').classList.toggle('open');                                      // 小屏只留最近一条战报，点一下展开四条（大屏上这块不接收点按）
 document.addEventListener('click', e => { if (touch && $('rules').open && !$('rules').contains(e.target)) $('rules').open = false; }); // 触屏上点别处就收起规则

@@ -180,7 +180,6 @@ body.chess header { position:absolute; z-index:6; top:var(--s3); left:max(var(--
 .lesson #hint:empty { display:none; }
 .lesson #hint small { display:block; color:var(--dim); font:var(--f12); letter-spacing:.1em; }
 .lesson #hint button { display:block; margin:var(--s2) 0 0 auto; }
-.lesson #auto { visibility:hidden; }
 .kcard.here::before { content:''; position:absolute; z-index:4; left:50%; top:-36px; width:24px; height:18px; margin-left:-12px; pointer-events:none;
   background:linear-gradient(var(--go) 0 0) 0 0 / 24px 6px no-repeat, linear-gradient(var(--go) 0 0) 6px 6px / 12px 6px no-repeat, linear-gradient(var(--go) 0 0) 9px 12px / 6px 6px no-repeat;
   filter:drop-shadow(2px 0 var(--ink)) drop-shadow(-2px 0 var(--ink)) drop-shadow(0 2px var(--ink)) drop-shadow(0 -2px var(--ink)); }
@@ -192,7 +191,7 @@ body.chess header { position:absolute; z-index:6; top:var(--s3); left:max(var(--
 #mana .px { --s:6; margin:var(--s2); color:var(--mana-hi); }
 #mana div { margin-top:var(--s2); min-height:20px; } #mana div i { display:inline-block; width:16px; height:20px; margin-right:var(--s1); clip-path:var(--hex); background:linear-gradient(var(--mana-hi) 0 4px, var(--mana) 0); }
 #btns { position:absolute; right:max(var(--s4), var(--sr)); bottom:calc(var(--s2) + var(--sb)); width:180px; display:flex; flex-direction:column; align-items:stretch; gap:var(--s1); }
-#swap { padding:0 var(--s2); overflow:hidden; text-overflow:ellipsis; letter-spacing:0; font:600 var(--f14); line-height:36px; } #auto { align-self:center; }
+#swap { padding:0 var(--s2); overflow:hidden; text-overflow:ellipsis; letter-spacing:0; font:600 var(--f14); line-height:36px; }
 #deckn { position:absolute; left:max(var(--s4), var(--sl)); bottom:calc(120px + var(--sb)); max-width:208px; color:var(--dim); font:var(--f12); }
 #result { position:absolute; inset:0; z-index:5; display:grid; align-items:center; }
 #result .slab { width:100%; padding:var(--s4); display:grid; gap:var(--s3); justify-items:center; text-align:center; }
@@ -327,9 +326,9 @@ button.card.pick { height:auto; margin:0; box-shadow:none; text-align:left; lett
   #stage3d { --hand-zone:80px; --sky:28px; bottom:calc(64px + var(--sb)); scroll-margin:0 max(var(--sr), 8px) 0 max(var(--sl), 8px); }   /* 小牌探出 52，选中抬 8，再留 20 的空：棋盘底边不贴着牌；--sky：顶上 28px 是角上的菜单和对手那一行，场景只保证血量牌以下进画面（塔尖出画，棋盘尽量大）；scroll-margin 只是把左右安全区的宽度递给场景（见 board3d.js 的 resize） */
   #bar { height:calc(64px + var(--sb)); }   /* 石桌再压薄 8px，让给棋盘 */
   button.primary { min-width:0; padding:0 var(--s3); font:800 var(--f16); line-height:48px; letter-spacing:.1em; }
-  /* 对局顶上一排：系统按钮（托管由脚本挪过来）、提示、对手和最近一条战报（点一下展开四条） */
+  /* 对局顶上一排：系统按钮、提示、对手和最近一条战报（点一下展开四条） */
   body.chess header { top:var(--s1); left:max(var(--s2), var(--sl)); height:44px; gap:var(--s3); }
-  /* 顶上那一排收成左上角一个菜单：平时只有三道杠，点开才是放弃、声音、规则、托管。棋盘上方不再压着一排字 */
+  /* 顶上那一排收成左上角一个菜单：平时只有三道杠，点开才是放弃、声音、规则。棋盘上方不再压着一排字 */
   #menu { display:block; width:44px; height:44px; padding:0; background:linear-gradient(var(--paper) 0 0) 50% 14px / 20px 2px no-repeat, linear-gradient(var(--paper) 0 0) 50% 20px / 20px 2px no-repeat, linear-gradient(var(--paper) 0 0) 50% 26px / 20px 2px no-repeat, var(--night-1); }
   body.chess header:not(.open) > :not(#menu) { display:none; } body.chess header.open { padding-right:var(--s3); background:var(--night-1); box-shadow:var(--edge); }
   body:not(.lesson) #hint:not(.ask) { display:none; }   /* 常驻的操作提示不要了（教学里的告示牌照旧）：亮起的格子、回合旗带、牌上的拒绝原因已经在说同一件事。唯一例外：手指点了一格出现预演时，那句“再点一次”要出现（没有悬停，不说就没人知道要再点）；点别处收预演时 tell 会把它清掉 */
