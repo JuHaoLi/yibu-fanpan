@@ -8,6 +8,7 @@ import { fromJSON, valueFn, mixAI } from './net.mjs';
 
 export function makeAI(spec) {
   if (spec === 'strong') return { ...STRONG };
+  if (spec === 'rush') return { ...STRONG, w: { ...EVAL, base: 9, gate: 6, adv: .35, foe: .8 } }; // 找漏洞陪练：只顾冲门（agent 9 局复盘：大师电脑不守自家城门）
   if (/^beam\d+$/.test(spec)) return { deep: true, beam: +spec.slice(4) };
   const m = /^net:([^@]+)(?:@([\d.]+))?(?:#(\d+))?$/.exec(spec); // #n：搜索宽度，默认和最强电脑一样
   if (m) return { beam: m[3] ? +m[3] : STRONG.beam, value: valueFn(fromJSON(readFileSync(m[1], 'utf8')), m[2] ? +m[2] : 10) };

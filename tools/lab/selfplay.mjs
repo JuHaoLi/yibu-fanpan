@@ -5,62 +5,71 @@
 // 抖动：同 census.mjs（每局两副牌里每张棋子战力 −1/0/+1，不低于 1，两边同一张牌一样，局后还原）。
 // pos.bin：每当一方结束回合且局没结束记一条，L+3 个 int16 = encode(s, me) + [结果 1 me 赢/0 输/2 平, s.n, me]；只记前 --pos-games 局。
 // pos_gid.bin：每条一个 uint32 = 这局在 games.bin 里的行号（主线程写文件时分配）；同一局的记录连续、按回合顺序。
+// --v2：再写 ext.bin，每条 pos 记录配 24 个 int16 = encode2(s, me)（整副卡组 + 对面亮过的牌，第 2 代网络用）。
+// --league a,b,c：联赛陪练，每局以 --league-share（默认 .5）的概率让随机一方换成名单里随机一个电脑；两边的局面都记
+// --decks shaped：成型卡组——40% 预设、40% 预设换掉 1–4 张（同阵营或中立）、20% 随机；--deck-file <json>：再混进一批指定卡组（[[12 个 id], …]，占 --deck-share，默认 0.2）
 import { isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { mkdirSync, openSync, writeSync, closeSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
 import { CARDS, DECKS, EVAL, N, newGame, apply, aiTurn, evaluate } from '../../chess.js';
-import { IDS, REC, randomDeck } from './census.mjs';
+import { IDS, REC, randomDeck, POOL } from './census.mjs';
 import { makeAI, lcg, farm } from './play.mjs';
-import { encode, L, CIX } from './net.mjs';
+import { encode, encode2, L, L2, CIX } from './net.mjs';
+import { deckError } from '../../chess.js';
 
 const IX = Object.fromEntries(IDS.map((k, i) => [k, i])), PR = L + 3;
 
 if (!isMainThread && workerData?.selfplay) {
-  const { ai: spec, jitter: jit, posGames, presets: P, base } = workerData, ai = makeAI(spec);
-  const deck = rnd => P > 0 && rnd() < P ? [...DECKS[Math.floor(rnd() * DECKS.length)].cards] : randomDeck(rnd); // P=0 时不多抽随机数，和 census 一致
+  const { ai: spec, jitter: jit, posGames, presets: P, base, v2, shaped, extra, share, league, lshare } = workerData, ai = makeAI(spec), foes = (league || []).map(makeAI);
+  const mutate = (d0, f, k, rnd) => { for (let t = 0; t < 20; t++) { const d = [...d0], pool = [...POOL[f], ...POOL.n].filter(x => !d.includes(x));
+    for (let i = 0; i < k; i++) d[Math.floor(rnd() * 12)] = pool.splice(Math.floor(rnd() * pool.length), 1)[0]; if (!deckError(d, IDS)) return d; } return [...d0]; };
+  const deck = rnd => { if (extra?.length && rnd() < share) return [...extra[Math.floor(rnd() * extra.length)]];
+    if (shaped) { const u = rnd(), p = DECKS[Math.floor(rnd() * DECKS.length)]; return u < .4 ? [...p.cards] : u < .8 ? mutate(p.cards, p.f, 1 + Math.floor(rnd() * 4), rnd) : randomDeck(rnd); }
+    return P > 0 && rnd() < P ? [...DECKS[Math.floor(rnd() * DECKS.length)].cards] : randomDeck(rnd); }; // P=0 时不多抽随机数，和 census 一致
   parentPort.on('message', ({ from, n }) => {
-    const jo = new Int8Array(n * 24), out = new Uint32Array(n * REC), sum = new Float64Array(IDS.length), cnt = new Uint32Array(IDS.length), recs = [], loc = [];
+    const jo = new Int8Array(n * 24), out = new Uint32Array(n * REC), sum = new Float64Array(IDS.length), cnt = new Uint32Array(IDS.length), recs = [], loc = [], exts = [];
     for (let g = 0; g < n; g++) {
       const seed = (base + from + g) * 2654435761 >>> 0, rnd = lcg(seed ^ 0x9e3779b9), d0 = deck(rnd), d1 = deck(rnd), keep = from + g < posGames;
       const dl = {}; if (jit) for (const k of new Set([...d0, ...d1])) { const c = CARDS[k]; if (c.kind === 'spell' || c.str === undefined) continue; let x = Math.floor(rnd() * 3) - 1; if (c.str + x < 1) x = 0; dl[k] = x; c.str += x; }
-      const grnd = lcg(seed), mine = []; let s = newGame([d0, d1], grnd), turns = 0;
+      const grnd = lcg(seed), mine = [], mx = []; let s = newGame([d0, d1], grnd), turns = 0;
+      const fi = foes.length && rnd() < lshare ? Math.floor(rnd() * foes.length) : -1, fs = fi >= 0 && rnd() < .5 ? 1 : 0; // 不开联赛时不多抽随机数
       while (s.winner === null && s.n <= 70) {
         const me = s.turn;
-        for (const x of aiTurn(s, { ...ai, rnd: grnd })) {
+        for (const x of aiTurn(s, { ...(fi >= 0 && me === fs ? foes[fi] : ai), rnd: grnd })) {
           if (x.type === 'play') { const id = s.hand[me][x.i], before = evaluate(s, me, EVAL); s = apply(s, x).state; // 同 census：评分涨幅截到 ±30
             sum[IX[id]] += Math.max(-30, Math.min(30, evaluate(s, me, EVAL) - before)); cnt[IX[id]]++; }
           else s = apply(s, x).state;
         }
         turns++;
-        if (keep && s.winner === null) { const r = new Int16Array(PR); encode(s, me, r); r[L + 1] = s.n; r[L + 2] = me; mine.push(r); }
+        if (keep && s.winner === null) { const r = new Int16Array(PR); encode(s, me, r); r[L + 1] = s.n; r[L + 2] = me; mine.push(r); if (v2) mx.push(encode2(s, me)); }
       }
       const res = s.winner !== null ? s.winner : s.base[0] > s.base[1] ? 0 : s.base[1] > s.base[0] ? 1 : 2, o = g * REC;
-      for (const r of mine) { r[L] = res === 2 ? 2 : res === r[L + 2] ? 1 : 0; recs.push(r); loc.push(g); }
+      for (const r of mine) { r[L] = res === 2 ? 2 : res === r[L + 2] ? 1 : 0; recs.push(r); loc.push(g); } exts.push(...mx);
       for (const k in dl) CARDS[k].str -= dl[k]; [...d0, ...d1].forEach((k, i) => (jo[g * 24 + i] = dl[k] ?? 0));
       d0.forEach((k, i) => (out[o + i] = IX[k])); d1.forEach((k, i) => (out[o + 12 + i] = IX[k])); out[o + 24] = res; out[o + 25] = turns; out[o + 26] = seed;
     }
     const pos = new Int16Array(recs.length * PR); recs.forEach((r, i) => pos.set(r, i * PR));
-    const lg = Uint32Array.from(loc);
-    parentPort.postMessage({ out, sum, cnt, jo, pos, lg }, [out.buffer, jo.buffer, pos.buffer, lg.buffer]);
+    const lg = Uint32Array.from(loc), ext = new Int16Array(exts.length * L2); exts.forEach((r, i) => ext.set(r, i * L2));
+    parentPort.postMessage({ out, sum, cnt, jo, pos, lg, ext }, [out.buffer, jo.buffer, pos.buffer, lg.buffer, ext.buffer]);
   });
 }
 
-export async function run(AI, G, W, dir, { jitter = false, posGames = G, presets = 0.25, seedBase = 1, quiet = false, chunk = 200 } = {}) {
+export async function run(AI, G, W, dir, { jitter = false, posGames = G, presets = 0.25, seedBase = 1, quiet = false, chunk = 200, v2 = false, shaped = false, extra = null, share = .2, league = null, lshare = .5 } = {}) {
   mkdirSync(dir, { recursive: true });
-  const fd = openSync(`${dir}/games.bin`, 'w'), fj = openSync(`${dir}/jitter.bin`, 'w'), fp = openSync(`${dir}/pos.bin`, 'w'), fg = openSync(`${dir}/pos_gid.bin`, 'w');
+  const fd = openSync(`${dir}/games.bin`, 'w'), fj = openSync(`${dir}/jitter.bin`, 'w'), fp = openSync(`${dir}/pos.bin`, 'w'), fg = openSync(`${dir}/pos_gid.bin`, 'w'), fx = v2 ? openSync(`${dir}/ext.bin`, 'w') : null;
   const sum = new Float64Array(IDS.length), cnt = new Float64Array(IDS.length), t0 = Date.now(), log = quiet ? () => {} : console.log;
   const rules = createHash('sha1').update(readFileSync(new URL('../../chess-cards.js', import.meta.url))).update(readFileSync(new URL('../../chess.js', import.meta.url))).update(readFileSync(new URL('../../chess-tune.js', import.meta.url))).digest('hex').slice(0, 12);
   let done = 0, posRecords = 0, shown = 0;
-  const meta = () => writeFileSync(`${dir}/meta.json`, JSON.stringify({ games: done, rules, ai: AI, jitter, ids: IDS, playSum: [...sum], playCnt: [...cnt], seconds: (Date.now() - t0) / 1000, posRecords, posGames: Math.min(posGames, G), presets, seedBase }));
-  await farm(new URL(import.meta.url), G, W, chunk, { selfplay: true, ai: AI, jitter, posGames, presets, base: seedBase }, r => {
+  const meta = () => writeFileSync(`${dir}/meta.json`, JSON.stringify({ games: done, rules, ai: AI, jitter, ids: IDS, playSum: [...sum], playCnt: [...cnt], seconds: (Date.now() - t0) / 1000, posRecords, posGames: Math.min(posGames, G), presets, seedBase, v2, decks: shaped ? 'shaped' : 'presets+random', extraDecks: extra?.length || 0, league, lshare }));
+  await farm(new URL(import.meta.url), G, W, chunk, { selfplay: true, ai: AI, jitter, posGames, presets, base: seedBase, v2, shaped, extra, share, league, lshare }, r => {
     writeSync(fd, new Uint8Array(r.out.buffer)); writeSync(fj, new Uint8Array(r.jo.buffer));
-    if (r.lg.length) { for (let i = 0; i < r.lg.length; i++) r.lg[i] += done; writeSync(fp, new Uint8Array(r.pos.buffer)); writeSync(fg, new Uint8Array(r.lg.buffer)); posRecords += r.lg.length; }
+    if (r.lg.length) { for (let i = 0; i < r.lg.length; i++) r.lg[i] += done; writeSync(fp, new Uint8Array(r.pos.buffer)); writeSync(fg, new Uint8Array(r.lg.buffer)); if (fx) writeSync(fx, new Uint8Array(r.ext.buffer)); posRecords += r.lg.length; }
     for (let k = 0; k < IDS.length; k++) { sum[k] += r.sum[k]; cnt[k] += r.cnt[k]; } done += r.out.length / REC;
     if (done - shown >= 20000) { shown = done; meta(); log(`${done}/${G} 局，${posRecords} 条局面，${((Date.now() - t0) / 1000).toFixed(0)} 秒`); }
   });
-  [fd, fj, fp, fg].forEach(closeSync); meta();
+  [fd, fj, fp, fg, fx].filter(x => x !== null).forEach(closeSync); meta();
   const sec = (Date.now() - t0) / 1000;
   log(`完成 ${done} 局，${posRecords} 条局面，${sec.toFixed(1)} 秒（${(done / sec).toFixed(1)} 局/秒），规则版本 ${rules} → ${dir}`);
   return { games: done, posRecords, seconds: sec, rules };
@@ -108,8 +117,9 @@ if (isMainThread && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const args = process.argv.slice(2), opt = (k, d) => { const i = args.indexOf(k); if (i < 0) return d; const v = args[i + 1]; args.splice(i, 2); return v; };
   if (args.includes('--selftest')) await selftest();
   else {
-    const jitter = opt('--jitter', '0') === '1', pg = opt('--pos-games', null), presets = +opt('--presets', '0.25'), seedBase = +opt('--seed-base', '1');
+    const jitter = opt('--jitter', '0') === '1', pg = opt('--pos-games', null), presets = +opt('--presets', '0.25'), seedBase = +opt('--seed-base', '1'), df = opt('--deck-file', null);
+    const v2 = opt('--v2', '0') === '1', shaped = opt('--decks', '') === 'shaped', share = +opt('--deck-share', '0.2'), extra = df ? JSON.parse(readFileSync(df, 'utf8')) : null, lg = opt('--league', null), league = lg ? lg.split(',') : null, lshare = +opt('--league-share', '0.5');
     const [AI, G, W, dir] = args; if (!dir) { console.error('用法：node tools/lab/selfplay.mjs <电脑> <局数> <线程数> <输出目录> [--jitter 1] [--pos-games N] [--presets 0.25] [--seed-base 1]'); process.exit(2); }
-    await run(AI, +G, +W, dir, { jitter, posGames: pg === null ? +G : +pg, presets, seedBase });
+    await run(AI, +G, +W, dir, { jitter, posGames: pg === null ? +G : +pg, presets, seedBase, v2, shaped, extra, share, league, lshare });
   }
 }

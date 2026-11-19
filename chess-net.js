@@ -7,8 +7,8 @@ export const CIDS = Object.keys(CARDS), CIX = Object.fromEntries(CIDS.map((k, i)
 const NC = CIDS.length + 1;
 const STATIC = c => [c.cost / 9, (c.str ?? 0) / 10, (c.move ?? 0) / 3, c.kind === 'unit', c.kind === 'structure', c.kind === 'spell', !!c.onPlay, !!c.onDeath, !!c.onAttack, !!c.onTurn,
   !!(c.onAfter || c.onHurt || c.onNearDeath), !!(c.onSpell || c.onAllyDeath), !!c.taunt, !!c.shield, (c.thorns ?? 0) / 3, !!c.guard, !!c.siege, !!c.swift, !!c.anywhere, !!c.gear, !!c.hatch, !!c.boss, !!c.prize].map(Number);
-const CS = STATIC(CARDS[CIDS[0]]).length, D = 8;
-const SF = new Float32Array(NC * CS); CIDS.forEach((k, i) => SF.set(STATIC(CARDS[k]), (i + 1) * CS));
+export const CS = STATIC(CARDS[CIDS[0]]).length, D = 8;
+export const SF = new Float32Array(NC * CS); CIDS.forEach((k, i) => SF.set(STATIC(CARDS[k]), (i + 1) * CS));
 
 // ---------- 编码：局面 → 一串短整数（训练数据就存这个） ----------
 export const L = N * 6 + 4 + 15;
@@ -49,14 +49,32 @@ export function initNet(rnd = Math.random, H1 = 64, H2 = 32) { // 隐藏层大�
 }
 export const KEYS = ['E', 'W1', 'b1', 'W2', 'b2', 'w3', 'b3'];
 export const toJSON = net => JSON.stringify({ cards: CIDS, din: DIN, ...Object.fromEntries(KEYS.map(k => [k, Array.from(net[k], v => Math.round(v * 1e5) / 1e5)])) });
-export function fromJSON(txt) { const o = typeof txt === 'string' ? JSON.parse(txt) : txt;
-  if (o.din !== DIN || o.cards.join() !== CIDS.join()) throw new Error('网络是按另一套牌训练的，要重训'); return Object.fromEntries(KEYS.map(k => [k, Float32Array.from(o[k])])); }
+export function fromJSON(txt) { const o = typeof txt === 'string' ? JSON.parse(txt) : txt, v2 = o.v === 2;
+  if (o.din !== DIN + (v2 ? EX : 0) || o.cards.join() !== CIDS.join()) throw new Error('网络是按另一套牌训练的，要重训'); return { ...Object.fromEntries(KEYS.map(k => [k, Float32Array.from(o[k])])), v2 }; }
+
+// ---------- 第 2 代：再看卡组（v: 2 的网络；在 tools/lab/v2 用显卡训练，这里只有前向） ----------
+// 额外输入都是玩家自己知道的：自己整副 12 张（= 牌库 + 手牌 + 刚用掉的）、牌库剩余（整副去掉手牌）、对面亮过的牌（s.seen）。
+// 三块各取平均牌特征（23 维牌面 + 8 维嵌入），亮过的牌再加一项张数 / 12；接在 DIN 后面，W1 的行数 = DIN + EX。和 tools/lab/v2/deck_probe.py 的 Net 一一对应
+export const L2 = 24, KF = CS + D, EX = 3 * KF + 1;
+export function encode2(s, me, out = new Int16Array(L2)) {
+  const mine = [...s.deck[me], ...s.hand[me], ...s.used[me]].map(k => CIX[k]).sort((a, b) => a - b), sn = s.seen?.[1 - me] || [];
+  for (let i = 0; i < 12; i++) { out[i] = mine[i] ?? 0; out[12 + i] = sn[i] ? CIX[sn[i]] : 0; } return out;
+}
+function extra(net, e, e2, ex) {
+  ex.fill(0); const add = (o, ci, w) => { for (let k = 0; k < CS; k++) ex[o + k] += SF[ci * CS + k] * w; for (let k = 0; k < D; k++) ex[o + CS + k] += net.E[ci * D + k] * w; };
+  const gone = [false, false, false, false, false, false, false, false, false, false, false, false]; let nd = 0, nr = 0, ns = 0;
+  for (let h = 0; h < 4; h++) { const c = e[N * 6 + h]; if (c) for (let j = 0; j < 12; j++) if (!gone[j] && e2[j] === c) { gone[j] = true; break; } } // 同 deck_probe.py 的 remaining：每张手牌去掉整副里第一张同名的
+  for (let j = 0; j < 12; j++) if (e2[j]) { nd++; if (!gone[j]) nr++; } for (let j = 12; j < 24; j++) if (e2[j]) ns++;
+  for (let j = 0; j < 12; j++) if (e2[j]) { add(0, e2[j], 1 / nd); if (!gone[j]) add(KF, e2[j], 1 / nr); }
+  for (let j = 12; j < 24; j++) if (e2[j]) add(2 * KF, e2[j], 1 / ns); ex[3 * KF] = ns / 12;
+}
 
 // 前向。scratch：一份工作内存（每个线程一份），返回 logit
-export function scratch(net) { return { x: new Float32Array(DIN), nz: new Int32Array(DIN), emb: new Int32Array(64), h1: new Float32Array(net.b1.length), h2: new Float32Array(net.b2.length), n: 0, m: 0 }; }
-export function forward(net, e, w) {
+export function scratch(net) { return { ex: new Float32Array(EX), x: new Float32Array(DIN), nz: new Int32Array(DIN), emb: new Int32Array(64), h1: new Float32Array(net.b1.length), h2: new Float32Array(net.b2.length), n: 0, m: 0 }; }
+export function forward(net, e, w, e2 = null) { // e2：第 2 代网络要的 encode2
   const { x, nz, h1, h2 } = w, H1 = h1.length, H2 = h2.length; const [n, m] = featurize(e, net.E, x, nz, w.emb); w.n = n; w.m = m;
   h1.set(net.b1); for (let a = 0; a < n; a++) { const i = nz[a], v = x[i], r = i * H1; for (let j = 0; j < H1; j++) h1[j] += v * net.W1[r + j]; }
+  if (net.v2) { extra(net, e, e2, w.ex); for (let p = 0; p < EX; p++) { const v = w.ex[p]; if (!v) continue; const r = (DIN + p) * H1; for (let j = 0; j < H1; j++) h1[j] += v * net.W1[r + j]; } }
   for (let j = 0; j < H1; j++) if (h1[j] < 0) h1[j] = 0;
   let z = net.b3[0]; for (let k = 0; k < H2; k++) { let s = net.b2[k]; const r = k * H1; for (let j = 0; j < H1; j++) s += net.W2[r + j] * h1[j]; h2[k] = s > 0 ? s : 0; z += net.w3[k] * h2[k]; }
   return z;
@@ -75,8 +93,8 @@ export function backward(net, w, G, d3) {
 
 // 给 aiTurn 用的评分函数：局面（我刚结束回合）→ 分数（logit × scale）
 export function valueFn(net, scale = 10) {
-  const w = scratch(net), e = new Int16Array(L);
-  return (s, me) => { if (s.winner !== null) return s.winner === me ? 1e6 : -1e6; encode(s, me, e); const z = forward(net, e, w); clear(w); return z * scale; };
+  const w = scratch(net), e = new Int16Array(L), e2 = new Int16Array(L2);
+  return (s, me) => { if (s.winner !== null) return s.winner === me ? 1e6 : -1e6; encode(s, me, e); if (net.v2) encode2(s, me, e2); const z = forward(net, e, w, e2); clear(w); return z * scale; };
 }
 
 // 游戏里用的"大师"电脑：整回合组合搜索，评分 = 手写评分 + scale × 网络 logit（scale 20 是实测最好的）

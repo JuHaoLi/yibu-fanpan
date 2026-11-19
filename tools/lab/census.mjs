@@ -17,7 +17,7 @@ export const REC = 27;
 const ALL = IDS; // 全部牌都当成已获得
 const lcg = seed => () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
 const FS = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7'];
-const POOL = Object.fromEntries([...FS, 'n'].map(f => [f, IDS.filter(k => CARDS[k].faction === f)]));
+export const POOL = Object.fromEntries([...FS, 'n'].map(f => [f, IDS.filter(k => CARDS[k].faction === f)]));
 
 export function randomDeck(rnd, fixF = null) { // 阵营均匀抽（fixF 指定阵营）；中立张数 0–12 均匀抽（12 张就是纯中立）
   const f = fixF ?? FS[Math.floor(rnd() * FS.length)], k = Math.floor(rnd() * (DECK + 1));

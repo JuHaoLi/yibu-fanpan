@@ -8,9 +8,10 @@ export const WIN = 3, LOSE = 3, SWISS = 5, KO_NAMES = ['八强赛', '半决赛',
 export const bestOf = round => round <= 2 ? 1 : 3; // 瑞士轮第几轮打几局；淘汰赛都是 3
 const pre = name => { const d = DECKS.find(x => x.name === name); return { name, f: d.f, cards: [...d.cards] }; };
 // 电脑的强度（aiTurn 的选项，见 chess.js）。实测：满强度（整回合组合搜索每层留 12 个）对只预演一步的老满强度赢 74%；AI 角色每层留 4 个，对满强度约 46%；路人不预演、随机看走眼
-// 游戏里网络权重载入后，max 会被换成大师电脑（chess-ui.js 的 loadMaster：价值网络 net-g4，搜索宽度降到 4）；node 里的自检照旧用满强度
+// 游戏里网络权重载入后，max 会被换成大师电脑（chess-ui.js 的 loadMaster：价值网络 net-g5（第 2 代：会看卡组），搜索宽度降到 3）；node 里的自检照旧用满强度
 // 2026-11-19 实测（每组 100–200 届，玩家席由普通电脑代打；种子对非种子的单局胜率 Q1/克劳德/GPT嗖，三人合计夺冠率）：满强度 + Q1 12 血 73/66/74%、79%；
-//   大师全宽度 + Q1 12 血 83/77/83%、95%；大师全宽度 + Q1 10 血 78/80/81%、95%；大师宽度 4 + Q1 10 血 70/68/75%、74%（现在用的）
+//   大师全宽度 + Q1 12 血 83/77/83%、95%；大师全宽度 + Q1 10 血 78/80/81%、95%；大师 g4 宽度 4 + Q1 10 血 70/68/75%、74%；
+//   换 net-g5 后：宽度 4 → 73/75/79%、85%，宽度 3 → 70/73/77%、78%（现在用的）
 export const TIERS = { max: STRONG, ai: { deep: true, beam: 4 } };
 export const ROSTER = [
   { key: 'q1', name: 'Q1', tag: '卫冕冠军', tier: 'max', decks: [{ name: '零号协议', f: 'f7', cards: [...PROTOCOL] },

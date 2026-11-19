@@ -111,7 +111,7 @@ const DIFFS = { easy: ['入门', { skill: .6 }], normal: ['普通', {}], hard: [
 let diff = (() => { try { if (llmCfg().on) { llmSave({ ...llmCfg(), on: false }); localStorage.setItem(DKEY, 'ai'); } /* 旧版是单独的“AI 对手”开关：开着的玩家换成这一档 */ return DIFFS[localStorage.getItem(DKEY)] ? localStorage.getItem(DKEY) : 'hard'; } catch { return 'hard'; } })(), MASTER = null, masterP = null;
 $('diffsel').append(...Object.entries(DIFFS).map(([k, [n]]) => { const o = el('option', '', n); o.value = k; o.selected = k === diff; return o; }));
 $('diffsel').onchange = e => { diff = e.target.value; try { localStorage.setItem(DKEY, diff); } catch { /* 存不了就只记这一次 */ } aiLabel(); if (diff === 'ai' && !llmOn()) aiOpen(); }; // 第一次选 AI 就弹出接口设置
-const loadMaster = () => masterP ??= fetch('assets/ai/net-g4.json').then(r => r.json()).then(o => { MASTER = mixAI(fromJSON(o)); TIERS.max = { ...MASTER, beam: 4 }; }).catch(e => { console.warn('大师电脑没载入，用困难代替', e); masterP = null; });
+const loadMaster = () => masterP ??= fetch('assets/ai/net-g5.json').then(r => r.json()).then(o => { MASTER = mixAI(fromJSON(o)); TIERS.max = { ...MASTER, beam: 3 }; }).catch(e => { console.warn('大师电脑没载入，用困难代替', e); masterP = null; });
 loadMaster();
 const freeAI = () => diff === 'master' ? MASTER || STRONG : DIFFS[diff][1] || STRONG;
 $('play').onclick = () => { if (!taught()) return teach(); if (diff === 'ai' && !llmOn()) return aiOpen('先填好接口地址和模型名，才能和 AI 对战。', true); const d = allDecks()[chosen], v = $('foesel').value, pool = DECKS.filter(x => v === 'any' || x.f === v), foe = pool[Math.floor(Math.random() * pool.length)]; start(d, { name: `${FACTIONS[foe.f].name}·${foe.name}`, cards: foe.cards }); };

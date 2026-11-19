@@ -21,12 +21,12 @@ const trait = (u, k) => off(u) ? undefined : CARDS[u.card][k] || (u.gear ? CARDS
 function fire(k, s, ev, u, ...a) { if (off(u)) return; const f = CARDS[u.card][k], g = u.gear && CARDS[u.gear][k]; if (f) f(s, ev, u, ...a); if (g && (k === 'onDeath' || s.board.includes(u))) g(s, ev, u, ...a); }
 
 // ---------- 局面 ----------
-const clone = s => ({ ...s, mana: [...s.mana], base: [...s.base], rage: [...s.rage], core: [...s.core], creep: [...s.creep], shade: [...s.shade], used: s.used.map(u => [...u]), board: s.board.map(u => u && { ...u }), hand: s.hand.map(h => [...h]), deck: s.deck.map(d => [...d]) });
+const clone = s => ({ ...s, mana: [...s.mana], base: [...s.base], rage: [...s.rage], core: [...s.core], creep: [...s.creep], shade: [...s.shade], used: s.used.map(u => [...u]), seen: s.seen ? s.seen.map(u => [...u]) : [[], []], board: s.board.map(u => u && { ...u }), hand: s.hand.map(h => [...h]), deck: s.deck.map(d => [...d]) });
 // opts 给闯关用：base 双方城堡血量；setup 开局摆在场上的 [{ side, card, tile, str }]；hand 保证出现在起手里的牌 [[我方], [对方]]；boss 哪一方有首领（它的城堡掉到一半以下时首领发怒）
 export function newGame(decks, rnd, opts = {}) { // decks：两副牌，各 12 个卡牌 id
   const sh = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const hp = opts.base || [BASE_HP, BASE_HP];
-  const s = { turn: 0, n: 1, mana: [3, 4], left: 3, base: [...hp], cap: [...hp], rage: [false, false], core: [0, 0], boss: opts.boss ?? -1, board: Array(N).fill(null), creep: Array(N).fill(-1), shade: Array(N).fill(0), used: [[], []], seed: opts.ordered ? -1 : Math.floor(rnd() * 4294967296) >>> 0, // seed：抽牌用的随机数种子（局面自己带着，同一个局面走同一步结果一样）；opts.ordered（教学用）时不随机，按牌序从上往下发
+  const s = { turn: 0, n: 1, mana: [3, 4], left: 3, base: [...hp], cap: [...hp], rage: [false, false], core: [0, 0], boss: opts.boss ?? -1, board: Array(N).fill(null), creep: Array(N).fill(-1), shade: Array(N).fill(0), used: [[], []], seen: [[], []], seed: opts.ordered ? -1 : Math.floor(rnd() * 4294967296) >>> 0, // seed：抽牌用的随机数种子（局面自己带着，同一个局面走同一步结果一样）；opts.ordered（教学用）时不随机，按牌序从上往下发
     hand: [[], []], deck: decks.map(d => sh([...d])), swapped: false, plays: 0, winner: null, uid: 1 }; // plays：这回合已经打出过几张牌（连击用）
   for (const x of opts.setup || []) { const c = CARDS[x.card]; s.board[x.tile] = { id: s.uid++, side: x.side, card: x.card, str: x.str ?? c.str, frozen: false, shield: !!c.shield }; if (c.hatch) s.board[x.tile].timer = c.hatch.turns; }
   for (const p of [0, 1]) for (const k of (opts.hand || [])[p] || []) { const i = s.deck[p].indexOf(k); if (i >= 0) s.deck[p].unshift(s.deck[p].splice(i, 1)[0]); }
@@ -211,7 +211,7 @@ export function apply(state, a) { // 返回新局面和这一步依次发生的�
   if (a.type === 'play') {
     const id = s.hand[side][a.i], c = CARDS[id];
     if (!targets(s, a.i).includes(a.t)) throw new Error('这张牌不能这样打');
-    s.left -= costOf(s, side, c); s.hand[side].splice(a.i, 1); s.used[side].push(id); // 打出的牌先放在一边，回合结束才洗回牌库
+    s.left -= costOf(s, side, c); s.hand[side].splice(a.i, 1); s.used[side].push(id); if (!s.seen[side].includes(id)) s.seen[side].push(id); // 打出的牌先放在一边，回合结束才洗回牌库；seen：双方亮过的牌（公开信息，大师电脑的网络要看对面出过什么）
     ev.push({ t: 'play', side, card: id, tile: a.t });
     if (c.kind === 'spell') { c.cast(s, ev, side, a.t); // 法术放完，场上在意“你施放了法术”的单位依次响应
       for (const k of s.board.filter(u => u && u.side === side).map(u => u.id)) { const x = s.board.findIndex(u => u && u.id === k); if (x >= 0 && s.winner === null) fire('onSpell', s, ev, s.board[x], x); }
