@@ -62,7 +62,10 @@ export function plan({ singles, presets, state, round, cfg, tune }) {
     if (after < 0 && -after > .8 * Math.abs(r.pp)) { needs.push({ id: r.id, pp: r.pp, z: r.z, reason: `卡在两个战力之间（每点约 ${s.toFixed(1)}），要改费用或能力` }); continue; } // 改 1 点只会跑到中线另一边差不多远（或更远）：整数战力调不准，不改
     tryChange(r.id, Math.sign(-r.pp) * k, '单卡', r); }
   const lo = cfg.presetLo, hi = cfg.presetHi, outP = (presets?.rates || []).filter(p => p.rate < lo || p.rate > hi);
-  for (const p of presets?.plan || []) if (outP.some(o => p.deck === o.name || p.deck.endsWith('·' + o.name))) tryChange(p.k, p.d, '预设 ' + p.deck, rows.find(r => r.id === p.k));
+  for (const p of presets?.plan || []) if (outP.some(o => p.deck === o.name || p.deck.endsWith('·' + o.name))) { const r = rows.find(x => x.id === p.k);
+    // 为预设补牌之前先看这张牌自己：改完单卡分会跑出范围就不改（实测：聚能水晶 +3.4 被预设加 1 点后到 +11，啸风鸟 +3.0 到 +12，下一轮又被单卡规则改回去）
+    if (r && Number.isFinite(r.slope_pp) && Math.abs(r.pp + p.d * r.slope_pp) > band) { skipped.push({ id: p.k, reason: `为预设 ${p.deck} 补牌会让它自己超范围（${r.pp.toFixed(1)} → ${(r.pp + p.d * r.slope_pp).toFixed(1)}）` }); continue; }
+    tryChange(p.k, p.d, '预设 ' + p.deck, r); }
   const pps = rows.filter(r => tunable(r.id) && !lock.has(r.id)).map(r => r.pp), mean /* 只算能自动调的棋子：首领、法术不归这个循环管，算进去标准差永远降不下来 */ = pps.reduce((a, b) => a + b, 0) / (pps.length || 1);
   const ppStd = Math.sqrt(pps.reduce((a, b) => a + (b - mean) ** 2, 0) / (pps.length || 1));
   return { round, band, outside, ppStd, presetsOutside: outP.length, presetsOut: outP, changes, skipped, needs, tune: T, state: st };
@@ -148,6 +151,9 @@ function selftest() {
   assert.equal(readFileSync(join(ROOT, 'chess-tune.js'), 'utf8'), realTune, '仓库里的 chess-tune.js 没动');
   assert.deepEqual(readCSV('a,b\n"x,""y""",2\n'), [{ a: 'x,"y"', b: '2' }]);
   console.log(`改 ${r.changes.length} 张：${r.changes.map(c => `${c.id}${c.delta > 0 ? '+' : ''}${c.delta}`).join(' ')}；跳过 ${r.skipped.map(x => x.id)}；要改设计 ${r.needs.length} 张；临时目录 ${tmp}`);
+  { const P = d => ({ rates: [{ name: 'X', rate: 30 }], plan: [{ k: H, d, deck: '某阵营·X' }] }), one = d => plan({ singles: [row(H, 2, 1, 6)], presets: P(d), state: {}, round: 1, cfg, tune: { ...T0 } });
+    assert.equal(one(1).changes.length, 0, '预设补牌会让这张牌自己超范围（2 → 8）就不改'); assert.ok(/超范围/.test(one(1).skipped[0].reason));
+    assert.equal(one(-1).changes[0]?.id, H, '改完还在范围里（2 → −4）照改'); }
   console.log('自检通过');
 }
 
